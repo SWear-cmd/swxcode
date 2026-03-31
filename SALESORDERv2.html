@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Sales Order</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:         #0f0f0f;
+    --surface:    #1a1a1a;
+    --surface2:   #242424;
+    --border:     #2e2e2e;
+    --accent:     #f5c518;
+    --accent-dim: rgba(245,197,24,0.12);
+    --text:       #f0f0f0;
+    --muted:      #888;
+    --red:        #e84040;
+    --green:      #2ecc71;
+    --blue:       #6495ed;
+    --radius:     10px;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  body { background:var(--bg); color:var(--text); font-family:'Barlow',sans-serif; min-height:100vh; padding-bottom:56px; }
+
+  /* ── LOGIN SCREEN ─────────────────────────────────────── */
+  #loginScreen {
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    min-height:100vh; padding:24px;
+  }
+  .login-box {
+    background:var(--surface); border:1px solid var(--border); border-radius:14px;
+    width:100%; max-width:360px; overflow:hidden;
+  }
+  .login-logo {
+    background:var(--surface2); border-bottom:2px solid var(--accent);
+    padding:28px 24px 22px; text-align:center;
+  }
+  .login-logo h1 {
+    font-family:'Barlow Condensed',sans-serif; font-weight:800; font-size:2rem;
+    letter-spacing:0.08em; color:var(--accent); text-transform:uppercase;
+  }
+  .login-logo p {
+    font-size:0.72rem; letter-spacing:0.12em; text-transform:uppercase;
+    color:var(--muted); margin-top:4px;
+  }
+  .login-body { padding:22px 20px 24px; }
+  .login-field { margin-bottom:14px; }
+  .login-field label {
+    display:block; font-size:0.68rem; font-weight:700; letter-spacing:0.12em;
+    text-transform:uppercase; color:var(--muted); margin-bottom:5px;
+  }
+  .login-field .input-wrap { position:relative; }
+  .login-field input {
+    width:100%; background:var(--surface2); border:1px solid var(--border);
+    border-radius:8px; color:var(--text); font-family:'Barlow',sans-serif;
+    font-size:1rem; padding:11px 40px 11px 13px; outline:none;
+    transition:border-color 0.15s; -webkit-appearance:none; appearance:none;
+  }
+  .login-field input:focus { border-color:var(--accent); }
+  .login-field input::placeholder { color:var(--muted); }
+  .toggle-pw {
+    position:absolute; right:11px; top:50%; transform:translateY(-50%);
+    background:none; border:none; color:var(--muted); cursor:pointer;
+    padding:4px; font-size:1rem; line-height:1;
+  }
+  #loginErr {
+    display:none; background:rgba(232,64,64,0.1); border:1px solid rgba(232,64,64,0.3);
+    border-radius:7px; color:var(--red); font-size:0.82rem; padding:9px 12px;
+    margin-bottom:14px; text-align:center;
+  }
+  #loginErr.show { display:block; }
+  .btn-login {
+    display:block; width:100%; padding:13px; background:var(--accent); border:none;
+    border-radius:9px; color:#0f0f0f; font-family:'Barlow Condensed',sans-serif;
+    font-size:1.05rem; font-weight:800; letter-spacing:0.12em; text-transform:uppercase;
+    cursor:pointer; transition:opacity 0.15s;
+  }
+  .btn-login:active { opacity:0.82; }
+  .btn-login:disabled { opacity:0.45; cursor:not-allowed; }
+
+  /* ── MAIN APP ─────────────────────────────────────────── */
+  #app { display:none; }
+  #app.show { display:block; }
+
+  header {
+    background:var(--surface); border-bottom:2px solid var(--accent);
+    padding:11px 14px 10px; display:flex; align-items:center;
+    justify-content:space-between; position:sticky; top:0; z-index:100;
+  }
+  .header-left { display:flex; align-items:baseline; gap:10px; }
+  header h1 {
+    font-family:'Barlow Condensed',sans-serif; font-weight:800; font-size:1.5rem;
+    letter-spacing:0.05em; color:var(--accent); text-transform:uppercase;
+  }
+  header .sub { font-size:0.75rem; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; }
+  .header-right { display:flex; align-items:center; gap:8px; }
+  .user-chip {
+    display:flex; align-items:center; gap:5px; background:var(--accent-dim);
+    border:1px solid rgba(245,197,24,0.25); border-radius:20px;
+    padding:3px 10px 3px 7px;
+  }
+  .user-chip svg { flex-shrink:0; }
+  .user-chip span {
+    font-family:'Barlow Condensed',sans-serif; font-size:0.82rem; font-weight:700;
+    letter-spacing:0.06em; text-transform:uppercase; color:var(--accent);
+    max-width:90px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .btn-logout {
+    background:none; border:1px solid #3a2020; border-radius:7px; color:var(--red);
+    padding:4px 9px; font-family:'Barlow Condensed',sans-serif; font-size:0.75rem;
+    font-weight:700; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer;
+  }
+  .btn-logout:active { background:rgba(232,64,64,0.12); }
+
+  /* ── BOTTOM TAB BAR ───────────────────────────────────── */
+  #tabBar {
+    position:fixed; bottom:0; left:0; right:0; z-index:200;
+    background:var(--surface); border-top:1px solid var(--border);
+    display:flex; height:56px;
+  }
+  .tab-btn {
+    flex:1; background:none; border:none; color:var(--muted);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:3px; cursor:pointer; font-family:'Barlow Condensed',sans-serif;
+    font-size:0.65rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase;
+    transition:color 0.15s; padding:0;
+  }
+  .tab-btn svg { transition:color 0.15s; }
+  .tab-btn.active { color:var(--accent); }
+  .tab-btn.active svg { color:var(--accent); }
+  .tab-btn:active { background:var(--surface2); }
+
+  /* ── TAB PANELS ───────────────────────────────────────── */
+  .tab-panel { display:none; }
+  .tab-panel.active { display:block; }
+
+  /* ── STATUS BAR ───────────────────────────────────────── */
+  #statusBar {
+    background:var(--surface2); border-bottom:1px solid var(--border);
+    padding:7px 16px; font-size:0.72rem; color:var(--muted);
+    letter-spacing:0.05em; display:flex; align-items:center; gap:8px;
+  }
+  #statusDot { width:7px; height:7px; border-radius:50%; background:var(--muted); flex-shrink:0; transition:background 0.3s; }
+  #statusDot.ok  { background:var(--green); }
+  #statusDot.err { background:var(--red); }
+
+  /* ── CARDS & FORM ─────────────────────────────────────── */
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); margin:14px 14px 0; position:relative; z-index:50; }
+  .card-header { background:var(--surface2); padding:8px 14px; font-family:'Barlow Condensed',sans-serif; font-size:0.68rem; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:var(--muted); border-bottom:1px solid var(--border); }
+  .card-body { padding:12px 14px; }
+
+  label { display:block; font-size:0.68rem; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:4px; }
+  input, select { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:7px; color:var(--text); font-family:'Barlow',sans-serif; font-size:0.92rem; padding:9px 11px; outline:none; transition:border-color 0.15s; -webkit-appearance:none; appearance:none; }
+  input:focus, select:focus { border-color:var(--accent); }
+  input::placeholder { color:var(--muted); }
+  input[readonly] { color:var(--green); cursor:default; }
+  select { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 11px center; padding-right:32px; }
+
+  .search-wrap { position:relative; }
+  .ac-list { position:absolute; top:calc(100% + 3px); left:0; right:0; background:var(--surface2); border:1px solid var(--accent); border-radius:8px; max-height:190px; overflow-y:auto; z-index:9000; display:none; }
+  .ac-list.open { display:block; }
+  .ac-item { padding:10px 12px; font-size:0.88rem; cursor:pointer; border-bottom:1px solid var(--border); }
+  .ac-item:last-child { border-bottom:none; }
+  .ac-item:active { background:var(--accent-dim); color:var(--accent); }
+  .ac-empty { padding:10px 12px; font-size:0.82rem; color:var(--muted); }
+
+  .items-wrap { padding:0 14px; margin-top:12px; }
+  .item-row { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:8px 10px 10px; margin-bottom:8px; animation:slideIn 0.16s ease; }
+  @keyframes slideIn { from{opacity:0;transform:translateY(-5px)} to{opacity:1;transform:translateY(0)} }
+
+  .row-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:7px; }
+  .row-num { font-family:'Barlow Condensed',sans-serif; font-size:0.68rem; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:var(--accent); background:var(--accent-dim); padding:2px 8px; border-radius:20px; }
+  .btn-remove { background:none; border:1px solid #3a1f1f; color:var(--red); border-radius:6px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:1rem; line-height:1; }
+  .btn-remove:active { background:rgba(232,64,64,0.15); }
+
+  .row-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+  .row-grid .full { grid-column:1/-1; }
+  .field-group { margin-bottom:0; }
+  .sub-info { display:flex; align-items:center; gap:6px; margin-top:4px; }
+  .badge { font-size:0.68rem; font-weight:600; padding:2px 8px; border-radius:20px; letter-spacing:0.04em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+  .badge-cat { background:rgba(100,149,237,0.15); color:#6495ed; }
+  .badge-sub { background:rgba(46,204,113,0.12); color:var(--green); }
+
+  .btn-add { display:flex; align-items:center; justify-content:center; gap:8px; width:calc(100% - 28px); margin:0 14px 10px; padding:11px; background:var(--accent-dim); border:1.5px dashed rgba(245,197,24,0.35); border-radius:var(--radius); color:var(--accent); font-family:'Barlow Condensed',sans-serif; font-size:0.95rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; cursor:pointer; }
+  .btn-add:active { background:rgba(245,197,24,0.2); }
+
+  .total-card { background:var(--surface); border:1px solid var(--border); border-top:2px solid var(--accent); border-radius:var(--radius); margin:0 14px; padding:12px 14px; display:flex; justify-content:space-between; align-items:center; }
+  .total-left .total-label { font-family:'Barlow Condensed',sans-serif; font-size:0.68rem; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:var(--muted); margin-bottom:3px; }
+  .total-left .total-count { font-size:0.75rem; color:var(--muted); }
+  .total-amount { font-family:'Barlow Condensed',sans-serif; font-size:1.7rem; font-weight:800; color:var(--accent); }
+
+  .btn-submit { display:block; width:calc(100% - 28px); margin:12px 14px 14px; padding:15px; background:var(--accent); border:none; border-radius:var(--radius); color:#0f0f0f; font-family:'Barlow Condensed',sans-serif; font-size:1.05rem; font-weight:800; letter-spacing:0.12em; text-transform:uppercase; cursor:pointer; transition:opacity 0.15s; }
+  .btn-submit:active { opacity:0.82; }
+  .btn-submit:disabled { opacity:0.35; cursor:not-allowed; }
+
+  /* ── ACHIEVEMENT TAB ──────────────────────────────────── */
+  .achieve-wrap { padding:14px; }
+  .achieve-title {
+    font-family:'Barlow Condensed',sans-serif; font-size:0.7rem; font-weight:700;
+    letter-spacing:0.14em; text-transform:uppercase; color:var(--muted);
+    margin-bottom:10px; padding-bottom:6px; border-bottom:1px solid var(--border);
+  }
+  .achieve-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:var(--radius); border:1px solid var(--border); }
+  .achieve-table { width:100%; border-collapse:collapse; font-size:0.82rem; }
+  .achieve-table thead tr { background:var(--surface2); }
+  .achieve-table th {
+    padding:9px 10px; text-align:left; font-family:'Barlow Condensed',sans-serif;
+    font-size:0.65rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase;
+    color:var(--muted); border-bottom:1px solid var(--border); white-space:nowrap;
+  }
+  .achieve-table td {
+    padding:9px 10px; border-bottom:1px solid var(--border);
+    color:var(--text); white-space:nowrap;
+  }
+  .achieve-table tr:last-child td { border-bottom:none; }
+  .achieve-table tbody tr:hover { background:var(--surface2); }
+  .achieve-table td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .achieve-table td.pct {
+    text-align:right; font-family:'Barlow Condensed',sans-serif;
+    font-weight:700; font-size:0.9rem;
+  }
+  .pct-high { color:var(--green); }
+  .pct-mid  { color:var(--accent); }
+  .pct-low  { color:var(--red); }
+
+  /* progress bar in achievement */
+  .prog-bar-bg { background:var(--border); border-radius:20px; height:5px; width:80px; overflow:hidden; display:inline-block; vertical-align:middle; margin-right:6px; }
+  .prog-bar-fill { height:100%; border-radius:20px; background:var(--accent); }
+
+  /* ── JT TAB ───────────────────────────────────────────── */
+  .jt-wrap { padding:14px; }
+  .jt-title {
+    font-family:'Barlow Condensed',sans-serif; font-size:0.7rem; font-weight:700;
+    letter-spacing:0.14em; text-transform:uppercase; color:var(--muted);
+    margin-bottom:10px; padding-bottom:6px; border-bottom:1px solid var(--border);
+  }
+  .jt-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:var(--radius); border:1px solid var(--border); }
+  .jt-table { width:100%; border-collapse:collapse; font-size:0.82rem; }
+  .jt-table thead tr { background:var(--surface2); }
+  .jt-table th {
+    padding:9px 10px; text-align:left; font-family:'Barlow Condensed',sans-serif;
+    font-size:0.65rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase;
+    color:var(--muted); border-bottom:1px solid var(--border); white-space:nowrap;
+  }
+  .jt-table td {
+    padding:9px 10px; border-bottom:1px solid var(--border);
+    color:var(--text); white-space:nowrap;
+  }
+  .jt-table tr:last-child td { border-bottom:none; }
+  .jt-table tbody tr:hover { background:var(--surface2); }
+  .jt-table td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .jt-badge {
+    display:inline-block; padding:2px 8px; border-radius:20px;
+    font-family:'Barlow Condensed',sans-serif; font-size:0.72rem; font-weight:700;
+    letter-spacing:0.04em;
+  }
+  .jt-badge-jt  { background:rgba(245,197,24,0.15); color:var(--accent); }
+  .jt-lewat-ok  { color:var(--green); }
+  .jt-lewat-warn{ color:var(--red); font-weight:700; }
+
+  /* loading skeleton */
+  .skel { background:var(--surface2); border-radius:6px; animation:pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:0.5} 50%{opacity:1} }
+  .skel-row { height:38px; margin-bottom:2px; }
+
+  /* ── OVERLAY & TOAST ──────────────────────────────────── */
+  #overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:500; align-items:center; justify-content:center; flex-direction:column; gap:12px; }
+  #overlay.show { display:flex; }
+  .spinner { width:36px; height:36px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.7s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+  #overlayMsg { font-family:'Barlow Condensed',sans-serif; font-size:0.8rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); }
+
+  #toast { position:fixed; bottom:68px; left:50%; transform:translateX(-50%) translateY(70px); background:var(--surface2); border:1px solid var(--border); border-left:3px solid var(--green); color:var(--text); padding:10px 18px; border-radius:8px; font-size:0.85rem; font-weight:500; white-space:nowrap; opacity:0; transition:transform 0.25s ease, opacity 0.25s ease; z-index:9999; max-width:90vw; overflow:hidden; text-overflow:ellipsis; }
+  #toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
+  #toast.err  { border-left-color:var(--red); }
+
+  .gap { height:10px; }
+  .tab-spacer { height:10px; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════
+     LOGIN SCREEN
+══════════════════════════════════════════════════════ -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">
+      <h1>Sales Order</h1>
+      <p>Sign in to continue</p>
+    </div>
+    <div class="login-body">
+      <div id="loginErr"></div>
+
+      <div class="login-field">
+        <label>Username</label>
+        <div class="input-wrap">
+          <input type="text" id="loginUser" placeholder="Enter username"
+                 autocomplete="username" autocapitalize="none" spellcheck="false"
+                 onkeydown="if(event.key==='Enter')document.getElementById('loginPass').focus()">
+        </div>
+      </div>
+
+      <div class="login-field">
+        <label>Password</label>
+        <div class="input-wrap">
+          <input type="password" id="loginPass" placeholder="Enter password"
+                 autocomplete="current-password"
+                 onkeydown="if(event.key==='Enter')doLogin()">
+          <button class="toggle-pw" type="button" onclick="togglePw()" tabindex="-1" aria-label="Show/hide password">
+            <svg id="eyeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <button class="btn-login" id="btnLogin" onclick="doLogin()">Sign In</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     MAIN APP
+══════════════════════════════════════════════════════ -->
+<div id="app">
+
+<header>
+  <div class="header-left">
+    <h1 id="headerTitle">Sales Order</h1>
+    <span class="sub" id="headerSub">New Entry</span>
+  </div>
+  <div class="header-right">
+    <div class="user-chip">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+        <circle cx="12" cy="7" r="4"/>
+      </svg>
+      <span id="headerUser">-</span>
+    </div>
+    <button class="btn-logout" onclick="doLogout()">Out</button>
+  </div>
+</header>
+
+<!-- ── TAB PANELS ── -->
+
+<!-- TAB 1: Sales Order -->
+<div class="tab-panel active" id="panel-so">
+  <div id="statusBar">
+    <div id="statusDot"></div>
+    <span id="statusMsg">Connecting...</span>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Customer</div>
+    <div class="card-body">
+      <label>Customer Name</label>
+      <div class="search-wrap">
+        <input type="text" id="custInput" placeholder="Search customer..." autocomplete="off" inputmode="search">
+        <div class="ac-list" id="custDrop"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="gap"></div>
+  <div class="items-wrap" id="itemsWrap"></div>
+
+  <button class="btn-add" id="btnAdd">
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+      <circle cx="7.5" cy="7.5" r="6.5" stroke="currentColor" stroke-width="1.4"/>
+      <path d="M7.5 4.5v6M4.5 7.5h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    Add Item
+  </button>
+
+  <div class="total-card">
+    <div class="total-left">
+      <div class="total-label">Order Total</div>
+      <div class="total-count" id="totalCount">0 item(s)</div>
+    </div>
+    <div class="total-amount" id="totalAmt">Rp 0</div>
+  </div>
+
+  <button class="btn-submit" id="btnSubmit" onclick="submitOrder()">Submit Order &#8594;</button>
+  <div class="tab-spacer"></div>
+</div>
+
+<!-- TAB 2: Achievement -->
+<div class="tab-panel" id="panel-achieve">
+  <div class="achieve-wrap">
+    <div class="achieve-title">Sales Achievement</div>
+    <div class="achieve-table-wrap">
+      <table class="achieve-table">
+        <thead>
+          <tr>
+            <th>Sales</th>
+            <th style="text-align:right">Target</th>
+            <th style="text-align:right">Omset</th>
+            <th style="text-align:right">%</th>
+            <th style="text-align:right">OA (300)</th>
+            <th style="text-align:right">OA%</th>
+          </tr>
+        </thead>
+        <tbody id="achieveBody">
+          <!-- filled by JS -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="tab-spacer"></div>
+</div>
+
+<!-- TAB 3: JT -->
+<div class="tab-panel" id="panel-jt">
+  <div class="jt-wrap">
+    <div class="jt-title">Jatuh Tempo (JT)</div>
+    <div class="jt-table-wrap">
+      <table class="jt-table">
+        <thead>
+          <tr>
+            <th>Toko</th>
+            <th>No Faktur</th>
+            <th style="text-align:right">Nilai</th>
+            <th style="text-align:right">Lewat (Hari)</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="jtBody">
+          <!-- filled by JS -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="tab-spacer"></div>
+</div>
+
+<!-- ── BOTTOM TAB BAR ── -->
+<div id="tabBar">
+  <button class="tab-btn active" id="tab-so" onclick="switchTab('so')">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+      <rect x="9" y="3" width="6" height="4" rx="1"/>
+      <path d="M9 12h6M9 16h4"/>
+    </svg>
+    Order
+  </button>
+  <button class="tab-btn" id="tab-achieve" onclick="switchTab('achieve')">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+    </svg>
+    Achievement
+  </button>
+  <button class="tab-btn" id="tab-jt" onclick="switchTab('jt')">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2"/>
+      <line x1="16" y1="2" x2="16" y2="6"/>
+      <line x1="8" y1="2" x2="8" y2="6"/>
+      <line x1="3" y1="10" x2="21" y2="10"/>
+    </svg>
+    JT
+  </button>
+</div>
+
+</div><!-- /#app -->
+
+<div id="overlay"><div class="spinner"></div><div id="overlayMsg">Loading...</div></div>
+<div id="toast"></div>
+
+<script>
+// ============================================================
+//  PASTE YOUR WEB APP URL HERE
+// ============================================================
+var GAS_URL = 'https://script.google.com/macros/s/AKfycbxrCe0hmBIZ7FB1cb6R3unZiEuUHVV90ohvyu2ByPYF3oRptln5XcPhOmPZGz76VQzT3Q/exec';
+// ============================================================
+
+var SESSION_KEY = 'so_session';
+var currentUser = '';
+var customers   = [];
+var items       = [];
+var rows        = [];
+var rowCount    = 0;
+var activeTab   = 'so';
+
+// ── TAB SWITCHING ─────────────────────────────────────────────
+function switchTab(tab) {
+  // hide all panels
+  document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+
+  document.getElementById('panel-' + tab).classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+  activeTab = tab;
+
+  // update header
+  var titles = { so: ['Sales Order', 'New Entry'], achieve: ['Achievement', 'Sales Data'], jt: ['Jatuh Tempo', 'Receivables'] };
+  document.getElementById('headerTitle').textContent = titles[tab][0];
+  document.getElementById('headerSub').textContent   = titles[tab][1];
+
+  // load data if needed
+  if (tab === 'achieve') loadAchievement();
+  if (tab === 'jt')      loadJT();
+}
+
+// ── SESSION MANAGEMENT ────────────────────────────────────────
+function saveSession(username) {
+  try { sessionStorage.setItem(SESSION_KEY, username); } catch(e){}
+}
+function loadSession() {
+  try { return sessionStorage.getItem(SESSION_KEY) || null; } catch(e) { return null; }
+}
+function clearSession() {
+  try { sessionStorage.removeItem(SESSION_KEY); } catch(e){}
+}
+
+// ── LOGIN / LOGOUT ────────────────────────────────────────────
+function togglePw() {
+  var inp = document.getElementById('loginPass');
+  var ico = document.getElementById('eyeIcon');
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    ico.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>' +
+      '<path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>' +
+      '<line x1="1" y1="1" x2="23" y2="23"/>';
+  } else {
+    inp.type = 'password';
+    ico.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+  }
+}
+
+function showLoginErr(msg) {
+  var el = document.getElementById('loginErr');
+  el.textContent = msg; el.classList.add('show');
+}
+function hideLoginErr() {
+  document.getElementById('loginErr').classList.remove('show');
+}
+
+function doLogin() {
+  var user = document.getElementById('loginUser').value.trim();
+  var pass = document.getElementById('loginPass').value;
+  hideLoginErr();
+  if (!user || !pass) { showLoginErr('Please enter username and password.'); return; }
+
+  var btn = document.getElementById('btnLogin');
+  btn.disabled = true; btn.textContent = 'Signing in...';
+
+  gasCall({ action: 'verifyLogin', username: user, password: pass }, function(data) {
+    btn.disabled = false; btn.textContent = 'Sign In';
+    if (data && data.status === 'ok') {
+      currentUser = data.username || user;
+      saveSession(currentUser);
+      showApp();
+    } else {
+      showLoginErr(data && data.message ? data.message : 'Invalid username or password.');
+      document.getElementById('loginPass').value = '';
+      document.getElementById('loginPass').focus();
+    }
+  }, function() {
+    btn.disabled = false; btn.textContent = 'Sign In';
+    showLoginErr('Cannot reach server. Check your connection.');
+  });
+}
+
+function doLogout() {
+  clearSession();
+  currentUser = ''; customers = []; items = []; rows = []; rowCount = 0; achieveLoaded = false; jtLoaded = false;
+  document.getElementById('app').classList.remove('show');
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+  document.getElementById('loginUser').focus();
+}
+
+function showApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').classList.add('show');
+  document.getElementById('headerUser').textContent = currentUser;
+  // Reset to SO tab
+  switchTab('so');
+  initApp();
+}
+
+// ── PAGE LOAD: CHECK SESSION ──────────────────────────────────
+(function() {
+  var saved = loadSession();
+  if (saved) {
+    currentUser = saved;
+    showApp();
+  } else {
+    document.getElementById('loginScreen').style.display = 'flex';
+    setTimeout(function(){ document.getElementById('loginUser').focus(); }, 100);
+  }
+})();
+
+// ── JSONP helper ─────────────────────────────────────────────
+function gasCall(params, onOk, onFail) {
+  var cb = '_cb' + Date.now() + Math.floor(Math.random() * 9999);
+  var url = GAS_URL + '?callback=' + cb;
+  Object.keys(params).forEach(function(k) {
+    url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+  });
+  var s = document.createElement('script');
+  s.src = url;
+  window[cb] = function(data) {
+    delete window[cb];
+    if (s.parentNode) s.parentNode.removeChild(s);
+    onOk(data);
+  };
+  s.onerror = function() {
+    delete window[cb];
+    if (s.parentNode) s.parentNode.removeChild(s);
+    if (onFail) onFail();
+  };
+  document.body.appendChild(s);
+}
+
+// ── INIT APP ──────────────────────────────────────────────────
+function initApp() {
+  if (!GAS_URL) { setStatus('err', 'Web App URL not set'); addRow(); return; }
+  setStatus('', 'Loading data...');
+  showOverlay('Loading data...');
+  gasCall({ action: 'getSalesData' }, function(data) {
+    hideOverlay();
+    if (data && data.status === 'ok') {
+      customers = data.customers || [];
+      items     = data.items     || [];
+      setStatus('ok', customers.length + ' customers  |  ' + items.length + ' items loaded');
+    } else {
+      setStatus('err', 'Data load failed — check Apps Script');
+      toast('Could not load data. Check GAS deployment.', true);
+    }
+    rows = []; rowCount = 0;
+    document.getElementById('itemsWrap').innerHTML = '';
+    addRow(); updateTotal();
+  }, function() {
+    hideOverlay();
+    setStatus('err', 'Cannot reach server — check URL');
+    toast('Cannot reach server.', true);
+    rows = []; rowCount = 0;
+    document.getElementById('itemsWrap').innerHTML = '';
+    addRow(); updateTotal();
+  });
+}
+
+// ── STATUS ────────────────────────────────────────────────────
+function setStatus(type, msg) {
+  document.getElementById('statusMsg').textContent = msg;
+  document.getElementById('statusDot').className = type;
+}
+
+// ── ACHIEVEMENT DATA ──────────────────────────────────────────
+var achieveLoaded = false;
+function loadAchievement() {
+  gasCall({ action: 'getSalesAchievement' }, function(data) {
+    if (data && data.status === 'ok' && data.rows) {
+      renderAchievement(data.rows);
+    } else {
+      // fallback: render from static data shown in the spreadsheet screenshot
+      renderAchievement(getDefaultAchievement());
+    }
+  }, function() {
+    renderAchievement(getDefaultAchievement());
+  });
+}
+
+function getDefaultAchievement() {
+  return [
+    { nama:'ILHAMFORISA',   target:1100, omset:1000, pct:90.9, oa:50,  oaPct:16.7 },
+    { nama:'ILHAMCAPLANG',  target:2200, omset:2000, pct:90.9, oa:99,  oaPct:33.0 },
+    { nama:'ILHAMSMART',    target:3300, omset:3000, pct:90.9, oa:50,  oaPct:16.7 },
+    { nama:'BAIMFORISA',    target:4400, omset:4000, pct:90.9, oa:60,  oaPct:20.0 },
+    { nama:'BAIMCAPLANG',   target:5500, omset:5000, pct:90.9, oa:100, oaPct:33.3 },
+    { nama:'BAIMSMART',     target:6600, omset:6000, pct:90.9, oa:60,  oaPct:20.0 }
+  ];
+}
+
+function renderAchievement(rows) {
+  // filter: only rows where nama starts with (or contains) the logged-in username prefix
+  var userUpper = currentUser.toUpperCase();
+  rows = rows.filter(function(r){ return String(r.nama).toUpperCase().indexOf(userUpper) === 0; });
+  var tbody = document.getElementById('achieveBody');
+  tbody.innerHTML = rows.length ? rows.map(function(r) {
+    var pct = parseFloat(r.pct) || 0;
+    var pctClass = pct >= 100 ? 'pct-high' : pct >= 80 ? 'pct-mid' : 'pct-low';
+    var oaPct = parseFloat(r.oaPct) || 0;
+    var oaClass = oaPct >= 30 ? 'pct-high' : oaPct >= 20 ? 'pct-mid' : 'pct-low';
+    var fillW = Math.min(pct, 100);
+    return '<tr>' +
+      '<td>' + esc(r.nama) + '</td>' +
+      '<td class="num">' + numFmt(r.target) + '</td>' +
+      '<td class="num">' + numFmt(r.omset) + '</td>' +
+      '<td class="pct ' + pctClass + '">' +
+        '<div class="prog-bar-bg"><div class="prog-bar-fill" style="width:' + fillW + '%;background:' + (pct>=100?'var(--green)':pct>=80?'var(--accent)':'var(--red)') + '"></div></div>' +
+        pct.toFixed(1) + '%</td>' +
+      '<td class="num">' + numFmt(r.oa) + '</td>' +
+      '<td class="pct ' + oaClass + '">' + oaPct.toFixed(1) + '%</td>' +
+    '</tr>';
+  }).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">No data for ' + esc(currentUser) + '</td></tr>';
+}
+
+// ── JT DATA ───────────────────────────────────────────────────
+var jtLoaded = false;
+function loadJT() {
+  gasCall({ action: 'getJTData' }, function(data) {
+    if (data && data.status === 'ok' && data.rows) {
+      renderJT(data.rows);
+    } else {
+      renderJT(getDefaultJT());
+    }
+  }, function() {
+    renderJT(getDefaultJT());
+  });
+}
+
+function getDefaultJT() {
+  return [];
+}
+
+function renderJT(rows) {
+  var tbody = document.getElementById('jtBody');
+  tbody.innerHTML = rows.length ? rows.map(function(r) {
+    // support both new 5-field format and old 11-field format
+    var toko     = r.toko     || '';
+    var noFaktur = r.noFaktur || '';
+    var nilai    = Number(r.nilai)  || 0;
+    var lewat    = Number(r.lewat)  || 0;
+    var status   = r.status   || '';
+    var lewatClass = lewat > 0 ? 'jt-lewat-warn' : 'jt-lewat-ok';
+    var statusBadgeColor = status === 'JT > 2 bulan' ? 'background:rgba(232,64,64,0.2);color:var(--red)' :
+                           status === 'JT > 1 bulan' ? 'background:rgba(245,197,24,0.2);color:var(--accent)' :
+                           'background:rgba(245,197,24,0.15);color:var(--accent)';
+    return '<tr>' +
+      '<td>' + esc(toko) + '</td>' +
+      '<td style="font-size:0.75rem;color:var(--muted)">' + esc(noFaktur) + '</td>' +
+      '<td class="num">Rp ' + numFmt(nilai) + '</td>' +
+      '<td class="num ' + lewatClass + '">' + lewat + '</td>' +
+      '<td><span class="jt-badge" style="' + statusBadgeColor + '">' + esc(status) + '</span></td>' +
+    '</tr>';
+  }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">No receivables</td></tr>';
+}
+
+// ── ADVANCED SEARCH HELPER ────────────────────────────────────
+function advancedMatch(candidate, query) {
+  var tokens = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  if (!tokens.length) return false;
+  var words = candidate.toLowerCase().match(/[a-z0-9]+/g) || [];
+  return tokens.every(function(tok) {
+    return words.some(function(w) { return w.indexOf(tok) === 0; });
+  });
+}
+function highlightTokens(text, query) {
+  var tokens = query.trim().split(/\s+/).filter(Boolean);
+  if (!tokens.length) return esc(text);
+  var result = text;
+  tokens.forEach(function(tok) {
+    var re = new RegExp('\\b(' + tok.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')', 'gi');
+    result = result.replace(re, '<strong style="color:var(--accent)">$1</strong>');
+  });
+  return result;
+}
+
+// ── CUSTOMER AUTOCOMPLETE ─────────────────────────────────────
+var custInput = document.getElementById('custInput');
+var custDrop  = document.getElementById('custDrop');
+
+custInput.addEventListener('input', function() {
+  var q = custInput.value.trim();
+  if (!q) { closeDrop(); return; }
+  if (!customers.length) {
+    custDrop.innerHTML = '<div class="ac-empty">Still loading customers...</div>';
+    custDrop.classList.add('open'); return;
+  }
+  var hits = customers.filter(function(c) { return advancedMatch(c, q); }).slice(0, 12);
+  if (!hits.length) { closeDrop(); return; }
+  custDrop.innerHTML = hits.map(function(c) {
+    return '<div class="ac-item" ontouchstart="" onclick="pickCust(\'' + c.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')">'
+      + highlightTokens(c, q) + '</div>';
+  }).join('');
+  custDrop.classList.add('open');
+});
+
+document.addEventListener('touchstart', function(e) { if (!custDrop.contains(e.target) && e.target !== custInput) closeDrop(); }, { passive:true });
+document.addEventListener('mousedown',  function(e) { if (!custDrop.contains(e.target) && e.target !== custInput) closeDrop(); });
+function pickCust(n) { custInput.value = n; closeDrop(); custInput.blur(); }
+function closeDrop() { custDrop.classList.remove('open'); custDrop.innerHTML = ''; }
+
+// ── ITEM ROWS ─────────────────────────────────────────────────
+document.getElementById('btnAdd').addEventListener('click', addRow);
+
+function addRow() {
+  var id = ++rowCount;
+  rows.push({ id:id, name:'', category:'', price:0, qty:1 });
+  var wrap = document.getElementById('itemsWrap');
+  var div  = document.createElement('div');
+  div.className = 'item-row'; div.id = 'row-' + id;
+  div.innerHTML =
+    '<div class="row-head">' +
+      '<span class="row-num">Item #' + id + '</span>' +
+      '<button class="btn-remove" onclick="removeRow(' + id + ')" aria-label="Remove">&#x2715;</button>' +
+    '</div>' +
+    '<div class="row-grid">' +
+      '<div class="field-group full" style="position:relative;">' +
+        '<label>Item Name</label>' +
+        '<input type="text" id="item-' + id + '" placeholder="Search item..." autocomplete="off" inputmode="search" oninput="onItemSearch(' + id + ')" onblur="onItemBlur(' + id + ')">' +
+        '<div class="ac-list" id="item-drop-' + id + '"></div>' +
+      '</div>' +
+      '<div class="field-group"><label>Qty</label>' +
+        '<input type="number" id="qty-' + id + '" value="1" min="1" inputmode="numeric" pattern="[0-9]*" oninput="onQtyChange(' + id + ')">' +
+        '<div class="sub-info"><span class="badge badge-cat" id="cat-' + id + '">--</span></div>' +
+      '</div>' +
+      '<div class="field-group"><label>Unit Price</label>' +
+        '<input type="text" id="price-' + id + '" readonly placeholder="--">' +
+        '<div class="sub-info"><span class="badge badge-sub" id="sub-' + id + '">Rp 0</span></div>' +
+      '</div>' +
+    '</div>';
+  wrap.appendChild(div);
+  updateTotal();
+}
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function onItemSearch(id) {
+  var q = document.getElementById('item-' + id).value.trim();
+  var drop = document.getElementById('item-drop-' + id);
+  var row = rows.find(function(r){ return r.id===id; });
+  if (row) { row.name=''; row.price=0; row.category=''; }
+  document.getElementById('price-' + id).value = '';
+  document.getElementById('cat-' + id).textContent = '--';
+  updateSub(id); updateTotal();
+
+  if (!q) { drop.classList.remove('open'); drop.innerHTML=''; return; }
+  if (!items.length) {
+    drop.innerHTML = '<div class="ac-empty">Still loading items...</div>';
+    drop.classList.add('open'); return;
+  }
+  var hits = items.filter(function(i){ return advancedMatch(i.name, q); }).slice(0,15);
+  if (!hits.length) { drop.classList.remove('open'); drop.innerHTML=''; return; }
+  drop.innerHTML = hits.map(function(i) {
+    var hl = highlightTokens(i.name, q);
+    return '<div class="ac-item" ontouchstart="" onmousedown="pickItem(' + id + ',\'' +
+      i.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\',' + i.price + ',\'' +
+      (i.category||'').replace(/'/g,"\\'") + '\')">' + hl +
+      (i.category ? '<span style="font-size:0.72rem;color:var(--muted);margin-left:6px;">'+esc(i.category)+'</span>' : '') +
+      '</div>';
+  }).join('');
+  drop.classList.add('open');
+}
+
+function pickItem(id, name, price, category) {
+  document.getElementById('item-' + id).value = name;
+  var drop = document.getElementById('item-drop-' + id);
+  drop.classList.remove('open'); drop.innerHTML = '';
+  var row = rows.find(function(r){ return r.id===id; });
+  if (row) { row.name=name; row.price=price; row.category=category; }
+  document.getElementById('price-' + id).value = price ? rpFmt(price) : '';
+  document.getElementById('cat-' + id).textContent = category || '--';
+  updateSub(id); updateTotal();
+}
+
+function onItemBlur(id) {
+  setTimeout(function() {
+    var drop = document.getElementById('item-drop-' + id);
+    if (drop) { drop.classList.remove('open'); drop.innerHTML=''; }
+  }, 200);
+}
+
+function onQtyChange(id) {
+  var qty = parseInt(document.getElementById('qty-' + id).value) || 0;
+  var row = rows.find(function(r){ return r.id===id; });
+  if (row) row.qty = qty;
+  updateSub(id); updateTotal();
+}
+
+function updateSub(id) {
+  var row = rows.find(function(r){ return r.id===id; });
+  if (!row) return;
+  document.getElementById('sub-' + id).textContent = rpFmt(row.price * row.qty);
+}
+
+function removeRow(id) {
+  if (rows.length <= 1) { toast('At least one item is required.'); return; }
+  rows = rows.filter(function(r){ return r.id!==id; });
+  var el = document.getElementById('row-' + id);
+  if (el) el.remove();
+  updateTotal();
+}
+
+function updateTotal() {
+  var total  = rows.reduce(function(s,r){ return s+(r.price*r.qty||0); }, 0);
+  var filled = rows.filter(function(r){ return r.name; }).length;
+  document.getElementById('totalAmt').textContent   = rpFmt(total);
+  document.getElementById('totalCount').textContent = filled + ' item(s)';
+}
+
+// ── SUBMIT ────────────────────────────────────────────────────
+function submitOrder() {
+  var customer = custInput.value.trim();
+  if (!customer) { toast('Please select a customer.', true); return; }
+  var valid = rows.filter(function(r){ return r.name && r.qty > 0; });
+  if (!valid.length) { toast('Please add at least one item.', true); return; }
+
+  var payload = {
+    customer:  customer,
+    username:  currentUser,
+    timestamp: new Date().toISOString(),
+    items: valid.map(function(r){
+      return { name:r.name, category:r.category, price:r.price, qty:r.qty, subtotal:r.price*r.qty };
+    })
+  };
+
+  showOverlay('Submitting...');
+  gasCall(
+    { action: 'submitOrder', body: JSON.stringify(payload) },
+    function(data) {
+      hideOverlay();
+      if (data && data.status === 'ok') { toast('Order submitted!'); resetForm(); }
+      else { toast((data && data.message) || 'Submission failed.', true); }
+    },
+    function() { hideOverlay(); toast('Network error. Try again.', true); }
+  );
+}
+
+function resetForm() {
+  custInput.value = '';
+  rows = []; rowCount = 0;
+  document.getElementById('itemsWrap').innerHTML = '';
+  addRow(); updateTotal();
+}
+
+// ── HELPERS ───────────────────────────────────────────────────
+function rpFmt(n)  { return 'Rp ' + Math.round(n||0).toLocaleString('id-ID'); }
+function numFmt(n) { return Math.round(n||0).toLocaleString('id-ID'); }
+
+function toast(msg, isErr) {
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.className = isErr ? 'err' : '';
+  void t.offsetWidth; t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 3200);
+}
+function showOverlay(msg) { document.getElementById('overlayMsg').textContent = msg; document.getElementById('overlay').classList.add('show'); }
+function hideOverlay() { document.getElementById('overlay').classList.remove('show'); }
+</script>
+</body>
+</html>
