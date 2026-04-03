@@ -96,6 +96,16 @@
   .eedit{background:rgba(200,245,58,0.08);border:1.5px solid rgba(200,245,58,0.2);border-radius:9px;color:var(--accent);width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-size:14px;transition:all 0.15s;}
   .eedit:active{transform:scale(0.88);}
 
+  /* MONTH PICKER */
+  .month-picker{display:flex;align-items:center;gap:8px;margin:0 16px 12px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:8px 10px;}
+  .mp-btn{background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;flex-shrink:0;transition:all 0.15s;color:var(--text);line-height:1;}
+  .mp-btn:active{background:var(--border);transform:scale(0.92);}
+  .mp-label{flex:1;text-align:center;font-size:13px;font-weight:700;color:var(--text);font-family:'DM Mono',monospace;letter-spacing:0.04em;}
+  .mp-label.current{color:var(--accent);}
+  .mp-today{font-size:10px;font-weight:700;color:var(--muted);background:var(--surface2);border:1.5px solid var(--border);border-radius:7px;padding:5px 10px;cursor:pointer;white-space:nowrap;transition:all 0.15s;display:none;}
+  .mp-today.visible{display:block;}
+  .mp-today:active{background:var(--border);}
+
   /* BREAKDOWN TABLE */
   .bktable{margin:0 16px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
   .bkhdr{display:grid;grid-template-columns:1fr 95px 95px;padding:9px 13px;background:var(--surface2);border-bottom:1px solid var(--border);}
@@ -158,7 +168,6 @@
   .leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);}
   .legdot{width:7px;height:7px;border-radius:50%;}
   /* ── WORKOUT ── */
-  /* ── WORKOUT COMPETITION CARD ── */
   .wo-vs{margin:0 16px 16px;display:grid;grid-template-columns:1fr auto 1fr;gap:0;border-radius:var(--radius);overflow:hidden;border:1px solid #2a4a2a;}
   .wo-side{background:linear-gradient(135deg,#1a2e1a,#0f1a0f);padding:16px 14px;display:flex;flex-direction:column;align-items:center;text-align:center;}
   .wo-side.right{background:linear-gradient(135deg,#1a1a2e,#0f0f1a);}
@@ -214,7 +223,6 @@
   .bmi-box.on{display:block;}
   .bmi-val{font-size:20px;font-weight:800;font-family:'DM Mono',monospace;color:#7dff7d;}
   .bmi-lbl{font-size:11px;color:rgba(125,255,125,0.6);margin-top:2px;}
-  /* ── WORKOUT PLAN ── */
   .plan-card{margin:0 16px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
   .plan-day{border-bottom:1px solid var(--border);padding:12px 16px;}
   .plan-day:last-child{border-bottom:none;}
@@ -229,7 +237,6 @@
   .plan-item.done .plan-check{background:#7dff7d;border-color:#7dff7d;color:#0a1a0a;}
   .plan-item-text{font-size:13px;color:var(--text);transition:all 0.15s;}
   .plan-item.done .plan-item-text{color:var(--muted);text-decoration:line-through;}
-  /* CATEGORY MANAGER */
   .cat-mgr-list{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px;}
   .cat-mgr-item{display:flex;align-items:center;gap:5px;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:5px 8px;}
   .cat-mgr-name{font-size:12px;font-weight:600;}
@@ -301,6 +308,15 @@
     <div class="leg"><div class="legdot" style="background:var(--accent)"></div>My entries</div>
     <div class="leg"><div class="legdot" style="background:#a78bfa"></div>Partner entries</div>
   </div>
+
+  <!-- MONTH PICKER -->
+  <div class="month-picker">
+    <button class="mp-btn" onclick="changeMonth(-1)">‹</button>
+    <div class="mp-label" id="mp-label">—</div>
+    <button class="mp-today" id="mp-today" onclick="jumpToToday()">Today</button>
+    <button class="mp-btn" onclick="changeMonth(1)" id="mp-next">›</button>
+  </div>
+
   <div class="bktable">
     <div class="bkhdr">
       <div class="bkhdr-cat">Category</div>
@@ -526,15 +542,12 @@ function loadSettingsUI(){
 }
 
 // ─────────────────────────────────────────────
-// ENTRIES — stored as array of plain objects
-// Each entry: { id, date, amount, category, note, user }
-// date is ALWAYS a plain "yyyy-MM-dd" string — nothing else
+// ENTRIES
 // ─────────────────────────────────────────────
 let entries = JSON.parse(localStorage.getItem('entries') || '[]');
 
 function saveEntries(){ localStorage.setItem('entries', JSON.stringify(entries)); }
 
-// Today's date as yyyy-MM-dd using LOCAL device date — no UTC, no timezone math
 function todayStr(){
   const d = new Date();
   return d.getFullYear() + '-'
@@ -542,25 +555,63 @@ function todayStr(){
     + String(d.getDate()).padStart(2,'0');
 }
 
-// Current month as yyyy-MM using LOCAL device date
 function thisMonthStr(){
   const d = new Date();
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
 }
 
-// Format yyyy-MM-dd to readable label — pure string math, zero date parsing
 function fmtDateLabel(s){
   if(!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return s || '?';
   const [y,m,d] = s.split('-').map(Number);
   const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  // Get day-of-week without timezone: use local Date constructor
   const dow = new Date(y, m-1, d).getDay();
   return days[dow] + ', ' + d + ' ' + months[m-1] + ' ' + y;
 }
 
 function fmtAmt(n){
   return C() + ' ' + Number(n).toLocaleString('id-ID');
+}
+
+// ─────────────────────────────────────────────
+// MONTH NAVIGATION (History tab)
+// ─────────────────────────────────────────────
+let historyMonth = thisMonthStr(); // yyyy-MM, e.g. "2026-04"
+
+function updateMonthLabel(){
+  const [y, m] = historyMonth.split('-').map(Number);
+  const months = ['January','February','March','April','May','June',
+                  'July','August','September','October','November','December'];
+  const lbl = document.getElementById('mp-label');
+  const todayBtn = document.getElementById('mp-today');
+  const nextBtn  = document.getElementById('mp-next');
+  if(!lbl) return;
+  lbl.textContent = months[m-1] + ' ' + y;
+  const cur = thisMonthStr();
+  lbl.className = 'mp-label' + (historyMonth === cur ? ' current' : '');
+  // Show "Today" button only when not on current month
+  if(todayBtn) todayBtn.className = 'mp-today' + (historyMonth !== cur ? ' visible' : '');
+  // Disable next button if already at current month
+  if(nextBtn) nextBtn.style.opacity = historyMonth >= cur ? '0.3' : '1';
+}
+
+function changeMonth(dir){
+  const [y, m] = historyMonth.split('-').map(Number);
+  const d = new Date(y, m - 1 + dir, 1);
+  const next = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+  // Don't go into the future beyond current month
+  if(dir > 0 && next > thisMonthStr()) return;
+  historyMonth = next;
+  filterCat = 'all'; // reset category filter when switching month
+  updateMonthLabel();
+  renderHistory();
+}
+
+function jumpToToday(){
+  historyMonth = thisMonthStr();
+  filterCat = 'all';
+  updateMonthLabel();
+  renderHistory();
 }
 
 // ─────────────────────────────────────────────
@@ -573,7 +624,7 @@ let selCat = 'Food';
 // ─────────────────────────────────────────────
 async function logExpense(){
   const amt  = parseFloat(document.getElementById('f-amt').value);
-  const date = document.getElementById('f-date').value; // yyyy-MM-dd from input
+  const date = document.getElementById('f-date').value;
   const note = document.getElementById('f-note').value.trim();
 
   if(!amt || amt <= 0){ showToast('⚠️ Enter an amount', true); return; }
@@ -585,7 +636,7 @@ async function logExpense(){
 
   const entry = {
     id:       'e_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
-    date:     date,      // plain string yyyy-MM-dd, nothing else
+    date:     date,
     amount:   amt,
     category: selCat,
     note:     note,
@@ -623,17 +674,14 @@ async function doSync(){
   setSyncMsg('Syncing...', 'busy');
   try{
     const res  = await fetch(cfg.url + '?action=getAll');
-    const text = await res.text(); // read as text first to debug
+    const text = await res.text();
     const data = JSON.parse(text);
     if(data.status === 'success' && Array.isArray(data.entries)){
-      // Keep local entries whose id is not in sheet yet (just logged, not yet pushed)
       const sheetIds = new Set(data.entries.map(e => e.id));
       const pending  = entries.filter(e => !sheetIds.has(e.id));
-      // Sheet is source of truth — merge sheet + any truly pending local
       entries = [...data.entries, ...pending];
       saveEntries();
 
-      // Sync categories
       if(Array.isArray(data.categories) && data.categories.length > 0){
         saveCategories(data.categories);
         rebuildIcons();
@@ -642,7 +690,6 @@ async function doSync(){
         refreshAll();
       }
 
-      // Sync workouts too
       if (Array.isArray(data.workouts)) {
         const sheetWoIds = new Set(data.workouts.map(w => w.id));
         const pendingWo  = workouts.filter(w => !sheetWoIds.has(w.id));
@@ -770,15 +817,14 @@ async function doEdit(){
 }
 
 // ─────────────────────────────────────────────
-// RENDER SUMMARY
+// RENDER SUMMARY (always uses current real month)
 // ─────────────────────────────────────────────
 function renderSummary(){
-  const ym   = thisMonthStr(); // e.g. "2026-03"
+  const ym   = thisMonthStr();
   const me   = myName();
   const d    = new Date();
   const mLbl = d.toLocaleDateString('id-ID', {month:'long', year:'numeric'}).toUpperCase();
 
-  // Filter: entry.date must start with current ym
   const monthAll  = entries.filter(e => typeof e.date === 'string' && e.date.slice(0,7) === ym);
   const monthMine = monthAll.filter(e => e.user === me);
   const mineTotal = monthMine.reduce((s,e) => s + Number(e.amount), 0);
@@ -793,12 +839,7 @@ function renderSummary(){
 }
 
 // ─────────────────────────────────────────────
-// RENDER BREAKDOWN TABLE
-// ─────────────────────────────────────────────
-// CATS is now dynamic — always read from getCategories()
-function getCatNames(){ return getCategories().map(c => c.name); }
-// ─────────────────────────────────────────────
-// CATEGORIES — stored in localStorage, fully dynamic
+// CATEGORIES
 // ─────────────────────────────────────────────
 const DEFAULT_CATS = [
   {name:'Food',        icon:'🍽️'},
@@ -821,13 +862,14 @@ function getCategories(){
 }
 function saveCategories(cats){ localStorage.setItem('categories', JSON.stringify(cats)); }
 
-// Build ICONS map dynamically
 let ICONS = {};
 function rebuildIcons(){
   ICONS = {};
   getCategories().forEach(c => { ICONS[c.name] = c.icon; });
 }
 rebuildIcons();
+
+function getCatNames(){ return getCategories().map(c => c.name); }
 
 function renderCatGrid(){
   const cats = getCategories();
@@ -846,7 +888,6 @@ function renderCatGrid(){
       selCat = p.dataset.c;
     });
   });
-  // Also rebuild edit dropdown
   const editCat = document.getElementById('edit-cat');
   if(editCat){
     editCat.innerHTML = cats.map(c => `<option>${c.name}</option>`).join('');
@@ -901,18 +942,20 @@ async function syncCategories(cats){
   try{
     await fetch(cfg.url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({action:'saveCategories', categories:cats})});
-  } catch(e){ /* silent fail — local already saved */ }
+  } catch(e){ }
 }
 
 let filterCat = 'all';
 
+// ─────────────────────────────────────────────
+// RENDER BREAKDOWN — uses historyMonth
+// ─────────────────────────────────────────────
 function renderBreakdown(){
-  const ym  = thisMonthStr();
+  const ym  = historyMonth; // ← uses selected month, not always current
   const u1  = myName();
   const u2  = partnerName();
   const month = entries.filter(e => e.date && e.date.slice(0,7) === ym);
 
-  // Update header labels
   document.getElementById('bkhdr-u1').textContent = u1 || 'ME';
   document.getElementById('bkhdr-u2').textContent = u2 || 'PARTNER';
 
@@ -923,7 +966,7 @@ function renderBreakdown(){
     t1 += a1; t2 += a2;
     const active = filterCat === cat ? ' on' : '';
     return `<div class="bkrow${active}" onclick="toggleCatFilter('${cat}')">
-      <div class="bkrow-name">${ICONS[cat]} ${cat}</div>
+      <div class="bkrow-name">${ICONS[cat]||'📦'} ${cat}</div>
       <div class="bkamt u1${a1===0?' nil':''}">${a1>0?fmtAmt(a1):'—'}</div>
       <div class="bkamt u2${a2===0?' nil':''}">${a2>0?fmtAmt(a2):'—'}</div>
     </div>`;
@@ -943,21 +986,26 @@ function toggleCatFilter(cat){
 }
 
 // ─────────────────────────────────────────────
-// RENDER HISTORY
+// RENDER HISTORY — uses historyMonth
 // ─────────────────────────────────────────────
 function renderHistory(){
+  updateMonthLabel();
   renderBreakdown();
   const me   = myName();
-  let list   = [...entries].filter(e => e.date && /^\d{4}-\d{2}-\d{2}$/.test(e.date));
+  // Filter by selected historyMonth
+  let list = [...entries].filter(e =>
+    e.date &&
+    /^\d{4}-\d{2}-\d{2}$/.test(e.date) &&
+    e.date.slice(0,7) === historyMonth
+  );
   if(filterCat !== 'all') list = list.filter(e => e.category === filterCat);
   list.sort((a,b) => b.date.localeCompare(a.date));
 
   if(list.length === 0){
-    document.getElementById('hlog').innerHTML = '<div class="empty"><div class="ei">📭</div><p>No entries yet.<br>Go to Expense tab to log one.</p></div>';
+    document.getElementById('hlog').innerHTML = '<div class="empty"><div class="ei">📭</div><p>No entries for this month.<br>Try a different month or log some expenses.</p></div>';
     return;
   }
 
-  // Group by date string directly — no parsing needed
   const groups = {};
   list.forEach(e => {
     if(!groups[e.date]) groups[e.date] = [];
@@ -988,7 +1036,7 @@ function renderHistory(){
 }
 
 // ─────────────────────────────────────────────
-// WORKOUT — fully isolated from expense logic
+// WORKOUT
 // ─────────────────────────────────────────────
 let workouts  = JSON.parse(localStorage.getItem('workouts') || '[]');
 let bodyStats = JSON.parse(localStorage.getItem('bodyStats') || '{}');
@@ -997,7 +1045,6 @@ const WO_ICONS = {'Push Up':'💪','Pull Up':'🏋️','Squat':'🦵','Pilates':
 
 function saveWorkouts(){ localStorage.setItem('workouts', JSON.stringify(workouts)); }
 
-// ── WORKOUT PLAN ─────────────────────────────────────────────
 const WORKOUT_PLAN = [
   { day:'Monday',    items:['Push Up 100x'] },
   { day:'Tuesday',   items:['Squat 100x'] },
@@ -1192,7 +1239,7 @@ function goTab(t){
   document.querySelectorAll('.ni').forEach(x => x.classList.remove('on'));
   document.getElementById('tab-'+t).classList.add('on');
   document.getElementById('ni-'+t).classList.add('on');
-  if(t === 'history') renderHistory();
+  if(t === 'history'){ updateMonthLabel(); renderHistory(); }
   if(t === 'workout'){ renderWoSummary(); renderWoHistory(); renderWorkoutPlan(); }
   if(t === 'settings') renderCatManager();
 }
@@ -1232,6 +1279,7 @@ function init(){
   loadSettingsUI();
   renderCatGrid();
   renderCatManager();
+  updateMonthLabel();
   refreshAll();
   initWorkoutTab();
   if(cfg.url) doSync();
