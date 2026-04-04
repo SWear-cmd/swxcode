@@ -266,6 +266,70 @@
   .jt-lewat-ok  { color:var(--green); }
   .jt-lewat-warn{ color:var(--red); font-weight:700; }
 
+  /* ── ORDER LIST TAB ───────────────────────────────────── */
+  .ol-wrap { padding:10px; }
+  .ol-header-row {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:10px; padding-bottom:6px; border-bottom:1px solid var(--border);
+  }
+  .ol-title {
+    font-family:'Barlow Condensed',sans-serif; font-size:0.7rem; font-weight:700;
+    letter-spacing:0.14em; text-transform:uppercase; color:var(--muted);
+  }
+  .btn-ol-refresh {
+    background:var(--accent-dim); border:1px solid rgba(245,197,24,0.3);
+    border-radius:6px; color:var(--accent); padding:4px 10px;
+    font-family:'Barlow Condensed',sans-serif; font-size:0.65rem; font-weight:700;
+    letter-spacing:0.08em; text-transform:uppercase; cursor:pointer;
+    display:flex; align-items:center; gap:4px;
+  }
+  .btn-ol-refresh:active { background:rgba(245,197,24,0.22); }
+  .ol-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:var(--radius); border:1px solid var(--border); }
+  .ol-table { width:100%; border-collapse:collapse; font-size:0.75rem; table-layout:auto; }
+  .ol-table thead tr { background:var(--surface2); }
+  .ol-table th {
+    padding:7px 8px; text-align:left; font-family:'Barlow Condensed',sans-serif;
+    font-size:0.6rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;
+    color:var(--muted); border-bottom:1px solid var(--border); white-space:nowrap;
+  }
+  .ol-table td {
+    padding:7px 8px; border-bottom:1px solid var(--border);
+    color:var(--text); vertical-align:top;
+  }
+  .ol-table tr:last-child td { border-bottom:none; }
+  .ol-table tbody tr:nth-child(even) { background:rgba(255,255,255,0.02); }
+  .ol-table td.col-ts { font-size:0.65rem; color:var(--muted); white-space:nowrap; }
+  .ol-table td.col-cust { white-space:normal; word-break:break-word; min-width:80px; max-width:120px; font-size:0.74rem; font-weight:600; }
+  .ol-table td.col-item { white-space:normal; word-break:break-word; min-width:90px; max-width:140px; font-size:0.73rem; }
+  .ol-table td.col-qty { text-align:center; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .ol-table td.col-sub { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; color:var(--accent); font-weight:700; font-family:'Barlow Condensed',sans-serif; font-size:0.82rem; }
+  .ol-table th.num, .ol-table td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .ol-table td.col-status { text-align:center; white-space:nowrap; }
+  .status-badge {
+    display:inline-block; padding:2px 8px; border-radius:20px;
+    font-family:'Barlow Condensed',sans-serif; font-size:0.68rem; font-weight:700;
+    letter-spacing:0.05em; text-transform:uppercase; white-space:nowrap;
+  }
+  .status-ok        { background:rgba(46,204,113,0.15);  color:var(--green);  border:1px solid rgba(46,204,113,0.3); }
+  .status-jt        { background:rgba(245,197,24,0.15);  color:var(--accent); border:1px solid rgba(245,197,24,0.35); }
+  .status-stockhabis{ background:rgba(232,64,64,0.15);   color:var(--red);    border:1px solid rgba(232,64,64,0.3); }
+  .status-batal     { background:rgba(232,64,64,0.15);   color:var(--red);    border:1px solid rgba(232,64,64,0.3); }
+  .status-pending   { background:rgba(136,136,136,0.12); color:var(--muted);  border:1px solid rgba(136,136,136,0.2); }
+  .status-other     { background:rgba(136,136,136,0.12); color:var(--muted);  border:1px solid rgba(136,136,136,0.2); }
+
+  /* group separator row */
+  .ol-group-row td {
+    background:var(--surface2); font-family:'Barlow Condensed',sans-serif;
+    font-size:0.65rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;
+    color:var(--accent); padding:5px 8px; border-bottom:1px solid var(--border);
+  }
+  .ol-group-total td {
+    background:rgba(245,197,24,0.06); font-weight:700; border-top:1px solid rgba(245,197,24,0.2);
+    color:var(--accent); font-family:'Barlow Condensed',sans-serif; font-size:0.8rem;
+    padding:6px 8px;
+  }
+  .ol-empty { text-align:center; color:var(--muted); padding:24px; font-size:0.85rem; }
+
   /* loading skeleton */
   .skel { background:var(--surface2); border-radius:6px; animation:pulse 1.2s ease-in-out infinite; }
   @keyframes pulse { 0%,100%{opacity:0.5} 50%{opacity:1} }
@@ -447,6 +511,41 @@
   <div class="tab-spacer"></div>
 </div>
 
+<!-- TAB 4: Order List -->
+<div class="tab-panel" id="panel-ol">
+  <div class="ol-wrap">
+    <div class="ol-header-row">
+      <div class="ol-title">My Order List</div>
+      <button class="btn-ol-refresh" onclick="loadOrderList(true)">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        </svg>
+        Refresh
+      </button>
+    </div>
+    <div class="ol-table-wrap">
+      <table class="ol-table">
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Customer</th>
+            <th>Item</th>
+            <th style="text-align:center">Besar</th>
+            <th style="text-align:center">Kecil</th>
+            <th style="text-align:right">Subtotal</th>
+            <th style="text-align:center">Status</th>
+          </tr>
+        </thead>
+        <tbody id="olBody">
+          <tr><td colspan="7" class="ol-empty">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="tab-spacer"></div>
+</div>
+
 <!-- ── BOTTOM TAB BAR ── -->
 <div id="tabBar">
   <button class="tab-btn active" id="tab-so" onclick="switchTab('so')">
@@ -472,6 +571,16 @@
     </svg>
     JT
   </button>
+  <button class="tab-btn" id="tab-ol" onclick="switchTab('ol')">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/>
+      <line x1="8" y1="13" x2="16" y2="13"/>
+      <line x1="8" y1="17" x2="16" y2="17"/>
+      <line x1="8" y1="9" x2="10" y2="9"/>
+    </svg>
+    Orders
+  </button>
 </div>
 
 </div><!-- /#app -->
@@ -485,6 +594,9 @@
 // ============================================================
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbxrCe0hmBIZ7FB1cb6R3unZiEuUHVV90ohvyu2ByPYF3oRptln5XcPhOmPZGz76VQzT3Q/exec';
 // ============================================================
+// ── APPS SCRIPT: add getOrderList() to your .gs file ──────
+// function getOrderList() — see Apps Script tab below for code
+// ==========================================================
 
 var SESSION_KEY = 'so_session';
 var currentUser = '';
@@ -505,13 +617,14 @@ function switchTab(tab) {
   activeTab = tab;
 
   // update header
-  var titles = { so: ['Sales Order', 'New Entry'], achieve: ['Achievement', 'Sales Data'], jt: ['Jatuh Tempo', 'Receivables'] };
+  var titles = { so: ['Sales Order', 'New Entry'], achieve: ['Achievement', 'Sales Data'], jt: ['Jatuh Tempo', 'Receivables'], ol: ['Order List', 'My Orders'] };
   document.getElementById('headerTitle').textContent = titles[tab][0];
   document.getElementById('headerSub').textContent   = titles[tab][1];
 
   // load data if needed
   if (tab === 'achieve') loadAchievement();
   if (tab === 'jt')      loadJT();
+  if (tab === 'ol')      loadOrderList(true);
 }
 
 // ── SESSION MANAGEMENT ────────────────────────────────────────
@@ -576,7 +689,7 @@ function doLogin() {
 
 function doLogout() {
   clearSession();
-  currentUser = ''; customers = []; items = []; rows = []; rowCount = 0; achieveLoaded = false; jtLoaded = false;
+  currentUser = ''; customers = []; items = []; rows = []; rowCount = 0; achieveLoaded = false; jtLoaded = false; olLoaded = false;
   document.getElementById('app').classList.remove('show');
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('loginUser').value = '';
@@ -750,6 +863,99 @@ function renderJT(rows) {
       '<td><span class="jt-badge" style="' + statusBadgeColor + '">' + esc(status) + '</span></td>' +
     '</tr>';
   }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">No receivables</td></tr>';
+}
+
+// ── ORDER LIST ────────────────────────────────────────────────
+var olLoaded = false;
+
+function loadOrderList(force) {
+  if (olLoaded && !force) return;
+  var tbody = document.getElementById('olBody');
+  tbody.innerHTML = '<tr><td colspan="7" class="ol-empty" style="padding:20px">' +
+    '<div class="skel skel-row" style="width:100%;margin-bottom:6px"></div>' +
+    '<div class="skel skel-row" style="width:100%;margin-bottom:6px"></div>' +
+    '<div class="skel skel-row" style="width:100%"></div></td></tr>';
+
+  gasCall({ action: 'getOrderList', username: currentUser }, function(data) {
+    olLoaded = true;
+    if (data && data.status === 'ok' && data.rows) {
+      renderOrderList(data.rows);
+    } else {
+      tbody.innerHTML = '<tr><td colspan="7" class="ol-empty">No orders found for ' + esc(currentUser) + '</td></tr>';
+    }
+  }, function() {
+    olLoaded = false;
+    tbody.innerHTML = '<tr><td colspan="7" class="ol-empty" style="color:var(--red)">Network error. Tap Refresh to retry.</td></tr>';
+  });
+}
+
+function statusBadge(val) {
+  var s = String(val || '').trim();
+  if (!s) return '<span class="status-badge status-pending">Pending</span>';
+  var lo = s.toLowerCase();
+  if (lo === 'ok')          return '<span class="status-badge status-ok">OK</span>';
+  if (lo === 'jt')          return '<span class="status-badge status-jt">JT</span>';
+  if (lo === 'stock habis') return '<span class="status-badge status-stockhabis">Stock Habis</span>';
+  if (lo === 'batal')       return '<span class="status-badge status-batal">Batal</span>';
+  return '<span class="status-badge status-other">' + esc(s) + '</span>';
+}
+
+function renderOrderList(rows) {
+  var tbody = document.getElementById('olBody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="ol-empty">No orders found for ' + esc(currentUser) + '</td></tr>';
+    return;
+  }
+
+  // Group rows by timestamp+customer (same order entry)
+  var groups = [];
+  var groupMap = {};
+  rows.forEach(function(r) {
+    var key = r.timestamp + '||' + r.customer;
+    if (!groupMap[key]) {
+      groupMap[key] = { timestamp: r.timestamp, customer: r.customer, items: [], total: 0 };
+      groups.push(groupMap[key]);
+    }
+    groupMap[key].items.push(r);
+    groupMap[key].total += (Number(r.subtotal) || 0);
+  });
+
+  var html = '';
+  groups.forEach(function(g) {
+    // Format timestamp: show date + time nicely
+    var tsDisplay = g.timestamp;
+    try {
+      var d = new Date(g.timestamp);
+      if (!isNaN(d)) {
+        var pad = function(n){ return String(n).padStart(2,'0'); };
+        tsDisplay = pad(d.getDate()) + '/' + pad(d.getMonth()+1) + '/' + String(d.getFullYear()).slice(2) +
+          ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+      }
+    } catch(e){}
+
+    g.items.forEach(function(item, idx) {
+      html += '<tr>';
+      // Timestamp: only show on first row of group
+      if (idx === 0) {
+        html += '<td class="col-ts" rowspan="' + g.items.length + '">' + esc(tsDisplay) + '</td>' +
+                '<td class="col-cust" rowspan="' + g.items.length + '">' + esc(g.customer) + '</td>';
+      }
+      html += '<td class="col-item">' + esc(item.name || '--') + '</td>' +
+              '<td class="col-qty">' + (item.qtyBesar || 0) + '</td>' +
+              '<td class="col-qty">' + (item.qtyKecil || 0) + '</td>' +
+              '<td class="col-sub">' + rpFmt(item.subtotal) + '</td>' +
+              '<td class="col-status">' + statusBadge(item.status) + '</td>' +
+              '</tr>';
+    });
+
+    // Group total row
+    html += '<tr class="ol-group-total">' +
+      '<td colspan="5" style="text-align:right;font-size:0.68rem;letter-spacing:0.06em;color:var(--muted)">ORDER TOTAL</td>' +
+      '<td colspan="2" style="text-align:right">' + rpFmt(g.total) + '</td>' +
+      '</tr>';
+  });
+
+  tbody.innerHTML = html;
 }
 
 // ── ADVANCED SEARCH HELPER ────────────────────────────────────
