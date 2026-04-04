@@ -970,12 +970,16 @@ function advancedMatch(candidate, query) {
 function highlightTokens(text, query) {
   var tokens = query.trim().split(/\s+/).filter(Boolean);
   if (!tokens.length) return esc(text);
-  var result = text;
-  tokens.forEach(function(tok) {
-    var re = new RegExp('\\b(' + tok.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')', 'gi');
-    result = result.replace(re, '<strong style="color:var(--accent)">$1</strong>');
-  });
-  return result;
+  var pattern = tokens.map(function(tok) {
+    return tok.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  }).join('|');
+  var reSplit = new RegExp('(' + pattern + ')', 'gi');
+  var reTest  = new RegExp('^(?:' + pattern + ')$', 'i');
+  return text.split(reSplit).map(function(part) {
+    return reTest.test(part)
+      ? '<strong style="color:var(--accent)">' + esc(part) + '</strong>'
+      : esc(part);
+  }).join('');
 }
 
 // ── CUSTOMER AUTOCOMPLETE ─────────────────────────────────────
@@ -991,10 +995,15 @@ custInput.addEventListener('input', function() {
   }
   var hits = customers.filter(function(c) { return advancedMatch(c, q); }).slice(0, 12);
   if (!hits.length) { closeDrop(); return; }
-  custDrop.innerHTML = hits.map(function(c) {
-    return '<div class="ac-item" ontouchstart="" onclick="pickCust(\'' + c.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')">'
-      + highlightTokens(c, q) + '</div>';
-  }).join('');
+  custDrop.innerHTML = '';
+  hits.forEach(function(c) {
+    var div = document.createElement('div');
+    div.className = 'ac-item';
+    div.innerHTML = highlightTokens(c, q);
+    div.ontouchstart = function(){};
+    div.onclick = function() { pickCust(c); };
+    custDrop.appendChild(div);
+  });
   custDrop.classList.add('open');
 });
 
@@ -1061,17 +1070,23 @@ function onItemSearch(id) {
   }
   var hits = items.filter(function(i){ return advancedMatch(i.name, q); }).slice(0,15);
   if (!hits.length) { drop.classList.remove('open'); drop.innerHTML=''; return; }
-  drop.innerHTML = hits.map(function(i) {
-    var hl = highlightTokens(i.name, q);
+  drop.innerHTML = '';
+  hits.forEach(function(i) {
     var stockVal = (i.stock !== undefined && i.stock !== null && String(i.stock).trim() !== '') ? String(i.stock) : '0';
-    var stockEsc = stockVal.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-    return '<div class="ac-item" ontouchstart="" onmousedown="pickItem(' + id + ',\'' +
-      i.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\',' + i.price + ',\'' +
-      (i.category||'').replace(/'/g,"\\'") + '\',\'' + stockEsc + '\')">' + hl +
+    var div = document.createElement('div');
+    div.className = 'ac-item';
+    div.innerHTML = highlightTokens(i.name, q) +
       (i.category ? '<span style="font-size:0.72rem;color:var(--muted);margin-left:6px;">'+esc(i.category)+'</span>' : '') +
-      '<span style="font-size:0.85rem;font-weight:800;color:var(--green);margin-left:6px;">STOCK: '+stockVal+'</span>' +
-      '</div>';
-  }).join('');
+      '<span style="font-size:0.85rem;font-weight:800;color:var(--green);margin-left:6px;">STOCK: '+esc(stockVal)+'</span>';
+    div.addEventListener('mousedown', function(e) { e.preventDefault(); pickItem(i.id !== undefined ? i.id : id, i.name, i.price, i.category||'', stockVal); });
+    div.addEventListener('touchstart', function(e) { e.preventDefault(); pickItem(i.id !== undefined ? i.id : id, i.name, i.price, i.category||'', stockVal); }, { passive:false });
+    // store id on closure
+    (function(itemName, itemPrice, itemCat, itemStock) {
+      div.onmousedown = function(e) { e.preventDefault(); pickItem(id, itemName, itemPrice, itemCat, itemStock); };
+      div.ontouchstart = function(e) { e.preventDefault(); pickItem(id, itemName, itemPrice, itemCat, itemStock); };
+    })(i.name, i.price, i.category||'', stockVal);
+    drop.appendChild(div);
+  });
   drop.classList.add('open');
 }
 
