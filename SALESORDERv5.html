@@ -729,6 +729,30 @@ function gasCall(params, onOk, onFail) {
   document.body.appendChild(s);
 }
 
+// ── SHOW APP ──────────────────────────────────────────────────
+function showApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').classList.add('show');
+  document.getElementById('headerUser').textContent = currentUser;
+  switchTab('so');
+  initApp();
+}
+
+// ── TAB SWITCHING ─────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('panel-' + tab).classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+  activeTab = tab;
+  var titles = { so:['Sales Order','New Entry'], achieve:['Achievement','Sales Data'], jt:['Jatuh Tempo','Receivables'], ol:['Order List','My Orders'] };
+  document.getElementById('headerTitle').textContent = titles[tab][0];
+  document.getElementById('headerSub').textContent   = titles[tab][1];
+  if (tab === 'achieve') loadAchievement();
+  if (tab === 'jt')      loadJT();
+  if (tab === 'ol')      loadOrderList(true);
+}
+
 // ── INIT APP ──────────────────────────────────────────────────
 function initApp() {
   if (!GAS_URL) { setStatus('err', 'Web App URL not set'); addRow(); return; }
