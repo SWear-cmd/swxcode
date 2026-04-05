@@ -600,67 +600,33 @@ var GAS_URL = 'https://script.google.com/macros/s/AKfycbxrCe0hmBIZ7FB1cb6R3unZiE
 
 var SESSION_KEY = 'so_session';
 var currentUser = '';
+var currentPass = '';  // ← added: stores password for auth on every request
 var customers   = [];
 var items       = [];
 var rows        = [];
 var rowCount    = 0;
 var activeTab   = 'so';
 
-// ── TAB SWITCHING ─────────────────────────────────────────────
-function switchTab(tab) {
-  // hide all panels
-  document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
-  document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
-
-  document.getElementById('panel-' + tab).classList.add('active');
-  document.getElementById('tab-' + tab).classList.add('active');
-  activeTab = tab;
-
-  // update header
-  var titles = { so: ['Sales Order', 'New Entry'], achieve: ['Achievement', 'Sales Data'], jt: ['Jatuh Tempo', 'Receivables'], ol: ['Order List', 'My Orders'] };
-  document.getElementById('headerTitle').textContent = titles[tab][0];
-  document.getElementById('headerSub').textContent   = titles[tab][1];
-
-  // load data if needed
-  if (tab === 'achieve') loadAchievement();
-  if (tab === 'jt')      loadJT();
-  if (tab === 'ol')      loadOrderList(true);
-}
-
 // ── SESSION MANAGEMENT ────────────────────────────────────────
-function saveSession(username) {
-  try { sessionStorage.setItem(SESSION_KEY, username); } catch(e){}
+function saveSession(username, password) {
+  try {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ u: username, p: password }));
+  } catch(e){}
 }
 function loadSession() {
-  try { return sessionStorage.getItem(SESSION_KEY) || null; } catch(e) { return null; }
+  try {
+    var raw = sessionStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    var obj = JSON.parse(raw);
+    if (obj && obj.u && obj.p) return obj;
+    return null;
+  } catch(e) { return null; }
 }
 function clearSession() {
   try { sessionStorage.removeItem(SESSION_KEY); } catch(e){}
 }
 
 // ── LOGIN / LOGOUT ────────────────────────────────────────────
-function togglePw() {
-  var inp = document.getElementById('loginPass');
-  var ico = document.getElementById('eyeIcon');
-  if (inp.type === 'password') {
-    inp.type = 'text';
-    ico.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>' +
-      '<path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>' +
-      '<line x1="1" y1="1" x2="23" y2="23"/>';
-  } else {
-    inp.type = 'password';
-    ico.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
-  }
-}
-
-function showLoginErr(msg) {
-  var el = document.getElementById('loginErr');
-  el.textContent = msg; el.classList.add('show');
-}
-function hideLoginErr() {
-  document.getElementById('loginErr').classList.remove('show');
-}
-
 function doLogin() {
   var user = document.getElementById('loginUser').value.trim();
   var pass = document.getElementById('loginPass').value;
@@ -674,7 +640,8 @@ function doLogin() {
     btn.disabled = false; btn.textContent = 'Sign In';
     if (data && data.status === 'ok') {
       currentUser = data.username || user;
-      saveSession(currentUser);
+      currentPass = pass;                        // ← store password
+      saveSession(currentUser, currentPass);     // ← save both
       showApp();
     } else {
       showLoginErr(data && data.message ? data.message : 'Invalid username or password.');
@@ -689,7 +656,9 @@ function doLogin() {
 
 function doLogout() {
   clearSession();
-  currentUser = ''; customers = []; items = []; rows = []; rowCount = 0; achieveLoaded = false; jtLoaded = false; olLoaded = false;
+  currentUser = ''; currentPass = '';  // ← clear both
+  customers = []; items = []; rows = []; rowCount = 0;
+  achieveLoaded = false; jtLoaded = false; olLoaded = false;
   document.getElementById('app').classList.remove('show');
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('loginUser').value = '';
@@ -697,22 +666,14 @@ function doLogout() {
   document.getElementById('loginUser').focus();
 }
 
-function showApp() {
-  document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('app').classList.add('show');
-  document.getElementById('headerUser').textContent = currentUser;
-  // Reset to SO tab
-  switchTab('so');
-  initApp();
-}
-
 // ── PAGE LOAD: CHECK SESSION ──────────────────────────────────
 (function() {
   var saved = loadSession();
   if (saved) {
-    currentUser = saved;
+    currentUser = saved.u;
+    currentPass = saved.p;   // ← must extract .u and .p
     showApp();
-  } else {
+   } else {
     document.getElementById('loginScreen').style.display = 'flex';
     setTimeout(function(){ document.getElementById('loginUser').focus(); }, 100);
   }
@@ -720,6 +681,12 @@ function showApp() {
 
 // ── JSONP helper ─────────────────────────────────────────────
 function gasCall(params, onOk, onFail) {
+  // Always attach credentials so Apps Script can verify on every request
+  if (params.action !== 'verifyLogin') {
+    params.username = currentUser;
+    params.password = currentPass;
+  }
+
   var cb = '_cb' + Date.now() + Math.floor(Math.random() * 9999);
   var url = GAS_URL + '?callback=' + cb;
   Object.keys(params).forEach(function(k) {
