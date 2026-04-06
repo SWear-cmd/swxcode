@@ -1091,13 +1091,31 @@ function onItemSearch(id) {
     div.innerHTML = highlightTokens(i.name, q) +
       (i.category ? '<span style="font-size:0.72rem;color:var(--muted);margin-left:6px;">'+esc(i.category)+'</span>' : '') +
       '<span style="font-size:0.85rem;font-weight:800;color:var(--green);margin-left:6px;">STOCK: '+esc(stockVal)+'</span>';
-    div.addEventListener('mousedown', function(e) { e.preventDefault(); pickItem(i.id !== undefined ? i.id : id, i.name, i.price, i.category||'', stockVal); });
-    div.addEventListener('touchstart', function(e) { e.preventDefault(); pickItem(i.id !== undefined ? i.id : id, i.name, i.price, i.category||'', stockVal); }, { passive:false });
-    // store id on closure
+
     (function(itemName, itemPrice, itemCat, itemStock) {
-      div.onmousedown = function(e) { e.preventDefault(); pickItem(id, itemName, itemPrice, itemCat, itemStock); };
-      div.ontouchstart = function(e) { e.preventDefault(); pickItem(id, itemName, itemPrice, itemCat, itemStock); };
+      var touchStartY = 0;
+      var touchStartX = 0;
+
+      div.addEventListener('touchstart', function(e) {
+        touchStartY = e.touches[0].clientY;
+        touchStartX = e.touches[0].clientX;
+      }, { passive: true });
+
+      div.addEventListener('touchend', function(e) {
+        var dy = Math.abs(e.changedTouches[0].clientY - touchStartY);
+        var dx = Math.abs(e.changedTouches[0].clientX - touchStartX);
+        if (dy < 10 && dx < 10) {
+          e.preventDefault();
+          pickItem(id, itemName, itemPrice, itemCat, itemStock);
+        }
+      }, { passive: false });
+
+      div.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        pickItem(id, itemName, itemPrice, itemCat, itemStock);
+      });
     })(i.name, i.price, i.category||'', stockVal);
+
     drop.appendChild(div);
   });
   drop.classList.add('open');
