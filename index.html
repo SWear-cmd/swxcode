@@ -15,72 +15,6 @@
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;max-width:430px;margin:0 auto;padding-bottom:90px;min-height:100vh;}
 
-  /* ── LOCK SCREEN ── */
-  #lockscreen{
-    position:fixed;inset:0;background:var(--bg);z-index:9999;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;
-    padding:32px 28px;max-width:430px;margin:0 auto;
-    animation:fadeIn 0.35s ease;
-  }
-  @keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-  @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
-  #lockscreen.shake{animation:shake 0.4s ease;}
-  .lock-icon{font-size:48px;margin-bottom:20px;}
-  .lock-title{font-size:24px;font-weight:800;margin-bottom:6px;text-align:center;}
-  .lock-sub{font-size:13px;color:var(--muted);margin-bottom:32px;text-align:center;}
-  .lock-input-wrap{position:relative;width:100%;margin-bottom:12px;}
-  .lock-input{
-    width:100%;background:var(--surface);border:1.5px solid var(--border);
-    border-radius:12px;padding:14px 50px 14px 18px;font-size:16px;
-    font-family:'Plus Jakarta Sans',sans-serif;color:var(--text);outline:none;
-    letter-spacing:0.1em;transition:border-color 0.2s;
-  }
-  .lock-input:focus{border-color:var(--accent);}
-  .lock-input.err{border-color:var(--danger);}
-  .lock-eye{
-    position:absolute;right:16px;top:50%;transform:translateY(-50%);
-    background:none;border:none;color:var(--muted);cursor:pointer;
-    font-size:18px;padding:0;line-height:1;
-  }
-  .lock-err{font-size:12px;color:var(--danger);margin-bottom:14px;min-height:18px;text-align:center;}
-  .lock-attempts{font-size:11px;color:var(--muted);margin-bottom:18px;min-height:16px;text-align:center;}
-  .btn-unlock{
-    width:100%;background:var(--accent);color:#0a0a0f;border:none;border-radius:12px;
-    padding:15px;font-size:14px;font-weight:800;font-family:'Plus Jakarta Sans',sans-serif;
-    cursor:pointer;transition:all 0.2s;margin-bottom:18px;
-  }
-  .btn-unlock:active{transform:scale(0.97);}
-  .btn-unlock:disabled{opacity:0.5;pointer-events:none;}
-  .lock-change{font-size:12px;color:var(--muted);text-decoration:underline;cursor:pointer;background:none;border:none;font-family:'Plus Jakarta Sans',sans-serif;}
-  .lock-divider{width:100%;height:1px;background:var(--border);margin:22px 0;}
-
-  /* ── CHANGE PASSWORD PANEL (inside lockscreen) ── */
-  #chpwd-panel{display:none;width:100%;}
-  #chpwd-panel.on{display:block;}
-  .chpwd-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px;text-align:center;}
-  .chpwd-input{
-    width:100%;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;
-    padding:12px 14px;font-size:14px;font-family:'Plus Jakarta Sans',sans-serif;
-    color:var(--text);outline:none;margin-bottom:8px;transition:border-color 0.2s;
-  }
-  .chpwd-input:focus{border-color:var(--accent2);}
-  .chpwd-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;}
-  .btn-chpwd-save{background:var(--accent2);color:#fff;border:none;border-radius:10px;padding:12px;font-size:13px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;cursor:pointer;}
-  .btn-chpwd-cancel{background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:12px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;}
-
-  /* ── AUTO-LOCK INDICATOR ── */
-  #autolock-bar{
-    position:fixed;top:0;left:50%;transform:translateX(-50%);
-    width:100%;max-width:430px;background:rgba(200,245,58,0.08);
-    border-bottom:1px solid rgba(200,245,58,0.15);
-    padding:5px 16px;font-size:11px;font-weight:700;color:var(--accent);
-    display:none;z-index:500;text-align:center;pointer-events:none;
-  }
-
-  /* ── MAIN APP (hidden until unlocked) ── */
-  #app{display:none;}
-  #app.unlocked{display:block;}
-
   /* HEADER */
   .hdr{padding:48px 20px 16px;position:relative;overflow:hidden;}
   .hdr::before{content:'';position:absolute;top:-60px;right:-60px;width:180px;height:180px;background:radial-gradient(circle,rgba(124,106,247,0.2) 0%,transparent 70%);pointer-events:none;}
@@ -210,7 +144,6 @@
   .srow label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;display:block;margin-bottom:5px;}
   .snote{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.5;}
   .btn-save{margin:0 16px;width:calc(100% - 32px);background:var(--accent2);color:#fff;border:none;border-radius:12px;padding:13px;font-size:13px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;cursor:pointer;}
-  .btn-lock-now{margin:12px 16px 0;width:calc(100% - 32px);background:rgba(255,92,92,0.12);border:1.5px solid rgba(255,92,92,0.3);color:var(--danger);border-radius:12px;padding:13px;font-size:13px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;cursor:pointer;}
 
   /* CONFIRM */
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:flex-end;z-index:200;opacity:0;pointer-events:none;transition:opacity 0.2s;}
@@ -227,7 +160,6 @@
   .btn-delok{background:var(--danger);border:none;border-radius:11px;padding:13px;font-size:13px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;color:#fff;cursor:pointer;}
   .btn-delok.busy{opacity:0.6;pointer-events:none;}
 
-  /* EDIT OVERLAY */
   .empty{text-align:center;padding:36px 20px;color:var(--muted);}
   .empty .ei{font-size:44px;margin-bottom:10px;}
   .empty p{font-size:13px;line-height:1.6;}
@@ -317,48 +249,7 @@
 <body>
 
 <!-- ══════════════════════════════════════════
-     LOCK SCREEN
-══════════════════════════════════════════ -->
-<div id="lockscreen">
-  <div class="lock-icon">🔒</div>
-  <div class="lock-title">ExpenseLog</div>
-  <div class="lock-sub">Enter your password to continue</div>
-
-  <div class="lock-input-wrap">
-    <input type="password" class="lock-input" id="pwd-input"
-      placeholder="Password"
-      autocomplete="current-password"
-      onkeydown="if(event.key==='Enter')tryUnlock()">
-    <button class="lock-eye" id="pwd-eye" onclick="togglePwdEye()" type="button">👁</button>
-  </div>
-  <div class="lock-err" id="lock-err"></div>
-  <div class="lock-attempts" id="lock-attempts"></div>
-  <button class="btn-unlock" id="btn-unlock" onclick="tryUnlock()">Unlock →</button>
-  <button class="lock-change" onclick="toggleChangePwd()">Change password</button>
-
-  <div class="lock-divider"></div>
-
-  <!-- CHANGE PASSWORD SUB-PANEL -->
-  <div id="chpwd-panel">
-    <div class="chpwd-title">🔑 Set New Password</div>
-    <input type="password" class="chpwd-input" id="chpwd-old" placeholder="Current password (leave blank if first time)">
-    <input type="password" class="chpwd-input" id="chpwd-new" placeholder="New password (min 4 chars)">
-    <input type="password" class="chpwd-input" id="chpwd-confirm" placeholder="Confirm new password">
-    <div class="lock-err" id="chpwd-err" style="margin-bottom:6px;"></div>
-    <div class="chpwd-btns">
-      <button class="btn-chpwd-cancel" onclick="toggleChangePwd()">Cancel</button>
-      <button class="btn-chpwd-save" onclick="saveNewPassword()">Save</button>
-    </div>
-  </div>
-</div>
-
-<!-- ══════════════════════════════════════════
-     AUTO-LOCK BAR
-══════════════════════════════════════════ -->
-<div id="autolock-bar">🔒 Auto-locks in <span id="autolock-countdown"></span>s of inactivity</div>
-
-<!-- ══════════════════════════════════════════
-     MAIN APP (hidden until unlocked)
+     MAIN APP
 ══════════════════════════════════════════ -->
 <div id="app">
 
@@ -468,7 +359,6 @@
     </div>
   </div>
   <button class="btn-save" onclick="saveSettings()">💾 Save Settings</button>
-  <button class="btn-lock-now" onclick="lockApp()">🔒 Lock App Now</button>
 
   <div style="margin:20px 16px 0">
     <div class="sec-title" style="padding:0;margin-bottom:10px">🏷️ Expense Categories</div>
@@ -639,231 +529,6 @@
 <div class="toast" id="toast"></div>
 
 <script>
-// ═══════════════════════════════════════════
-// ██  SECURITY: PASSWORD & AUTO-LOCK  ██
-// ═══════════════════════════════════════════
-
-const HASH_KEY = 'app_pwd_hash';
-const SALT_KEY = 'app_pwd_salt';
-const MAX_ATTEMPTS = 5;
-const LOCKOUT_MS   = 30 * 1000;   // 30s lockout after max attempts
-const AUTO_LOCK_S  = 300;          // 5 min auto-lock (0 = disabled)
-const ATTEMPT_KEY  = 'app_fail_attempts';
-const LOCKOUT_KEY  = 'app_lockout_until';
-
-let autoLockTimer  = null;
-let autoLockCount  = AUTO_LOCK_S;
-let autoLockBarTimer = null;
-let _appUnlocked   = false;
-
-// ── Simple hash (SHA-256 via SubtleCrypto) ──
-async function sha256(msg){
-  const enc  = new TextEncoder().encode(msg);
-  const buf  = await crypto.subtle.digest('SHA-256', enc);
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
-}
-
-function getStoredHash(){ return localStorage.getItem(HASH_KEY); }
-function getStoredSalt(){ return localStorage.getItem(SALT_KEY); }
-function randomSalt(){ return crypto.getRandomValues(new Uint32Array(4)).join('-'); }
-
-async function checkPassword(pwd){
-  const storedHash = getStoredHash();
-  if(!storedHash) return true; // no password set yet → always pass on first unlock
-  const salt = getStoredSalt() || '';
-  const hash = await sha256(salt + pwd);
-  return hash === storedHash;
-}
-
-async function setPassword(pwd){
-  const salt = randomSalt();
-  const hash = await sha256(salt + pwd);
-  localStorage.setItem(SALT_KEY, salt);
-  localStorage.setItem(HASH_KEY, hash);
-}
-
-// ── Attempt tracking ──
-function getAttempts(){ return parseInt(localStorage.getItem(ATTEMPT_KEY)||'0'); }
-function incAttempts(){ localStorage.setItem(ATTEMPT_KEY, getAttempts()+1); }
-function resetAttempts(){ localStorage.removeItem(ATTEMPT_KEY); localStorage.removeItem(LOCKOUT_KEY); }
-function isLockedOut(){
-  const until = parseInt(localStorage.getItem(LOCKOUT_KEY)||'0');
-  return Date.now() < until;
-}
-function setLockout(){
-  localStorage.setItem(LOCKOUT_KEY, Date.now() + LOCKOUT_MS);
-  localStorage.setItem(ATTEMPT_KEY, '0');
-}
-function lockoutRemainingS(){
-  return Math.ceil((parseInt(localStorage.getItem(LOCKOUT_KEY)||'0') - Date.now()) / 1000);
-}
-
-// ── UI helpers ──
-function lockErr(msg){ document.getElementById('lock-err').textContent = msg; }
-function lockAttempts(msg){ document.getElementById('lock-attempts').textContent = msg; }
-
-function togglePwdEye(){
-  const inp = document.getElementById('pwd-input');
-  inp.type = inp.type === 'password' ? 'text' : 'password';
-  document.getElementById('pwd-eye').textContent = inp.type === 'password' ? '👁' : '🙈';
-}
-
-function toggleChangePwd(){
-  const p = document.getElementById('chpwd-panel');
-  p.classList.toggle('on');
-  if(p.classList.contains('on')){
-    document.getElementById('chpwd-old').value = '';
-    document.getElementById('chpwd-new').value = '';
-    document.getElementById('chpwd-confirm').value = '';
-    document.getElementById('chpwd-err').textContent = '';
-  }
-}
-
-// ── Try to unlock ──
-async function tryUnlock(){
-  if(isLockedOut()){
-    lockErr('Too many attempts. Wait ' + lockoutRemainingS() + 's.');
-    return;
-  }
-  const pwd = document.getElementById('pwd-input').value;
-  if(!pwd){ lockErr('Enter your password.'); return; }
-  const ok = await checkPassword(pwd);
-  if(ok){
-    resetAttempts();
-    // If no password set yet, auto-set a default or prompt
-    if(!getStoredHash()){
-      // First launch: set the entered value as the password
-      await setPassword(pwd);
-    }
-    unlockApp();
-  } else {
-    incAttempts();
-    const a = getAttempts();
-    document.getElementById('pwd-input').value = '';
-    document.getElementById('pwd-input').classList.add('err');
-    setTimeout(()=>document.getElementById('pwd-input').classList.remove('err'),600);
-    document.getElementById('lockscreen').classList.add('shake');
-    setTimeout(()=>document.getElementById('lockscreen').classList.remove('shake'),400);
-    if(a >= MAX_ATTEMPTS){
-      setLockout();
-      lockErr('Too many attempts. Locked for 30s.');
-      lockAttempts('');
-    } else {
-      lockErr('Wrong password.');
-      lockAttempts((MAX_ATTEMPTS - a) + ' attempt' + ((MAX_ATTEMPTS-a)===1?'':'s') + ' remaining');
-    }
-  }
-}
-
-// ── Save new password ──
-async function saveNewPassword(){
-  const oldPwd = document.getElementById('chpwd-old').value;
-  const newPwd = document.getElementById('chpwd-new').value;
-  const cfmPwd = document.getElementById('chpwd-confirm').value;
-  const errEl  = document.getElementById('chpwd-err');
-
-  const hasExisting = !!getStoredHash();
-  if(hasExisting){
-    const oldOk = await checkPassword(oldPwd);
-    if(!oldOk){ errEl.textContent = 'Current password is wrong.'; return; }
-  }
-  if(newPwd.length < 4){ errEl.textContent = 'New password must be 4+ characters.'; return; }
-  if(newPwd !== cfmPwd){ errEl.textContent = 'Passwords do not match.'; return; }
-
-  await setPassword(newPwd);
-  errEl.textContent = '';
-  toggleChangePwd();
-  lockErr('');
-  lockAttempts('');
-  showToast('🔑 Password updated!');
-  // If already unlocked, stay unlocked
-  if(!_appUnlocked){ document.getElementById('pwd-input').value = ''; }
-}
-
-// ── Unlock ──
-function unlockApp(){
-  _appUnlocked = true;
-  document.getElementById('lockscreen').style.display = 'none';
-  document.getElementById('app').classList.add('unlocked');
-  document.getElementById('pwd-input').value = '';
-  lockErr(''); lockAttempts('');
-  startAutoLock();
-  refreshAll();
-  // Auto-sync on login if URL and token are configured
-  if(cfg.url && apiToken()){
-    setSyncMsg('Syncing...', 'busy');
-    doSync();
-  }
-}
-
-// ── Lock ──
-function lockApp(){
-  _appUnlocked = false;
-  clearAutoLock();
-  document.getElementById('app').classList.remove('unlocked');
-  document.getElementById('lockscreen').style.display = '';
-  document.getElementById('lockscreen').style.animation = 'none';
-  void document.getElementById('lockscreen').offsetWidth; // reflow
-  document.getElementById('lockscreen').style.animation = '';
-  document.getElementById('pwd-input').value = '';
-  lockErr(''); lockAttempts('');
-  document.getElementById('autolock-bar').style.display = 'none';
-  if(isLockedOut()){
-    lockErr('Locked. Wait ' + lockoutRemainingS() + 's.');
-    document.getElementById('btn-unlock').disabled = true;
-  } else {
-    document.getElementById('btn-unlock').disabled = false;
-  }
-}
-
-// ── Auto-lock ──
-function resetAutoLock(){
-  if(!_appUnlocked || AUTO_LOCK_S <= 0) return;
-  clearAutoLock();
-  autoLockCount = AUTO_LOCK_S;
-  document.getElementById('autolock-bar').style.display = 'none';
-  autoLockTimer = setInterval(()=>{
-    autoLockCount--;
-    if(autoLockCount <= 30){
-      const bar = document.getElementById('autolock-bar');
-      bar.style.display = 'block';
-      document.getElementById('autolock-countdown').textContent = autoLockCount;
-    }
-    if(autoLockCount <= 0) lockApp();
-  }, 1000);
-}
-
-function clearAutoLock(){
-  if(autoLockTimer){ clearInterval(autoLockTimer); autoLockTimer = null; }
-}
-function startAutoLock(){
-  if(AUTO_LOCK_S > 0){
-    ['touchstart','click','keydown','scroll','mousemove'].forEach(e =>
-      document.addEventListener(e, resetAutoLock, { passive: true })
-    );
-    resetAutoLock();
-  }
-}
-
-// Check lockout on load
-(function(){
-  const btn = document.getElementById('btn-unlock');
-  if(isLockedOut()){
-    lockErr('Too many attempts. Wait ' + lockoutRemainingS() + 's.');
-    btn.disabled = true;
-    const interval = setInterval(()=>{
-      if(!isLockedOut()){
-        clearInterval(interval);
-        lockErr(''); btn.disabled = false; lockAttempts('');
-      } else {
-        lockErr('Too many attempts. Wait ' + lockoutRemainingS() + 's.');
-      }
-    }, 1000);
-  }
-  // Auto-focus password field
-  setTimeout(()=>document.getElementById('pwd-input').focus(), 100);
-})();
-
 // ═══════════════════════════════════════════
 // SETTINGS
 // ═══════════════════════════════════════════
@@ -1297,7 +962,6 @@ async function logWorkout(){
   btn.classList.remove('busy');btn.textContent='💪 Log Workout';
 }
 
-
 function setWoSyncMsg(txt,cls){const el=document.getElementById("wo-sync-msg");if(!el)return;el.textContent=txt;el.className="sync-msg"+(cls?" "+cls:"");}
 
 async function doWoSync(){
@@ -1328,6 +992,7 @@ async function doWoSync(){
     }else{throw new Error(data.message||JSON.stringify(data));}
   }catch(e){setWoSyncMsg("❌ Sync failed","fail");showToast("❌ "+e.message,true);}
 }
+
 function renderWoSummary(){
   const me=myName(),p=partnerName();
   const now=new Date();const day=now.getDay();
@@ -1427,13 +1092,22 @@ function updateDateChip(){
 }
 
 // ═══════════════════════════════════════════
-// INIT
+// INIT — boot straight into app
 // ═══════════════════════════════════════════
 function init(){
-  updateDateChip();setTodayDate();loadSettingsUI();
-  renderCatGrid();renderCatManager();updateMonthLabel();
+  updateDateChip();
+  setTodayDate();
+  loadSettingsUI();
+  renderCatGrid();
+  renderCatManager();
+  updateMonthLabel();
   initWorkoutTab();
-  // Don't call refreshAll or doSync here — wait until unlocked
+  refreshAll();
+  // Auto-sync on load if token is configured
+  if(cfg.url && apiToken()){
+    setSyncMsg('Syncing...', 'busy');
+    doSync();
+  }
 }
 
 init();
