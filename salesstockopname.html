@@ -52,13 +52,16 @@
   input::placeholder { color:var(--muted); }
   select { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 11px center; padding-right:32px; }
 
+  /* ── AUTOCOMPLETE — same as salesorder ── */
   .search-wrap { position:relative; }
-  .ac-list { position:absolute; top:calc(100% + 3px); left:0; right:0; background:var(--surface2); border:1px solid var(--accent); border-radius:8px; max-height:200px; overflow-y:auto; z-index:9000; display:none; }
+  .ac-list { position:absolute; top:calc(100% + 3px); left:0; right:0; background:var(--surface2); border:1px solid var(--accent); border-radius:8px; max-height:190px; overflow-y:auto; z-index:9000; display:none; }
   .ac-list.open { display:block; }
   .ac-item { padding:10px 12px; font-size:0.88rem; cursor:pointer; border-bottom:1px solid var(--border); }
   .ac-item:last-child { border-bottom:none; }
   .ac-item:active { background:var(--accent-dim); color:var(--accent); }
+  .ac-empty { padding:10px 12px; font-size:0.82rem; color:var(--muted); }
 
+  /* ── ITEM FILTER BAR ── */
   .search-section { padding:10px 14px 0; }
   .search-row { display:flex; gap:8px; }
   .search-row input { flex:1; }
@@ -68,6 +71,7 @@
   .pill { display:inline-flex; align-items:center; background:var(--accent-dim); border:1px solid rgba(245,197,24,0.22); border-radius:20px; padding:3px 10px; font-family:'Barlow Condensed',sans-serif; font-size:0.7rem; font-weight:700; color:var(--accent); letter-spacing:0.06em; }
   .pill.green { background:rgba(46,204,113,0.1); border-color:rgba(46,204,113,0.25); color:var(--green); }
 
+  /* ── ITEM TABLE ── */
   .item-table-outer { margin:10px 14px 0; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
   .item-table-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
   .item-table { width:100%; border-collapse:collapse; }
@@ -99,7 +103,7 @@
   .btn-submit:active { opacity:0.82; }
   .btn-submit:disabled { opacity:0.35; cursor:not-allowed; }
 
-  /* REPORT */
+  /* ── REPORT ── */
   .report-wrap { padding:12px 14px; }
   .report-toprow { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:8px; flex-wrap:wrap; }
   .report-title { font-family:'Barlow Condensed',sans-serif; font-size:0.7rem; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:var(--muted); }
@@ -201,8 +205,12 @@
 
   <div class="search-section">
     <div class="search-row">
-      <input type="text" id="itemSearch" placeholder="Filter items by name..." oninput="filterItems()">
-      <button class="btn-clear" onclick="clearSearch()">Clear</button>
+      <div class="search-wrap" style="flex:1;">
+        <input type="text" id="itemSearch" placeholder="Filter items..." autocomplete="off" inputmode="search"
+               oninput="onItemSearch()" onblur="onItemSearchBlur()">
+        <div class="ac-list" id="itemDrop"></div>
+      </div>
+      <button class="btn-clear" onclick="clearItemSearch()">Clear</button>
     </div>
     <div class="pills-row">
       <span class="pill" id="countPill">104 items</span>
@@ -326,7 +334,6 @@ var currentUser = '';
 var currentPass = '';
 var reportRows  = [];
 var reportLoaded = false;
-var visibleItems = ITEMS.slice();
 
 // ── INIT ──────────────────────────────────────────────────────
 (function() {
@@ -338,8 +345,6 @@ var visibleItems = ITEMS.slice();
 
   document.getElementById('headerUser').textContent = currentUser;
   document.getElementById('salesmanInput').value = currentUser;
-  document.getElementById('statusDot').className = 'ok';
-  // set dot colour via inline style since class 'ok' may not exist in this CSS
   document.getElementById('statusDot').style.background = 'var(--green)';
 
   var d = new Date(), p = function(n){ return String(n).padStart(2,'0'); };
@@ -370,33 +375,108 @@ function switchTab(tab) {
   if (tab==='report') loadReport(false);
 }
 
+// ── ADVANCED SEARCH HELPERS (copied from salesorder) ─────────
+function advancedMatch(candidate, query) {
+  var tokens = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  if (!tokens.length) return false;
+  var words = candidate.toLowerCase().match(/[a-z0-9]+/g) || [];
+  return tokens.every(function(tok) {
+    return words.some(function(w) { return w.indexOf(tok) === 0; });
+  });
+}
+
+function highlightTokens(text, query) {
+  var tokens = query.trim().split(/\s+/).filter(Boolean);
+  if (!tokens.length) return esc(text);
+  var pattern = tokens.map(function(tok) {
+    return tok.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }).join('|');
+  var reSplit = new RegExp('(' + pattern + ')', 'gi');
+  var reTest  = new RegExp('^(?:' + pattern + ')$', 'i');
+  return text.split(reSplit).map(function(part) {
+    return reTest.test(part)
+      ? '<strong style="color:var(--accent)">' + esc(part) + '</strong>'
+      : esc(part);
+  }).join('');
+}
+
 // ── CUSTOMER AUTOCOMPLETE ─────────────────────────────────────
 var custInput = document.getElementById('custInput');
 var custDrop  = document.getElementById('custDrop');
 
 function onCustInput() {
-  var q = custInput.value.trim().toLowerCase();
-  if (!q) { closeDrop(); return; }
-  var hits = CUSTOMERS.filter(function(c){ return c.toLowerCase().indexOf(q) !== -1; }).slice(0,10);
-  if (!hits.length) { closeDrop(); return; }
+  var q = custInput.value.trim();
+  if (!q) { closeCustDrop(); return; }
+  var hits = CUSTOMERS.filter(function(c){ return advancedMatch(c, q); }).slice(0, 12);
+  if (!hits.length) { closeCustDrop(); return; }
   custDrop.innerHTML = '';
   hits.forEach(function(c) {
     var div = document.createElement('div');
-    div.className = 'ac-item'; div.textContent = c;
+    div.className = 'ac-item';
+    div.innerHTML = highlightTokens(c, q);
     div.ontouchstart = function(){};
-    div.onclick = function(){ custInput.value = c; closeDrop(); };
+    div.onclick = function(){ custInput.value = c; closeCustDrop(); custInput.blur(); };
     custDrop.appendChild(div);
   });
   custDrop.classList.add('open');
 }
-function onCustBlur() { setTimeout(closeDrop, 200); }
-function closeDrop() { custDrop.classList.remove('open'); custDrop.innerHTML=''; }
-document.addEventListener('touchstart', function(e){ if(!custDrop.contains(e.target)&&e.target!==custInput) closeDrop(); }, {passive:true});
-document.addEventListener('mousedown',  function(e){ if(!custDrop.contains(e.target)&&e.target!==custInput) closeDrop(); });
+function onCustBlur() { setTimeout(closeCustDrop, 200); }
+function closeCustDrop() { custDrop.classList.remove('open'); custDrop.innerHTML=''; }
+document.addEventListener('touchstart', function(e){
+  if (!custDrop.contains(e.target) && e.target !== custInput) closeCustDrop();
+}, {passive:true});
+document.addEventListener('mousedown', function(e){
+  if (!custDrop.contains(e.target) && e.target !== custInput) closeCustDrop();
+});
+
+// ── ITEM SEARCH WITH DROPDOWN (same style as salesorder) ──────
+var itemSearchInput = document.getElementById('itemSearch');
+var itemDrop        = document.getElementById('itemDrop');
+
+function onItemSearch() {
+  var q = itemSearchInput.value.trim();
+  // Always filter the table live
+  var filtered = q ? ITEMS.filter(function(n){ return advancedMatch(n, q); }) : ITEMS;
+  renderItemTable(filtered);
+
+  // Also show dropdown suggestions (top 10)
+  if (!q) { closeItemDrop(); return; }
+  var hits = filtered.slice(0, 10);
+  if (!hits.length) { closeItemDrop(); return; }
+  itemDrop.innerHTML = '';
+  hits.forEach(function(name) {
+    var div = document.createElement('div');
+    div.className = 'ac-item';
+    div.innerHTML = highlightTokens(name, q);
+    div.ontouchstart = function(){};
+    div.onclick = function(){
+      itemSearchInput.value = name;
+      closeItemDrop();
+      renderItemTable([name]);
+      // scroll table to top
+      var outer = document.querySelector('.item-table-outer');
+      if (outer) outer.scrollIntoView({ behavior:'smooth', block:'start' });
+    };
+    itemDrop.appendChild(div);
+  });
+  itemDrop.classList.add('open');
+}
+function onItemSearchBlur() { setTimeout(closeItemDrop, 200); }
+function closeItemDrop() { itemDrop.classList.remove('open'); itemDrop.innerHTML=''; }
+function clearItemSearch() {
+  itemSearchInput.value = '';
+  closeItemDrop();
+  renderItemTable(ITEMS);
+}
+document.addEventListener('touchstart', function(e){
+  if (!itemDrop.contains(e.target) && e.target !== itemSearchInput) closeItemDrop();
+}, {passive:true});
+document.addEventListener('mousedown', function(e){
+  if (!itemDrop.contains(e.target) && e.target !== itemSearchInput) closeItemDrop();
+});
 
 // ── ITEM TABLE ────────────────────────────────────────────────
 function renderItemTable(list) {
-  visibleItems = list;
   var tbody = document.getElementById('itemBody');
   document.getElementById('countPill').textContent = list.length + ' item' + (list.length!==1?'s':'');
   if (!list.length) {
@@ -404,7 +484,7 @@ function renderItemTable(list) {
     return;
   }
   tbody.innerHTML = list.map(function(name, idx) {
-    var gIdx = ITEMS.indexOf(name); // global index → stable IDs
+    var gIdx = ITEMS.indexOf(name);
     var lid = 'lsn'+gIdx, pid = 'pcs'+gIdx;
     return '<tr id="irow'+gIdx+'">' +
       '<td class="td-no">'+(idx+1)+'</td>' +
@@ -437,12 +517,6 @@ function updateFilledPill() {
   document.querySelectorAll('#itemBody .qty-inp.filled').forEach(function(el){ seen[el.dataset.g]=1; });
   document.getElementById('filledPill').textContent = Object.keys(seen).length + ' filled';
 }
-
-function filterItems() {
-  var q = document.getElementById('itemSearch').value.trim().toLowerCase();
-  renderItemTable(q ? ITEMS.filter(function(n){ return n.toLowerCase().indexOf(q)!==-1; }) : ITEMS);
-}
-function clearSearch() { document.getElementById('itemSearch').value=''; renderItemTable(ITEMS); }
 
 // ── SUBMIT ────────────────────────────────────────────────────
 function submitOpname() {
@@ -481,7 +555,8 @@ function submitOpname() {
 function resetForm() {
   custInput.value='';
   document.getElementById('notesInput').value='';
-  document.getElementById('itemSearch').value='';
+  itemSearchInput.value='';
+  closeItemDrop();
   document.querySelectorAll('.qty-inp').forEach(function(el){ el.value=''; el.classList.remove('filled'); });
   document.querySelectorAll('#itemBody tr').forEach(function(tr){ tr.classList.remove('row-filled'); });
   renderItemTable(ITEMS);
