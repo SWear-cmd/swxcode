@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Stock Opname</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:         #0f0f0f;
+    --surface:    #1a1a1a;
+    --surface2:   #242424;
+    --border:     #2e2e2e;
+    --accent:     #f5c518;
+    --accent-dim: rgba(245,197,24,0.12);
+    --text:       #f0f0f0;
+    --muted:      #888;
+    --red:        #e84040;
+    --green:      #2ecc71;
+    --radius:     10px;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  body { background:var(--bg); color:var(--text); font-family:'Barlow',sans-serif; min-height:100vh; padding-bottom:70px; }
+
+  header { background:var(--surface); border-bottom:2px solid var(--accent); padding:11px 14px 10px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
+  .header-left { display:flex; align-items:baseline; gap:10px; }
+  header h1 { font-family:'Barlow Condensed',sans-serif; font-weight:800; font-size:1.5rem; letter-spacing:0.05em; color:var(--accent); text-transform:uppercase; }
+  header .sub { font-size:0.75rem; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; }
+  .header-right { display:flex; align-items:center; gap:8px; }
+  .user-chip { display:flex; align-items:center; gap:5px; background:var(--accent-dim); border:1px solid rgba(245,197,24,0.25); border-radius:20px; padding:3px 10px 3px 7px; }
+  .user-chip span { font-family:'Barlow Condensed',sans-serif; font-size:0.82rem; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--accent); max-width:90px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .btn-back { background:none; border:1px solid #2a2a2a; border-radius:7px; color:var(--muted); padding:4px 10px; font-family:'Barlow Condensed',sans-serif; font-size:0.75rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:4px; }
+  .btn-back:active { background:var(--surface2); }
+
+  #tabBar { position:fixed; bottom:0; left:0; right:0; z-index:200; background:var(--surface); border-top:1px solid var(--border); display:flex; height:56px; }
+  .tab-btn { flex:1; background:none; border:none; color:var(--muted); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; cursor:pointer; font-family:'Barlow Condensed',sans-serif; font-size:0.65rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; transition:color 0.15s; padding:0; }
+  .tab-btn.active { color:var(--accent); }
+  .tab-btn:active { background:var(--surface2); }
+  .tab-panel { display:none; }
+  .tab-panel.active { display:block; }
+
+  #statusBar { background:var(--surface2); border-bottom:1px solid var(--border); padding:6px 14px; font-size:0.72rem; color:var(--muted); letter-spacing:0.05em; display:flex; align-items:center; gap:8px; }
+  #statusDot { width:7px; height:7px; border-radius:50%; background:var(--green); flex-shrink:0; }
+
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); margin:12px 14px 0; }
+  .card-header { background:var(--surface2); padding:8px 14px; font-family:'Barlow Condensed',sans-serif; font-size:0.68rem; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:var(--muted); border-bottom:1px solid var(--border); border-radius:var(--radius) var(--radius) 0 0; }
+  .card-body { padding:12px 14px; }
+
+  label { display:block; font-size:0.68rem; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:4px; }
+  input, select { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:7px; color:var(--text); font-family:'Barlow',sans-serif; font-size:0.92rem; padding:9px 11px; outline:none; transition:border-color 0.15s; -webkit-appearance:none; appearance:none; }
+  input:focus, select:focus { border-color:var(--accent); }
+  input::placeholder { color:var(--muted); }
+  select { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 11px center; padding-right:32px; }
+
+  .search-wrap { position:relative; }
+  .ac-list { position:absolute; top:calc(100% + 3px); left:0; right:0; background:var(--surface2); border:1px solid var(--accent); border-radius:8px; max-height:200px; overflow-y:auto; z-index:9000; display:none; }
+  .ac-list.open { display:block; }
+  .ac-item { padding:10px 12px; font-size:0.88rem; cursor:pointer; border-bottom:1px solid var(--border); }
+  .ac-item:last-child { border-bottom:none; }
+  .ac-item:active { background:var(--accent-dim); color:var(--accent); }
+
+  .search-section { padding:10px 14px 0; }
+  .search-row { display:flex; gap:8px; }
+  .search-row input { flex:1; }
+  .btn-clear { background:none; border:1px solid var(--border); border-radius:7px; color:var(--muted); padding:9px 12px; font-family:'Barlow Condensed',sans-serif; font-size:0.72rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer; white-space:nowrap; flex-shrink:0; }
+  .btn-clear:active { background:var(--surface2); }
+  .pills-row { display:flex; align-items:center; gap:8px; margin-top:8px; }
+  .pill { display:inline-flex; align-items:center; background:var(--accent-dim); border:1px solid rgba(245,197,24,0.22); border-radius:20px; padding:3px 10px; font-family:'Barlow Condensed',sans-serif; font-size:0.7rem; font-weight:700; color:var(--accent); letter-spacing:0.06em; }
+  .pill.green { background:rgba(46,204,113,0.1); border-color:rgba(46,204,113,0.25); color:var(--green); }
+
+  .item-table-outer { margin:10px 14px 0; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+  .item-table-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .item-table { width:100%; border-collapse:collapse; }
+  .item-table thead tr { background:var(--surface2); }
+  .item-table th { padding:8px 8px; text-align:left; font-family:'Barlow Condensed',sans-serif; font-size:0.6rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); border-bottom:1px solid var(--border); white-space:nowrap; }
+  .item-table th.ctr { text-align:center; }
+  .item-table td { padding:5px 7px; border-bottom:1px solid var(--border); vertical-align:middle; }
+  .item-table tr:last-child td { border-bottom:none; }
+  .item-table tbody tr:nth-child(even) { background:rgba(255,255,255,0.018); }
+  .item-table tbody tr.row-filled { background:rgba(46,204,113,0.05); }
+  .td-no { font-family:'Barlow Condensed',sans-serif; font-size:0.6rem; color:var(--muted); width:22px; text-align:center; }
+  .td-name { min-width:115px; max-width:175px; font-size:0.78rem; line-height:1.35; white-space:normal; word-break:break-word; }
+  .td-qty { text-align:center; width:70px; }
+  .qty-group { display:flex; flex-direction:column; align-items:center; gap:2px; }
+  .qty-inp {
+    width:58px !important; padding:5px 3px !important; font-size:0.9rem !important;
+    font-family:'Barlow Condensed',sans-serif !important; font-weight:700 !important;
+    text-align:center; background:var(--bg) !important; border:1px solid var(--border) !important;
+    border-radius:6px !important; color:var(--text) !important; -moz-appearance:textfield;
+    transition:border-color 0.15s, color 0.15s, background 0.15s;
+  }
+  .qty-inp::-webkit-inner-spin-button, .qty-inp::-webkit-outer-spin-button { -webkit-appearance:none; }
+  .qty-inp:focus { border-color:var(--accent) !important; outline:none; }
+  .qty-inp.filled { border-color:rgba(46,204,113,0.55) !important; color:var(--green) !important; background:rgba(46,204,113,0.07) !important; }
+  .qty-lbl { font-family:'Barlow Condensed',sans-serif; font-size:0.55rem; font-weight:700; letter-spacing:0.08em; color:var(--muted); text-transform:uppercase; }
+
+  .submit-bar { padding:12px 14px 0; }
+  .btn-submit { display:block; width:100%; padding:15px; background:var(--accent); border:none; border-radius:var(--radius); color:#0f0f0f; font-family:'Barlow Condensed',sans-serif; font-size:1.05rem; font-weight:800; letter-spacing:0.12em; text-transform:uppercase; cursor:pointer; transition:opacity 0.15s; }
+  .btn-submit:active { opacity:0.82; }
+  .btn-submit:disabled { opacity:0.35; cursor:not-allowed; }
+
+  /* REPORT */
+  .report-wrap { padding:12px 14px; }
+  .report-toprow { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:8px; flex-wrap:wrap; }
+  .report-title { font-family:'Barlow Condensed',sans-serif; font-size:0.7rem; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:var(--muted); }
+  .report-filters { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .fsel { background:var(--surface2); border:1px solid var(--border); border-radius:7px; color:var(--text); font-family:'Barlow',sans-serif; font-size:0.75rem; padding:5px 26px 5px 8px; outline:none; cursor:pointer; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23888' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 8px center; -webkit-appearance:none; max-width:140px; width:auto; }
+  .fsel:focus { border-color:var(--accent); }
+  .btn-rr { background:var(--accent-dim); border:1px solid rgba(245,197,24,0.3); border-radius:6px; color:var(--accent); padding:5px 10px; font-family:'Barlow Condensed',sans-serif; font-size:0.65rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer; }
+  .btn-rr:active { background:rgba(245,197,24,0.22); }
+  .rpt-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:var(--radius); border:1px solid var(--border); }
+  .rpt-table { width:100%; border-collapse:collapse; font-size:0.75rem; }
+  .rpt-table thead tr { background:var(--surface2); }
+  .rpt-table th { padding:7px 8px; text-align:left; font-family:'Barlow Condensed',sans-serif; font-size:0.6rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); border-bottom:1px solid var(--border); white-space:nowrap; }
+  .rpt-table td { padding:6px 8px; border-bottom:1px solid var(--border); color:var(--text); vertical-align:middle; }
+  .rpt-table tr:last-child td { border-bottom:none; }
+  .rpt-table tbody tr:nth-child(even) { background:rgba(255,255,255,0.018); }
+  .rpt-grp td { background:var(--surface2); font-family:'Barlow Condensed',sans-serif; font-size:0.63rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--accent); padding:5px 8px; border-bottom:1px solid var(--border); }
+  .rpt-item-cell { white-space:normal; word-break:break-word; min-width:100px; max-width:160px; font-size:0.73rem; }
+  .rpt-qty-cell { text-align:center; font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:0.88rem; color:var(--accent); }
+  .rpt-empty { text-align:center; color:var(--muted); padding:28px; font-size:0.85rem; }
+
+  #overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:500; align-items:center; justify-content:center; flex-direction:column; gap:12px; }
+  #overlay.show { display:flex; }
+  .spinner { width:36px; height:36px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.7s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+  #overlayMsg { font-family:'Barlow Condensed',sans-serif; font-size:0.8rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); }
+  #toast { position:fixed; bottom:68px; left:50%; transform:translateX(-50%) translateY(70px); background:var(--surface2); border:1px solid var(--border); border-left:3px solid var(--green); color:var(--text); padding:10px 18px; border-radius:8px; font-size:0.85rem; font-weight:500; white-space:nowrap; opacity:0; transition:transform 0.25s ease, opacity 0.25s ease; z-index:9999; max-width:90vw; overflow:hidden; text-overflow:ellipsis; }
+  #toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
+  #toast.err { border-left-color:var(--red); }
+  .tab-spacer { height:14px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>Stock Opname</h1>
+    <span class="sub" id="headerSub">Entry</span>
+  </div>
+  <div class="header-right">
+    <div class="user-chip">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span id="headerUser">-</span>
+    </div>
+    <a class="btn-back" href="salesorder.html">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Back
+    </a>
+  </div>
+</header>
+
+<div id="statusBar">
+  <div id="statusDot"></div>
+  <span id="statusMsg">35 customers &middot; 104 items loaded</span>
+</div>
+
+<div id="tabBar">
+  <button class="tab-btn active" id="tab-entry" onclick="switchTab('entry')">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+    Entry
+  </button>
+  <button class="tab-btn" id="tab-report" onclick="switchTab('report')">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
+    Report
+  </button>
+</div>
+
+<!-- ═══ PANEL: ENTRY ═══ -->
+<div class="tab-panel active" id="panel-entry">
+
+  <div class="card">
+    <div class="card-header">Visit Info</div>
+    <div class="card-body">
+
+      <label>Customer</label>
+      <div class="search-wrap">
+        <input type="text" id="custInput" placeholder="Search customer..." autocomplete="off" inputmode="search"
+               oninput="onCustInput()" onblur="onCustBlur()">
+        <div class="ac-list" id="custDrop"></div>
+      </div>
+
+      <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div>
+          <label>Visit Date</label>
+          <input type="date" id="visitDate">
+        </div>
+        <div>
+          <label>Salesman</label>
+          <input type="text" id="salesmanInput" placeholder="Your name" autocomplete="off">
+        </div>
+      </div>
+
+      <div style="margin-top:10px;">
+        <label>Notes (optional)</label>
+        <input type="text" id="notesInput" placeholder="e.g. routine visit, promotion..." autocomplete="off">
+      </div>
+
+    </div>
+  </div>
+
+  <div class="search-section">
+    <div class="search-row">
+      <input type="text" id="itemSearch" placeholder="Filter items by name..." oninput="filterItems()">
+      <button class="btn-clear" onclick="clearSearch()">Clear</button>
+    </div>
+    <div class="pills-row">
+      <span class="pill" id="countPill">104 items</span>
+      <span class="pill green" id="filledPill">0 filled</span>
+    </div>
+  </div>
+
+  <div class="item-table-outer">
+    <div class="item-table-scroll">
+      <table class="item-table">
+        <thead>
+          <tr>
+            <th class="ctr">#</th>
+            <th>Item Name</th>
+            <th class="ctr">LSN</th>
+            <th class="ctr">PCS</th>
+          </tr>
+        </thead>
+        <tbody id="itemBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="submit-bar">
+    <button class="btn-submit" onclick="submitOpname()">Submit Stock Opname &#8594;</button>
+  </div>
+  <div class="tab-spacer"></div>
+</div>
+
+<!-- ═══ PANEL: REPORT ═══ -->
+<div class="tab-panel" id="panel-report">
+  <div class="report-wrap">
+    <div class="report-toprow">
+      <div class="report-title">Visit History</div>
+      <div class="report-filters">
+        <select class="fsel" id="fCust" onchange="renderReport()"><option value="">All Customers</option></select>
+        <select class="fsel" id="fItem" onchange="renderReport()"><option value="">All Items</option></select>
+        <button class="btn-rr" onclick="loadReport(true)">&#8635; Refresh</button>
+      </div>
+    </div>
+    <div class="rpt-wrap">
+      <table class="rpt-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Customer</th>
+            <th>Salesman</th>
+            <th>Item</th>
+            <th class="ctr">LSN</th>
+            <th class="ctr">PCS</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody id="rptBody">
+          <tr><td colspan="7" class="rpt-empty">Switch to Report tab to load data.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="tab-spacer"></div>
+</div>
+
+<div id="overlay"><div class="spinner"></div><div id="overlayMsg">Submitting...</div></div>
+<div id="toast"></div>
+
+<script>
+var GAS_URL = 'https://script.google.com/macros/s/AKfycbxrCe0hmBIZ7FB1cb6R3unZiEuUHVV90ohvyu2ByPYF3oRptln5XcPhOmPZGz76VQzT3Q/exec';
+
+var CUSTOMERS = [
+  'SAGA TANAH HITAM','SAGA CIGOMBONG','SAGA ARSO','SAGA APO','SAGA ENTROP',
+  'SAGA KOYA','AGRO SEGAR','ANEKA JAYA INDAH','BINTANG MAS','CV. SINAR TIMUR',
+  'HOLA MART YOTEFA','MEGA ABE','MEGA MART','MEGA WAENA','PT.SINAR MATAHARI PAPUA',
+  'SAGA DEP. STORE','SAGA FRESH DOK 9','SAGA MART DOK 5','SAGA POLIMAK','SAGA SM',
+  'SAGA WAENA','SAGA YOUTEFA','SAGA JPR','SUMBER HIDUP','SUMBER JAYA',
+  'SUMBER MAKMUR','SURYA JAYA.','SURYA SM','TOPAZ','SAGA FRESH SENTANI 2',
+  'SAGA KEHIRAN','SAGA SARMI','SAGA SENTANI 3','SAGA SENTANI','SAGA DOYO'
+];
+
+var ITEMS = [
+  'GPU KRIM JAHE 60GR','GPU KRIM PALA 60GR','PURASIL SALICYLIC POWDER 30 GR -12 LSN',
+  'IFREE PAD TERAPI HANGAT NYERI HAID - 36 BOX X @6 S','GANDAPURA 1 60ML','GANDAPURA 2 30ML',
+  'MINYAK KAYU PUTIH ROLL ON 15 ML @ 12','MKP AROMATHERAPY ROLL ON LAVENDER 15ML',
+  'MKP AROMATHERAPY ROLL ON ORIGINAL 15ML','MKP AROMATHERAPY ROLL ON ROSE 15ML',
+  'PURASIL SALICYLIC POWDER 60 GR - 12 LSN','MKP AMBONIA 100ML','GPU KRIM 150 GR',
+  'GPU KRIM 250 GR','SITRONELA 60ML','SITRONELA 30ML','PIL SAKIT PERUT 2GR',
+  'EUCALYPTUS SPRAY 280ML',"SLOAN'S LIMIMENT OIL 60 ML","SLOAN'S LINIMENT EXTRA STRONG 60ML",
+  'BALSEM LANG AROMA LAVENDER 10GR-40LSN','BALSEM LANG AROMA LAVENDER 20GR-20LSN',
+  'MKP BAYI PLUS CHAMOMILE 30 ML-24LSN','MKP BAYI PLUS LAVENDER 30 ML-24LSN',
+  'MKP BAYI PLUS CHAMOMILE 60 ML-12LSN','MKP BAYI PLUS LAVENDER 60 ML-12LSN',
+  'K. FEVER ADULT - DEWASA','MINYAK KAYU PUTIH BAYI GIFT BOX','MINYAK KAYU PUTIH FS 210ML',
+  'MINYAK KAYU PUTIH NO. 1 120ML','MINYAK KAYU PUTIH NO. 2 60ML','MINYAK KAYU PUTIH NO. 3 30ML',
+  'MINYAK KAYU PUTIH NO. 4 15ML','TELON LANG PLUS 150 ML','TELON LANG 150 ML',
+  'MINYAK EKA LAVENDER 120 ML','GPU LINIMENT MINYAK JAHE 30 ML','GPU LINIMENT MINYAK JAHE 60 ML',
+  'GPU LINIMENT MINYAK JAHE 100 ML','GPU LINIMENT MINYAK PALA 100 ML','GPU KRIM SEREH 60 GR',
+  'MKP PLUS 120 ML','MKP PLUS 60 ML','MKP PLUS 30 ML','MKP PLUS 15 ML',
+  'MEA GREEN TEA 120ML','GELIGA KRIM 60GR','GELIGA KRIM 30 GR','GELIGA STICK 10 GR',
+  'KOOL FEVER EKONOMIS UNTUK ANAK','KAYU PUTIH AROMATERAPI FS 210ML','KAYU PUTIH AROMATERAPI 1 120ML',
+  'KAYU PUTIH AROMATERAPI 2 60ML','KAYU PUTIH AROMATERAPI 3 30ML','KAYU PUTIH AROMATERAPI 4 15ML',
+  'MINYAK EKA ROSE 15 ML - 48','MINYAK EKA ROSE 30 ML - 24','MINYAK EKA ROSE 60 ML - 12',
+  'MINYAK EKA LAVENDER 15 ML - 48','MINYAK EKA LAVENDER 30 ML - 24','MINYAK EKA LAVENDER 60 ML - 12',
+  'MINYAK EKA GREEN TEA 15 ML - 48','MINYAK EKA GREEN TEA 60 ML - 12',
+  'TELON LANG 1 60ML','TELON LANG 2 30ML','TELON LANG 4 15ML','TELON LANG PLUS 100ML',
+  'TELON LANG PLUS 60ML','TELON LANG PLUS 30ML','TELON LANG PLUS 15ML',
+  'BALSEM OTOT GELIGA 40GR','BALSEM OTOT GELIGA 20GR','BALSEM OTOT GELIGA 10GR',
+  'BALSEM LANG FS 40GR','BALSEM LANG 1 20GR','BALSEM LANG 2 10GR',
+  'GOSOK PIJIT URUT 1 60ML','GOSOK PIJIT URUT 2 30ML',
+  'GPU LINIMENT MINYAK PALA 30ML','GPU LINIMENT MINYAK PALA 60ML','GPU LINIMENT 100 ML - 4 LSN',
+  'M. ANGIN MENTHOL OIL 3ML','M. ANGIN MENTHOL OIL 5ML','M. ANGIN MENTHOL OIL 10ML',
+  'BALSEM AKTIV 40GR','BALSEM AKTIV 20GR','MINYAK OTOT GELIGA 60ML','MINYAK OTOT GELIGA 30ML',
+  'GREEN OIL 3ML','GREEN OIL 5ML','GREEN OIL 10ML',
+  'MINYAK ANGIN LANG F 24ML','MINYAK ANGIN LANG 1 12ML','MINYAK ANGIN LANG 2 6ML','MINYAK ANGIN LANG 3 3ML',
+  'V-FRESH LAVENDER 8ML','V-FRESH BARLEY MINT 8ML','V-FRESH GREEN TEA 8ML',
+  'V-FRESH ORIGINAL 8ML','V-FRESH HOT 8ML','INHALER 5GR',
+  'KOOLFEVER ANAK','KOOLFEVER BABY',
+  'GPU KRIM MINYAK PALA 150GR - 6LSN','MINYAK EKA GREENTEA 30ML - 24',
+  'GPU KRIM HOT 120GR - 8 LSN','IFREE PAD TERAPI HANGAT NYERI HAID - 78 BOX'
+];
+
+var SESSION_KEY = 'so_session';
+var currentUser = '';
+var currentPass = '';
+var reportRows  = [];
+var reportLoaded = false;
+var visibleItems = ITEMS.slice();
+
+// ── INIT ──────────────────────────────────────────────────────
+(function() {
+  try {
+    var raw = sessionStorage.getItem(SESSION_KEY);
+    if (raw) { var o = JSON.parse(raw); currentUser = o.u||''; currentPass = o.p||''; }
+  } catch(e){}
+  if (!currentUser) { window.location.href = 'salesorder.html'; return; }
+
+  document.getElementById('headerUser').textContent = currentUser;
+  document.getElementById('salesmanInput').value = currentUser;
+  document.getElementById('statusDot').className = 'ok';
+  // set dot colour via inline style since class 'ok' may not exist in this CSS
+  document.getElementById('statusDot').style.background = 'var(--green)';
+
+  var d = new Date(), p = function(n){ return String(n).padStart(2,'0'); };
+  document.getElementById('visitDate').value = d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
+
+  renderItemTable(ITEMS);
+})();
+
+// ── GASLL ─────────────────────────────────────────────────────
+function gasCall(params, onOk, onFail) {
+  params.username = currentUser; params.password = currentPass;
+  var cb = '_cb'+Date.now()+Math.floor(Math.random()*9999);
+  var url = GAS_URL+'?callback='+cb;
+  Object.keys(params).forEach(function(k){ url+='&'+encodeURIComponent(k)+'='+encodeURIComponent(params[k]); });
+  var s = document.createElement('script'); s.src = url;
+  window[cb] = function(d){ delete window[cb]; s.parentNode&&s.parentNode.removeChild(s); onOk(d); };
+  s.onerror  = function(){ delete window[cb]; s.parentNode&&s.parentNode.removeChild(s); onFail&&onFail(); };
+  document.body.appendChild(s);
+}
+
+// ── TAB ───────────────────────────────────────────────────────
+function switchTab(tab) {
+  ['entry','report'].forEach(function(t){
+    document.getElementById('panel-'+t).classList.toggle('active', t===tab);
+    document.getElementById('tab-'+t).classList.toggle('active', t===tab);
+  });
+  document.getElementById('headerSub').textContent = tab==='entry' ? 'Entry' : 'History';
+  if (tab==='report') loadReport(false);
+}
+
+// ── CUSTOMER AUTOCOMPLETE ─────────────────────────────────────
+var custInput = document.getElementById('custInput');
+var custDrop  = document.getElementById('custDrop');
+
+function onCustInput() {
+  var q = custInput.value.trim().toLowerCase();
+  if (!q) { closeDrop(); return; }
+  var hits = CUSTOMERS.filter(function(c){ return c.toLowerCase().indexOf(q) !== -1; }).slice(0,10);
+  if (!hits.length) { closeDrop(); return; }
+  custDrop.innerHTML = '';
+  hits.forEach(function(c) {
+    var div = document.createElement('div');
+    div.className = 'ac-item'; div.textContent = c;
+    div.ontouchstart = function(){};
+    div.onclick = function(){ custInput.value = c; closeDrop(); };
+    custDrop.appendChild(div);
+  });
+  custDrop.classList.add('open');
+}
+function onCustBlur() { setTimeout(closeDrop, 200); }
+function closeDrop() { custDrop.classList.remove('open'); custDrop.innerHTML=''; }
+document.addEventListener('touchstart', function(e){ if(!custDrop.contains(e.target)&&e.target!==custInput) closeDrop(); }, {passive:true});
+document.addEventListener('mousedown',  function(e){ if(!custDrop.contains(e.target)&&e.target!==custInput) closeDrop(); });
+
+// ── ITEM TABLE ────────────────────────────────────────────────
+function renderItemTable(list) {
+  visibleItems = list;
+  var tbody = document.getElementById('itemBody');
+  document.getElementById('countPill').textContent = list.length + ' item' + (list.length!==1?'s':'');
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px;">No items match.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(function(name, idx) {
+    var gIdx = ITEMS.indexOf(name); // global index → stable IDs
+    var lid = 'lsn'+gIdx, pid = 'pcs'+gIdx;
+    return '<tr id="irow'+gIdx+'">' +
+      '<td class="td-no">'+(idx+1)+'</td>' +
+      '<td class="td-name">'+esc(name)+'</td>' +
+      '<td class="td-qty"><div class="qty-group">' +
+        '<input type="number" min="0" step="1" placeholder="0" id="'+lid+'" class="qty-inp" data-g="'+gIdx+'" oninput="onQty('+gIdx+')">' +
+        '<span class="qty-lbl">LSN</span></div></td>' +
+      '<td class="td-qty"><div class="qty-group">' +
+        '<input type="number" min="0" step="1" placeholder="0" id="'+pid+'" class="qty-inp" data-g="'+gIdx+'" oninput="onQty('+gIdx+')">' +
+        '<span class="qty-lbl">PCS</span></div></td>' +
+    '</tr>';
+  }).join('');
+  updateFilledPill();
+}
+
+function onQty(gIdx) {
+  var lEl = document.getElementById('lsn'+gIdx);
+  var pEl = document.getElementById('pcs'+gIdx);
+  var row = document.getElementById('irow'+gIdx);
+  var lv = parseInt(lEl&&lEl.value)||0;
+  var pv = parseInt(pEl&&pEl.value)||0;
+  if (lEl) lEl.classList.toggle('filled', lv > 0);
+  if (pEl) pEl.classList.toggle('filled', pv > 0);
+  if (row) row.classList.toggle('row-filled', lv>0||pv>0);
+  updateFilledPill();
+}
+
+function updateFilledPill() {
+  var seen = {};
+  document.querySelectorAll('#itemBody .qty-inp.filled').forEach(function(el){ seen[el.dataset.g]=1; });
+  document.getElementById('filledPill').textContent = Object.keys(seen).length + ' filled';
+}
+
+function filterItems() {
+  var q = document.getElementById('itemSearch').value.trim().toLowerCase();
+  renderItemTable(q ? ITEMS.filter(function(n){ return n.toLowerCase().indexOf(q)!==-1; }) : ITEMS);
+}
+function clearSearch() { document.getElementById('itemSearch').value=''; renderItemTable(ITEMS); }
+
+// ── SUBMIT ────────────────────────────────────────────────────
+function submitOpname() {
+  var customer  = custInput.value.trim();
+  var visitDate = document.getElementById('visitDate').value;
+  var salesman  = document.getElementById('salesmanInput').value.trim() || currentUser;
+  var notes     = document.getElementById('notesInput').value.trim();
+
+  if (!customer)  { toast('Please select a customer.', true); return; }
+  if (!visitDate) { toast('Please select a visit date.', true); return; }
+
+  var entries = [];
+  ITEMS.forEach(function(name, idx) {
+    var lEl = document.getElementById('lsn'+idx);
+    var pEl = document.getElementById('pcs'+idx);
+    var lsn = lEl ? (parseInt(lEl.value)||0) : 0;
+    var pcs = pEl ? (parseInt(pEl.value)||0) : 0;
+    if (lsn > 0 || pcs > 0) entries.push({ name:name, qtyLsn:lsn, qtyPcs:pcs });
+  });
+
+  if (!entries.length) { toast('Please fill at least one item.', true); return; }
+
+  var payload = { customer:customer, visitDate:visitDate, salesman:salesman, notes:notes, username:currentUser, timestamp:new Date().toISOString(), entries:entries };
+  showOverlay('Submitting ' + entries.length + ' items...');
+  gasCall(
+    { action:'submitStockOpname', body:JSON.stringify(payload) },
+    function(data) {
+      hideOverlay();
+      if (data && data.status==='ok') { toast('Submitted! '+entries.length+' items for '+customer); resetForm(); }
+      else { toast((data&&data.message)||'Submission failed.', true); }
+    },
+    function() { hideOverlay(); toast('Network error. Try again.', true); }
+  );
+}
+
+function resetForm() {
+  custInput.value='';
+  document.getElementById('notesInput').value='';
+  document.getElementById('itemSearch').value='';
+  document.querySelectorAll('.qty-inp').forEach(function(el){ el.value=''; el.classList.remove('filled'); });
+  document.querySelectorAll('#itemBody tr').forEach(function(tr){ tr.classList.remove('row-filled'); });
+  renderItemTable(ITEMS);
+}
+
+// ── REPORT ────────────────────────────────────────────────────
+function loadReport(force) {
+  if (reportLoaded && !force) { renderReport(); return; }
+  document.getElementById('rptBody').innerHTML='<tr><td colspan="7" class="rpt-empty">Loading...</td></tr>';
+  gasCall({ action:'getStockOpnameReport', username:currentUser }, function(data) {
+    reportLoaded = true;
+    reportRows = (data&&data.status==='ok'&&data.rows) ? data.rows : [];
+    populateFilters(); renderReport();
+  }, function() {
+    reportLoaded = false;
+    document.getElementById('rptBody').innerHTML='<tr><td colspan="7" class="rpt-empty" style="color:var(--red)">Network error. Tap Refresh.</td></tr>';
+  });
+}
+
+function populateFilters() {
+  var cs={}, is={};
+  reportRows.forEach(function(r){ if(r.customer)cs[r.customer]=1; if(r.itemName)is[r.itemName]=1; });
+  var cv=document.getElementById('fCust').value, iv=document.getElementById('fItem').value;
+  document.getElementById('fCust').innerHTML='<option value="">All Customers</option>'+
+    Object.keys(cs).sort().map(function(c){ return '<option value="'+esc(c)+'">'+esc(c)+'</option>'; }).join('');
+  document.getElementById('fItem').innerHTML='<option value="">All Items</option>'+
+    Object.keys(is).sort().map(function(i){ return '<option value="'+esc(i)+'">'+esc(i)+'</option>'; }).join('');
+  document.getElementById('fCust').value=cv; document.getElementById('fItem').value=iv;
+}
+
+function renderReport() {
+  var cf=document.getElementById('fCust').value, itf=document.getElementById('fItem').value;
+  var filtered=reportRows.filter(function(r){ return (!cf||r.customer===cf)&&(!itf||r.itemName===itf); });
+  var tbody=document.getElementById('rptBody');
+  if (!filtered.length) { tbody.innerHTML='<tr><td colspan="7" class="rpt-empty">No records found.</td></tr>'; return; }
+
+  var groups=[], gmap={};
+  filtered.forEach(function(r){
+    var k=r.visitDate+'||'+r.customer;
+    if(!gmap[k]){ gmap[k]={visitDate:r.visitDate,customer:r.customer,salesman:r.salesman||'',notes:r.notes||'',rows:[]}; groups.push(gmap[k]); }
+    gmap[k].rows.push(r);
+  });
+  groups.sort(function(a,b){ return b.visitDate>a.visitDate?1:-1; });
+
+  var html='';
+  groups.forEach(function(g){
+    var dd=g.visitDate;
+    try{var p=g.visitDate.split('-');if(p.length===3)dd=p[2]+'/'+p[1]+'/'+p[0].slice(2);}catch(e){}
+    html+='<tr class="rpt-grp"><td colspan="7">'+dd+' &mdash; '+esc(g.customer)+
+      (g.salesman?' <span style="color:var(--muted);font-weight:400;font-family:Barlow,sans-serif;text-transform:none;font-size:0.65rem;">('+esc(g.salesman)+')</span>':'')+
+      (g.notes?' <span style="color:var(--muted);font-weight:400;font-family:Barlow,sans-serif;text-transform:none;font-size:0.65rem;">'+esc(g.notes)+'</span>':'')+
+    '</td></tr>';
+    g.rows.forEach(function(r){
+      html+='<tr>'+
+        '<td style="font-size:0.65rem;color:var(--muted);white-space:nowrap;">'+dd+'</td>'+
+        '<td style="font-size:0.73rem;font-weight:600;white-space:normal;word-break:break-word;min-width:75px;max-width:110px;">'+esc(r.customer)+'</td>'+
+        '<td style="font-size:0.7rem;color:var(--muted);white-space:nowrap;">'+esc(r.salesman||'')+'</td>'+
+        '<td class="rpt-item-cell">'+esc(r.itemName||'')+'</td>'+
+        '<td class="rpt-qty-cell">'+((r.qtyLsn>0)?r.qtyLsn:'-')+'</td>'+
+        '<td class="rpt-qty-cell">'+((r.qtyPcs>0)?r.qtyPcs:'-')+'</td>'+
+        '<td style="font-size:0.68rem;color:var(--muted);white-space:normal;word-break:break-word;max-width:90px;">'+esc(r.notes||'')+'</td>'+
+      '</tr>';
+    });
+  });
+  tbody.innerHTML=html;
+}
+
+// ── HELPERS ───────────────────────────────────────────────────
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function toast(msg,err){
+  var t=document.getElementById('toast'); t.textContent=msg; t.className=err?'err':'';
+  void t.offsetWidth; t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},3400);
+}
+function showOverlay(msg){ document.getElementById('overlayMsg').textContent=msg||''; document.getElementById('overlay').classList.add('show'); }
+function hideOverlay(){ document.getElementById('overlay').classList.remove('show'); }
+</script>
+</body>
+</html>
