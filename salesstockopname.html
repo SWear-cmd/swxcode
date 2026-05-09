@@ -176,7 +176,7 @@
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       <span id="headerUser">-</span>
     </div>
-    <a class="btn-back" href="salesorder.html">
+    <a class="btn-back" href="SALESORDERv5.html">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
       Back
     </a>
@@ -359,7 +359,7 @@ var reportLoaded = false;
     var raw = sessionStorage.getItem(SESSION_KEY);
     if (raw) { var o = JSON.parse(raw); currentUser = o.u||''; currentPass = o.p||''; }
   } catch(e){}
-  if (!currentUser) { window.location.href = 'salesorder.html'; return; }
+  if (!currentUser) { window.location.href = 'SALESORDERv5.html'; return; }
   document.getElementById('headerUser').textContent = currentUser;
   document.getElementById('salesmanInput').value = currentUser;
   document.getElementById('statusDot').style.background = 'var(--green)';
