@@ -106,6 +106,17 @@
     letter-spacing:0.06em; text-transform:uppercase; color:var(--accent);
     max-width:90px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   }
+  /* ── DIVISION BADGE in header ── */
+  .div-chip {
+    display:flex; align-items:center;
+    background:rgba(100,149,237,0.15); border:1px solid rgba(100,149,237,0.3);
+    border-radius:20px; padding:3px 9px;
+  }
+  .div-chip span {
+    font-family:'Barlow Condensed',sans-serif; font-size:0.78rem; font-weight:700;
+    letter-spacing:0.06em; text-transform:uppercase; color:var(--blue);
+    max-width:80px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
   .btn-logout {
     background:none; border:1px solid #3a2020; border-radius:7px; color:var(--red);
     padding:4px 9px; font-family:'Barlow Condensed',sans-serif; font-size:0.75rem;
@@ -225,7 +236,6 @@
   .pct-mid  { color:var(--accent); }
   .pct-low  { color:var(--red); }
 
-  /* progress bar in achievement */
   .prog-bar-bg { background:var(--border); border-radius:20px; height:5px; width:80px; overflow:hidden; display:inline-block; vertical-align:middle; margin-right:6px; }
   .prog-bar-fill { height:100%; border-radius:20px; background:var(--accent); }
 
@@ -317,7 +327,6 @@
   .status-pending   { background:rgba(136,136,136,0.12); color:var(--muted);  border:1px solid rgba(136,136,136,0.2); }
   .status-other     { background:rgba(136,136,136,0.12); color:var(--muted);  border:1px solid rgba(136,136,136,0.2); }
 
-  /* group separator row */
   .ol-group-row td {
     background:var(--surface2); font-family:'Barlow Condensed',sans-serif;
     font-size:0.65rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;
@@ -330,7 +339,6 @@
   }
   .ol-empty { text-align:center; color:var(--muted); padding:24px; font-size:0.85rem; }
 
-  /* loading skeleton */
   .skel { background:var(--surface2); border-radius:6px; animation:pulse 1.2s ease-in-out infinite; }
   @keyframes pulse { 0%,100%{opacity:0.5} 50%{opacity:1} }
   .skel-row { height:38px; margin-bottom:2px; }
@@ -404,6 +412,10 @@
     <span class="sub" id="headerSub">New Entry</span>
   </div>
   <div class="header-right">
+    <!-- Division badge — shown after login -->
+    <div class="div-chip" id="divChip" style="display:none">
+      <span id="headerDiv">-</span>
+    </div>
     <div class="user-chip">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)">
         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
@@ -478,9 +490,7 @@
             <th style="text-align:right">OA%</th>
           </tr>
         </thead>
-        <tbody id="achieveBody">
-          <!-- filled by JS -->
-        </tbody>
+        <tbody id="achieveBody"></tbody>
       </table>
     </div>
   </div>
@@ -502,9 +512,7 @@
             <th>Status</th>
           </tr>
         </thead>
-        <tbody id="jtBody">
-          <!-- filled by JS -->
-        </tbody>
+        <tbody id="jtBody"></tbody>
       </table>
     </div>
   </div>
@@ -602,23 +610,21 @@
 // ============================================================
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbxrCe0hmBIZ7FB1cb6R3unZiEuUHVV90ohvyu2ByPYF3oRptln5XcPhOmPZGz76VQzT3Q/exec';
 // ============================================================
-// ── APPS SCRIPT: add getOrderList() to your .gs file ──────
-// function getOrderList() — see Apps Script tab below for code
-// ==========================================================
 
-var SESSION_KEY = 'so_session';
-var currentUser = '';
-var currentPass = '';  // ← added: stores password for auth on every request
-var customers   = [];
-var items       = [];
-var rows        = [];
-var rowCount    = 0;
-var activeTab   = 'so';
+var SESSION_KEY  = 'so_session';
+var currentUser  = '';
+var currentPass  = '';
+var currentDivs  = [];   // array of divisions, e.g. ["CP","FORISA"]
+var customers    = [];
+var items        = [];   // sudah difilter per divisi
+var rows         = [];
+var rowCount     = 0;
+var activeTab    = 'so';
 
 // ── SESSION MANAGEMENT ────────────────────────────────────────
-function saveSession(username, password) {
+function saveSession(username, password, divisions) {
   try {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ u: username, p: password }));
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ u: username, p: password, d: divisions }));
   } catch(e){}
 }
 function loadSession() {
@@ -629,8 +635,7 @@ function loadSession() {
     if (obj && obj.u && obj.p) return obj;
     return null;
   } catch(e) { return null; }
-}
-function clearSession() {
+}function clearSession() {
   try { sessionStorage.removeItem(SESSION_KEY); } catch(e){}
 }
 
@@ -670,8 +675,11 @@ function doLogin() {
     btn.disabled = false; btn.textContent = 'Sign In';
     if (data && data.status === 'ok') {
       currentUser = data.username || user;
-      currentPass = pass;                        // ← store password
-      saveSession(currentUser, currentPass);     // ← save both
+      currentPass = pass;
+      // ── ambil divisions array dari response login ───────────
+      currentDivs = data.divisions || [];
+      // ────────────────────────────────────────────────────────
+      saveSession(currentUser, currentPass, currentDivs);
       showApp();
     } else {
       showLoginErr(data && data.message ? data.message : 'Invalid username or password.');
@@ -686,7 +694,7 @@ function doLogin() {
 
 function doLogout() {
   clearSession();
-  currentUser = ''; currentPass = '';  // ← clear both
+  currentUser = ''; currentPass = ''; currentDivs = [];
   customers = []; items = []; rows = []; rowCount = 0;
   achieveLoaded = false; jtLoaded = false; olLoaded = false;
   document.getElementById('app').classList.remove('show');
@@ -701,9 +709,10 @@ function doLogout() {
   var saved = loadSession();
   if (saved) {
     currentUser = saved.u;
-    currentPass = saved.p;   // ← must extract .u and .p
+    currentPass = saved.p;
+    currentDivs = Array.isArray(saved.d) ? saved.d : (saved.d ? [saved.d] : []);
     showApp();
-   } else {
+  } else {
     document.getElementById('loginScreen').style.display = 'flex';
     setTimeout(function(){ document.getElementById('loginUser').focus(); }, 100);
   }
@@ -711,12 +720,10 @@ function doLogout() {
 
 // ── JSONP helper ─────────────────────────────────────────────
 function gasCall(params, onOk, onFail) {
-  // Always attach credentials so Apps Script can verify on every request
   if (params.action !== 'verifyLogin') {
     params.username = currentUser;
     params.password = currentPass;
   }
-
   var cb = '_cb' + Date.now() + Math.floor(Math.random() * 9999);
   var url = GAS_URL + '?callback=' + cb;
   Object.keys(params).forEach(function(k) {
@@ -742,6 +749,18 @@ function showApp() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').classList.add('show');
   document.getElementById('headerUser').textContent = currentUser;
+
+  // ── tampilkan badge divisi di header ─────────────────────
+  var divChip  = document.getElementById('divChip');
+  var divLabel = document.getElementById('headerDiv');
+  if (currentDivs.length) {
+    divLabel.textContent = currentDivs.join(' · ');
+    divChip.style.display = 'flex';
+  } else {
+    divChip.style.display = 'none';
+  }
+  // ──────────────────────────────────────────────────────────
+
   switchTab('so');
   initApp();
 }
@@ -766,12 +785,30 @@ function initApp() {
   if (!GAS_URL) { setStatus('err', 'Web App URL not set'); addRow(); return; }
   setStatus('', 'Loading data...');
   showOverlay('Loading data...');
-  gasCall({ action: 'getSalesData' }, function(data) {
+
+  // kirim divisions array ke Apps Script agar produk difilter di server
+  gasCall({ action: 'getSalesData', divisions: JSON.stringify(currentDivs) }, function(data) {
     hideOverlay();
     if (data && data.status === 'ok') {
       customers = data.customers || [];
-      items     = data.items     || [];
-      setStatus('ok', customers.length + ' customers  |  ' + items.length + ' items loaded');
+
+      // ── filter item di sisi frontend (double-protection) ───────────────
+      var rawItems = data.items || [];
+      var isMaster = currentDivs.some(function(d){ return d.toUpperCase() === 'MASTER'; });
+      if (isMaster) {
+        items = rawItems; // MASTER lihat semua
+      } else if (currentDivs.length) {
+        var divsLower = currentDivs.map(function(d){ return d.trim().toLowerCase(); });
+        items = rawItems.filter(function(i) {
+          var itemDiv = String(i.division || '').trim().toLowerCase();
+          return divsLower.indexOf(itemDiv) !== -1;
+        });
+      } else {
+        items = []; // tidak ada divisi → tidak ada produk
+      }
+      // ───────────────────────────────────────────────────────────────────
+
+      setStatus('ok', customers.length + ' customers  |  ' + items.length + ' items (' + (currentDivs.join(', ') || 'no division') + ')');
     } else {
       setStatus('err', 'Data load failed — check Apps Script');
       toast('Could not load data. Check GAS deployment.', true);
@@ -802,7 +839,6 @@ function loadAchievement() {
     if (data && data.status === 'ok' && data.rows) {
       renderAchievement(data.rows);
     } else {
-      // fallback: render from static data shown in the spreadsheet screenshot
       renderAchievement(getDefaultAchievement());
     }
   }, function() {
@@ -822,7 +858,6 @@ function getDefaultAchievement() {
 }
 
 function renderAchievement(rows) {
-  // filter: only rows where nama starts with (or contains) the logged-in username prefix
   var userUpper = currentUser.toUpperCase();
   rows = rows.filter(function(r){ return String(r.nama).toUpperCase().indexOf(userUpper) === 0; });
   var tbody = document.getElementById('achieveBody');
@@ -852,21 +887,16 @@ function loadJT() {
     if (data && data.status === 'ok' && data.rows) {
       renderJT(data.rows);
     } else {
-      renderJT(getDefaultJT());
+      renderJT([]);
     }
   }, function() {
-    renderJT(getDefaultJT());
+    renderJT([]);
   });
-}
-
-function getDefaultJT() {
-  return [];
 }
 
 function renderJT(rows) {
   var tbody = document.getElementById('jtBody');
   tbody.innerHTML = rows.length ? rows.map(function(r) {
-    // support both new 5-field format and old 11-field format
     var toko     = r.toko     || '';
     var noFaktur = r.noFaktur || '';
     var nilai    = Number(r.nilai)  || 0;
@@ -927,8 +957,6 @@ function renderOrderList(rows) {
     tbody.innerHTML = '<tr><td colspan="7" class="ol-empty">No orders found for ' + esc(currentUser) + '</td></tr>';
     return;
   }
-
-  // Group rows by timestamp+customer (same order entry)
   var groups = [];
   var groupMap = {};
   rows.forEach(function(r) {
@@ -943,7 +971,6 @@ function renderOrderList(rows) {
 
   var html = '';
   groups.forEach(function(g) {
-    // Format timestamp: show date + time nicely
     var tsDisplay = g.timestamp;
     try {
       var d = new Date(g.timestamp);
@@ -956,7 +983,6 @@ function renderOrderList(rows) {
 
     g.items.forEach(function(item, idx) {
       html += '<tr>';
-      // Timestamp: only show on first row of group
       if (idx === 0) {
         html += '<td class="col-ts" rowspan="' + g.items.length + '">' + esc(tsDisplay) + '</td>' +
                 '<td class="col-cust" rowspan="' + g.items.length + '">' + esc(g.customer) + '</td>';
@@ -968,14 +994,11 @@ function renderOrderList(rows) {
               '<td class="col-status">' + statusBadge(item.status) + '</td>' +
               '</tr>';
     });
-
-    // Group total row
     html += '<tr class="ol-group-total">' +
       '<td colspan="5" style="text-align:right;font-size:0.68rem;letter-spacing:0.06em;color:var(--muted)">ORDER TOTAL</td>' +
       '<td colspan="2" style="text-align:right">' + rpFmt(g.total) + '</td>' +
       '</tr>';
   });
-
   tbody.innerHTML = html;
 }
 
@@ -1086,7 +1109,10 @@ function onItemSearch(id) {
 
   if (!q) { drop.classList.remove('open'); drop.innerHTML=''; return; }
   if (!items.length) {
-    drop.innerHTML = '<div class="ac-empty">Still loading items...</div>';
+    // ── BARU: pesan khusus jika divisi tidak ada ──────────────
+    drop.innerHTML = '<div class="ac-empty">' +
+      (currentDivs.length ? 'No items for: ' + esc(currentDivs.join(', ')) : 'No division assigned to your account') +
+      '</div>';
     drop.classList.add('open'); return;
   }
   var hits = items.filter(function(i){ return advancedMatch(i.name, q); }).slice(0,15);
@@ -1172,10 +1198,11 @@ function submitOrder() {
 
   var keterangan = document.getElementById('ketInput') ? document.getElementById('ketInput').value.trim() : '';
   var payload = {
-    customer:  customer,
+    customer:   customer,
     keterangan: keterangan,
-    username:  currentUser,
-    timestamp: new Date().toISOString(),
+    username:   currentUser,
+    divisions:  currentDivs,   // array of divisions
+    timestamp:  new Date().toISOString(),
     items: valid.map(function(r){
       return { name:r.name, category:r.category, price:r.price, qty:r.qtyBesar||0, qtyKecil:r.qtyKecil||0, subtotal:r.price*(r.qtyBesar||0) };
     })
