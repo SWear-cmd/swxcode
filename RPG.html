@@ -155,6 +155,10 @@ body{font-family:system-ui,sans-serif;background:#0d0d1a;color:#e0e0e0;min-heigh
 
       <!-- Damage anchor at boss head -->
       <div class="dmg-anchor" id="dmg-anchor"></div>
+	  <div id="quest-avatar" style="position:absolute;top:10px;left:10px;width:52px;height:52px;border-radius:50%;border:2px solid #E24B2A;overflow:hidden;box-shadow:0 0 8px #E24B2A88;transition:opacity .3s">
+  <img src="YOUR_AVATAR_IMAGE.png" style="width:100%;height:100%;object-fit:cover">
+  <div id="quest-dot" style="position:absolute;top:2px;right:2px;width:12px;height:12px;border-radius:50%;background:#E24B2A;border:2px solid #0d0d1a;box-shadow:0 0 6px #E24B2A"></div>
+</div>
 
     </div>
   </div>
@@ -546,7 +550,8 @@ function renderQuests(){
     const done=cur>=q.max;
     const pct=Math.round(cur/q.max*100);
     const rewText=Object.entries(q.rewards).filter(([k,v])=>v>0).map(([k,v])=>`${k} +${v}`).join(" · ");
-    return `<div class="qitem${done?" done":""}">
+    return `<div class="qitem${done?" done":""}" style="position:relative">
+  <div style="position:absolute;top:-4px;right:-4px;width:10px;height:10px;border-radius:50%;background:${done?"#1D9E75":"#E24B2A"};border:2px solid #0d0d1a;box-shadow:0 0 6px ${done?"#1D9E75":"#E24B2A"};display:block"></div>
       <span style="font-size:20px">${q.emoji}</span>
       <div style="flex:1">
         <div class="qname">${done?"✅ ":""}${q.name}</div>
