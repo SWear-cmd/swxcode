@@ -744,7 +744,7 @@ function simulateOffline(elapsedMs){
   const survives = dmgTakenPerBattle < S.heroMaxHP;
 
   const avgRoundMs = turnsToKill*2*interval() + (survives?1000:1400);
-  const rounds = Math.min(500, Math.floor(elapsedMs / avgRoundMs));
+  const rounds = Math.floor(elapsedMs / avgRoundMs);
 
   if(rounds<=0) return;
 
@@ -787,10 +787,8 @@ function showOfflinePopup(st, wins, losses, elapsedMs){
 function computeOfflineProgress(lastActiveStr){
   if(!lastActiveStr) return;
   const elapsed = Date.now() - new Date(lastActiveStr).getTime();
-  const maxMs = 12*3600*1000;
-  const capped = Math.min(elapsed, maxMs);
-  if(capped < 60000) return;
-  simulateOffline(capped);
+  if(elapsed < 60000) return;
+  setTimeout(()=>simulateOffline(elapsed), 300);
 }
 
 // ── Init ──
