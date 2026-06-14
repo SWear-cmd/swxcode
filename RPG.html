@@ -181,6 +181,11 @@ body{font-family:system-ui,sans-serif;background:#0d0d1a;color:#e0e0e0;min-heigh
     <div class="ptitle">Hero Stats</div>
     <div class="lv">Lv <strong id="hlv">1</strong> — STR+SPD+Sleep / 10</div>
     <div class="statgrid" id="statgrid"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:10px;padding:8px 10px;background:#0d0d1a;border-radius:8px">
+      <img src="ticket.png" style="width:28px;height:28px;border-radius:50%">
+      <span style="font-size:12px;color:#7f8fa6">Tickets</span>
+      <span style="font-size:16px;font-weight:600;color:#AFA9EC;margin-left:auto" id="ticket-count">0</span>
+    </div>
   </div>
   <div class="panel">
     <div class="ptitle">Stage / Boss</div>
@@ -231,6 +236,7 @@ let S = {
   bossHP:300, bossMaxHP:300,
   stageIdx:  0,
   scores:    {},
+  tickets:   0,
   running:   false,
 };
 
@@ -332,6 +338,7 @@ function backToURL(){
 
 function applyUserData(user){
   S.stats        = Object.assign({HP:100,STR:10,SPD:10,Sleep:10}, user.stats);
+  S.tickets      = user.tickets||0;
   S.scores       = user.scores||{};
   QUESTS         = user.questDefinitions||[];
   QUEST_PROGRESS = Object.assign({}, user.questProgress);
@@ -365,7 +372,8 @@ async function pushSave(){
       questProgress:   QUEST_PROGRESS,
       questDefinitions:QUESTS,
       lastDay:         lastDayKey,
-      lastActive:      new Date().toISOString()
+      lastActive:      new Date().toISOString(),
+      tickets:         S.tickets||0
     });
     if(!data.ok) throw new Error(data.error);
     setSyncStatus("ok","Synced · "+CURRENT_USER);
@@ -436,7 +444,13 @@ function endBattle(won){
   if(!S.scores[st.id]) S.scores[st.id]=0;
   if(won){
     S.scores[st.id]++;
-    setLog("🏆 "+st.name+" defeated!");
+    let logMsg = "🏆 "+st.name+" defeated!";
+    if(Math.random() < 0.01){
+      const ticketGain = Math.pow(2, S.stageIdx);
+      S.tickets = (S.tickets||0) + ticketGain;
+      logMsg += " 🎫 +"+ticketGain+" ticket"+(ticketGain>1?"s":"")+"!";
+    }
+    setLog(logMsg);
     renderStats(); renderStages();
     scheduleSave();
     setTimeout(()=>{ resetBoss(); scheduleTick(); },1000);
@@ -502,6 +516,8 @@ function updateArenaUI(){
 }
 
 function renderStats(){
+  const tc=document.getElementById("ticket-count");
+  if(tc) tc.textContent=S.tickets||0;
   document.getElementById("statgrid").innerHTML=Object.entries(S.stats).map(([k,v])=>{
     const pct=Math.round(v/(STAT_MAX[k]||1000)*100);
     return `<div class="statitem">
