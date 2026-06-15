@@ -343,7 +343,7 @@ function applyUserData(user){
   QUESTS         = user.questDefinitions||[];
   QUEST_PROGRESS = Object.assign({}, user.questProgress);
   QUESTS.forEach(q=>{ if(QUEST_PROGRESS[q.id]===undefined) QUEST_PROGRESS[q.id]=0; });
-  lastDayKey = getTodayKeyGMT7();
+  lastDayKey = user.lastDay || getTodayKeyGMT7();
   S.heroMaxHP    = Math.round(100+(S.stats.STR-10)*2);
   S.heroHP       = S.heroMaxHP;
   if(STAGES.length>0){
