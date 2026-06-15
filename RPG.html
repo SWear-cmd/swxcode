@@ -225,6 +225,8 @@ let lastDayKey="";
 
 function getStage(){ return STAGES[S.stageIdx]||STAGES[0]; }
 function interval(){ return Math.max(100, Math.round(400/SPEEDS[speedIdx])); }
+function setText(id,val){ const el=document.getElementById(id); if(el) el.textContent=val; }
+function setWidth(id,val){ const el=document.getElementById(id); if(el) el.style.width=val; }
 function calcLevel(){
   const total=(S.stats.STR||0)+(S.stats.SPD||0)+(S.stats.Sleep||0);
   return Math.max(1, Math.floor(total/10));
@@ -373,7 +375,7 @@ function applyUserData(user){
   if(STAGES.length>0){
     const st=STAGES[S.stageIdx]||STAGES[0];
     S.bossHP=st.hp; S.bossMaxHP=st.hp;
-    document.getElementById("boss-name").textContent=st.name;
+    setText("boss-name", st.name);
   }
   renderStats(); renderStages(); renderQuests(); updateArenaUI();
 }
@@ -493,7 +495,7 @@ function endBattle(won){
 function resetBoss(){
   const st=getStage();
   S.bossHP=st.hp; S.bossMaxHP=st.hp;
-  document.getElementById("boss-name").textContent=st.name;
+  setText("boss-name", st.name);
   phase="hero"; animLock=false;
   updateArenaUI();
 }
@@ -532,11 +534,11 @@ function showHitFlash(){
 // ── UI Updates ──
 function updateArenaUI(){
   if(!STAGES.length) return;
-  document.getElementById("boss-hp").style.width    = Math.max(0,S.bossHP/S.bossMaxHP*100)+"%";
-  document.getElementById("boss-hpnum").textContent = Math.max(0,Math.round(S.bossHP))+" / "+S.bossMaxHP;
-  document.getElementById("hero-hp").style.width    = Math.max(0,S.heroHP/S.heroMaxHP*100)+"%";
-  document.getElementById("hero-sp").style.width    = (S.sp/S.spMax*100)+"%";
-  document.getElementById("bar-lv").textContent     = calcLevel();
+  setWidth("boss-hp", Math.max(0,S.bossHP/S.bossMaxHP*100)+"%");
+  setText("boss-hpnum", Math.max(0,Math.round(S.bossHP))+" / "+S.bossMaxHP);
+  setWidth("hero-hp", Math.max(0,S.heroHP/S.heroMaxHP*100)+"%");
+  setWidth("hero-sp", (S.sp/S.spMax*100)+"%");
+  setText("bar-lv", calcLevel());
   document.getElementById("hlv").textContent        = calcLevel();
 }
 
@@ -579,7 +581,7 @@ function selectStage(idx){
   if(battleTimer) clearTimeout(battleTimer);
   S.stageIdx=idx; S.heroHP=S.heroMaxHP;
   S.bossHP=st.hp; S.bossMaxHP=st.hp;
-  document.getElementById("boss-name").textContent=st.name;
+  setText("boss-name", st.name);
   phase="hero"; animLock=false;
   updateArenaUI(); renderStages();
   setLog(st.name+" appeared!");
