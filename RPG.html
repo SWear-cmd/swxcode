@@ -130,6 +130,13 @@ body{font-family:system-ui,sans-serif;background:#0d0d1a;color:#e0e0e0;min-heigh
       <div class="user-list" id="user-list"></div>
       <button class="setup-btn" style="margin-top:4px;background:transparent;border-color:#0f3460;color:#7f8fa6" onclick="backToURL()">← Change URL</button>
     </div>
+    <div id="setup-step-pin" style="display:none">
+      <p id="pin-username-label">Enter PIN</p>
+      <input class="setup-input" id="input-pin" type="password" inputmode="numeric" placeholder="PIN" autocomplete="off">
+      <button class="setup-btn" onclick="submitPin()">Unlock</button>
+      <button class="setup-btn" style="margin-top:4px;background:transparent;border-color:#0f3460;color:#7f8fa6" onclick="backToUserList()">← Back</button>
+      <p class="err-msg" id="pin-error"></p>
+    </div>
   </div>
 </div>
 
@@ -270,6 +277,7 @@ async function apiPost(payload){
   }
   const params = new URLSearchParams({action});
   if(payload.username) params.append("username", payload.username);
+  if(payload.pin) params.append("pin", payload.pin);
   const res = await fetch(GAS_URL + "?" + params.toString());
   return await res.json();
 }
@@ -294,26 +302,71 @@ async function submitURL(){
   }
 }
 
+let LOCKED_USERS = {};
+let CURRENT_PIN = "";
+
 function showUserList(users){
   document.getElementById("setup-step-url").style.display="none";
+  document.getElementById("setup-step-pin").style.display="none";
   document.getElementById("setup-step-user").style.display="block";
+  LOCKED_USERS = {};
+  users.forEach(u=>{ LOCKED_USERS[u.username] = !!u.locked; });
   document.getElementById("user-list").innerHTML = users.map(u=>`
     <div class="user-item" onclick="selectUser('${u.username}')">
-      <span>${u.username}</span>
+      <span>${u.username}${u.locked ? " 🔒" : ""}</span>
       <span class="ustats">STR ${u.STR} · SPD ${u.SPD} · Sleep ${u.Sleep}</span>
     </div>`).join("");
 }
 
+let PENDING_USER = "";
+
 async function selectUser(username){
+  if(LOCKED_USERS[username]){
+    PENDING_USER = username;
+    document.getElementById("pin-username-label").textContent = "Enter PIN for "+username;
+    document.getElementById("input-pin").value = "";
+    document.getElementById("pin-error").style.display="none";
+    document.getElementById("setup-step-user").style.display="none";
+    document.getElementById("setup-step-pin").style.display="block";
+    document.getElementById("input-pin").focus();
+    return;
+  }
+  await doLogin(username, "");
+}
+
+async function submitPin(){
+  const pin = document.getElementById("input-pin").value.trim();
+  const err = document.getElementById("pin-error");
+  err.style.display="none";
+  if(!pin){ err.textContent="Please enter your PIN"; err.style.display="block"; return; }
+  await doLogin(PENDING_USER, pin);
+}
+
+function backToUserList(){
+  document.getElementById("setup-step-pin").style.display="none";
+  document.getElementById("setup-step-user").style.display="block";
+}
+
+async function doLogin(username, pin){
   CURRENT_USER = username;
+  CURRENT_PIN = pin;
   localStorage.setItem(USERNAME_KEY, username);
   setSyncStatus("syncing","Loading...");
   try {
     const [userData, bossData] = await Promise.all([
-      apiPost({action:"getuser",  username}),
+      apiPost({action:"getuser",  username, pin}),
       apiPost({action:"getbosses"})
     ]);
-    if(!userData.ok) throw new Error(userData.error);
+    if(!userData.ok){
+      if(LOCKED_USERS[username]){
+        const err = document.getElementById("pin-error");
+        err.textContent = userData.error;
+        err.style.display="block";
+        setSyncStatus("err","Locked");
+        return;
+      }
+      throw new Error(userData.error);
+    }
     if(!bossData.ok) throw new Error(bossData.error);
     STAGES = bossData.bosses;
     applyUserData(userData.user);
@@ -367,6 +420,7 @@ async function pushSave(){
     const data = await apiPost({
       action:          "save",
       username:        CURRENT_USER,
+      pin:             CURRENT_PIN,
       stats:           S.stats,
       scores:          S.scores,
       questProgress:   QUEST_PROGRESS,
@@ -823,9 +877,21 @@ function computeOfflineProgress(lastActiveStr){
     document.getElementById("setup-screen").style.display="flex";
     try {
       const [userData, bossData] = await Promise.all([
-        apiPost({action:"getuser",  username:CURRENT_USER}),
+        apiPost({action:"getuser",  username:CURRENT_USER, pin:CURRENT_PIN}),
         apiPost({action:"getbosses"})
       ]);
+      if(userData.error === "Invalid PIN"){
+        LOCKED_USERS[CURRENT_USER] = true;
+        PENDING_USER = CURRENT_USER;
+        document.getElementById("setup-step-url").style.display="none";
+        document.getElementById("pin-username-label").textContent = "Enter PIN for "+CURRENT_USER;
+        document.getElementById("input-pin").value = "";
+        document.getElementById("pin-error").style.display="none";
+        document.getElementById("setup-step-pin").style.display="block";
+        document.getElementById("input-pin").focus();
+        setSyncStatus("err","Locked");
+        return;
+      }
       if(!userData.ok || !bossData.ok) throw new Error("reload failed");
       STAGES = bossData.bosses;
       applyUserData(userData.user);
