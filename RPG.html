@@ -110,6 +110,17 @@ body{font-family:system-ui,sans-serif;background:#0d0d1a;color:#e0e0e0;min-heigh
 .user-item:hover{border-color:#7F77DD;background:#26215C}
 .user-item .ustats{font-size:11px;color:#7f8fa6}
 .err-msg{color:#E24B2A;font-size:11px;display:none}
+
+/* ── Tabs ── */
+.tab-bar{display:flex;gap:4px;padding:2px 0 0}
+.tab-btn{flex:1;padding:8px 10px;border-radius:8px 8px 0 0;border:1px solid #0f3460;border-bottom:none;background:#0d0d1a;color:#7f8fa6;font-size:12px;font-weight:500;cursor:pointer;letter-spacing:.03em;transition:background .15s,color .15s;text-align:center}
+.tab-btn:hover{background:#16213e;color:#c0bfef}
+.tab-btn.active{background:#16213e;color:#AFA9EC;border-color:#7F77DD88;border-bottom:1px solid #16213e;position:relative;z-index:1}
+.tab-content{display:none;animation:fadeIn .15s ease}
+.tab-content.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:translateY(0)}}
+.tab-panel-wrap{background:#16213e;border:1px solid #0f3460;border-radius:0 0 12px 12px;padding:12px;margin-top:-1px}
+.tab-panel-wrap.quest-tab-wrap{padding:0;background:transparent;border:none}
 </style>
 </head>
 <body>
@@ -184,28 +195,42 @@ body{font-family:system-ui,sans-serif;background:#0d0d1a;color:#e0e0e0;min-heigh
 </div>
 <div class="blog" id="blog">Connecting...</div>
 
-<!-- Stats + Stage/Boss -->
-<div class="g2">
-  <div class="panel">
-    <div class="ptitle">Hero Stats</div>
-    <div class="lv">Lv <strong id="hlv">1</strong> — STR+SPD+Sleep / 10</div>
-    <div class="statgrid" id="statgrid"></div>
-    <div style="display:flex;align-items:center;gap:8px;margin-top:10px;padding:8px 10px;background:#0d0d1a;border-radius:8px">
-      <img src="ticket.png" style="width:28px;height:28px;border-radius:50%">
-      <span style="font-size:12px;color:#7f8fa6">Tickets</span>
-      <span style="font-size:16px;font-weight:600;color:#AFA9EC;margin-left:auto" id="ticket-count">0</span>
+<!-- Tabs -->
+<div>
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('hero')">&#9876;&#65039; Hero</button>
+    <button class="tab-btn" onclick="switchTab('quests')" id="tab-quests-btn">&#128203; Quests</button>
+  </div>
+
+  <!-- Hero Tab -->
+  <div class="tab-content active" id="tab-hero">
+    <div class="tab-panel-wrap">
+      <div class="g2" style="margin-bottom:0">
+        <div>
+          <div class="ptitle">Hero Stats</div>
+          <div class="lv">Lv <strong id="hlv">1</strong> — STR+SPD+Sleep / 10</div>
+          <div class="statgrid" id="statgrid"></div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:10px;padding:8px 10px;background:#0d0d1a;border-radius:8px">
+            <img src="ticket.png" style="width:28px;height:28px;border-radius:50%">
+            <span style="font-size:12px;color:#7f8fa6">Tickets</span>
+            <span style="font-size:16px;font-weight:600;color:#AFA9EC;margin-left:auto" id="ticket-count">0</span>
+          </div>
+        </div>
+        <div>
+          <div class="ptitle">Stage / Boss</div>
+          <div id="stagelist"></div>
+        </div>
+      </div>
     </div>
   </div>
-  <div class="panel">
-    <div class="ptitle">Stage / Boss</div>
-    <div id="stagelist"></div>
-  </div>
-</div>
 
-<!-- Daily Quests -->
-<div class="panel">
-  <div class="ptitle">Daily Quests — click to complete</div>
-  <div class="qlist" id="qlist"></div>
+  <!-- Quests Tab -->
+  <div class="tab-content" id="tab-quests">
+    <div class="tab-panel-wrap">
+      <div class="ptitle">Daily Quests — click to complete</div>
+      <div class="qlist" id="qlist"></div>
+    </div>
+  </div>
 </div>
 
 <!-- Quest Editor -->
@@ -408,7 +433,7 @@ function applyUserData(user){
     S.bossHP=st.hp; S.bossMaxHP=st.hp;
     setText("boss-name", st.name);
   }
-  renderStats(); renderStages(); renderQuests(); updateArenaUI();
+  renderStats(); renderStages(); renderQuests(); updateArenaUI(); updateQuestTabBadge();
 }
 
 // ── Save ──
@@ -661,7 +686,7 @@ function doQuest(id){
   S.heroMaxHP=Math.round(100+(S.stats.STR-10)*2);
   S.heroHP=Math.min(S.heroHP+15, S.heroMaxHP);
   lastQuestAction = {id, rewards: q.rewards};
-  renderStats(); renderStages(); renderQuests(); updateArenaUI();
+  renderStats(); renderStages(); renderQuests(); updateArenaUI(); updateQuestTabBadge();
   setLog("Quest: "+q.name+" — "+QUEST_PROGRESS[id]+"/"+q.max+"! Stats improved.");
   scheduleSave();
   showUndoButton();
@@ -774,6 +799,23 @@ function saveQuests(){
   scheduleSave();
 }
 
+// ── Tabs ──
+function switchTab(name){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+function updateQuestTabBadge(){
+  const btn = document.getElementById('tab-quests-btn');
+  if(!btn) return;
+  const pending = QUESTS.filter(q => (QUEST_PROGRESS[q.id]||0) < q.target).length;
+  btn.textContent = pending > 0
+    ? '\uD83D\uDCCB Quests \u00B7 ' + pending
+    : '\uD83D\uDCCB Quests';
+}
+
 // ── Daily Reset & Stat Decay (5:00 AM GMT+7) ──
 function getTodayKeyGMT7(){
   const now=new Date();
@@ -797,7 +839,7 @@ function checkDailyReset(){
     QUESTS.forEach(q=>{ QUEST_PROGRESS[q.id]=0; });
     S.heroMaxHP=Math.round(100+(S.stats.STR-10)*2);
     S.heroHP=Math.min(S.heroHP,S.heroMaxHP);
-    renderStats(); renderStages(); renderQuests(); updateArenaUI();
+    renderStats(); renderStages(); renderQuests(); updateArenaUI(); updateQuestTabBadge();
     setLog("🌅 New day! Stats decayed -5. Quests reset.");
     scheduleSave();
   }
