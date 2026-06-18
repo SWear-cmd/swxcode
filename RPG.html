@@ -212,7 +212,7 @@ body{font-family:system-ui,sans-serif;background:#0d0d1a;color:#e0e0e0;min-heigh
           <div class="statgrid" id="statgrid"></div>
           <div style="display:flex;align-items:center;gap:8px;margin-top:10px;padding:8px 10px;background:#0d0d1a;border-radius:8px">
             <img src="ticket.png" style="width:28px;height:28px;border-radius:50%">
-            <span style="font-size:12px;color:#7f8fa6">Tickets</span>
+            <span style="font-size:12px;color:#7f8fa6">Dogen</span>
             <span style="font-size:16px;font-weight:600;color:#AFA9EC;margin-left:auto" id="ticket-count">0</span>
           </div>
         </div>
@@ -280,7 +280,7 @@ let saveTimer=null;
 let lastDayKey="";
 
 function getStage(){ return STAGES[S.stageIdx]||STAGES[0]; }
-function interval(){ return Math.max(100, Math.round(400/SPEEDS[speedIdx])); }
+function interval(){ return Math.max(100, Math.round(200/SPEEDS[speedIdx])); }
 function setText(id,val){ const el=document.getElementById(id); if(el) el.textContent=val; }
 function setWidth(id,val){ const el=document.getElementById(id); if(el) el.style.width=val; }
 function calcLevel(){
