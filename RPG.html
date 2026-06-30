@@ -306,7 +306,12 @@ body{font-family:system-ui,sans-serif;background:#0d0d1a;color:#e0e0e0;min-heigh
 
 <!-- Quest Editor -->
 <div class="modal-wrap" id="quest-editor">
-  <h3>✏️ Edit Daily Quests</h3>
+  <div style="display:flex;gap:4px;margin-bottom:12px">
+    <button class="qsub-btn active" id="ed-tab-daily-btn" onclick="switchEditorTab('daily')" style="border-radius:6px;border-bottom:1px solid #0f3460">📋 Daily</button>
+    <button class="qsub-btn" id="ed-tab-weekly-btn" onclick="switchEditorTab('weekly')" style="border-radius:6px;border-bottom:1px solid #0f3460">📅 Weekly</button>
+    <button class="qsub-btn" id="ed-tab-monthly-btn" onclick="switchEditorTab('monthly')" style="border-radius:6px;border-bottom:1px solid #0f3460">🗓️ Monthly</button>
+  </div>
+  <h3 id="ed-title">✏️ Edit Daily Quests</h3>
   <div id="qedit-rows"></div>
   <button class="add-btn" onclick="addQuestRow()">+ Add quest</button>
   <div style="display:flex;gap:8px;margin-top:12px">
@@ -537,6 +542,31 @@ function applyUserData(user){
   QUEST_PROGRESS = Object.assign({}, user.questProgress);
   QUESTS.forEach(q=>{ if(QUEST_PROGRESS[q.id]===undefined) QUEST_PROGRESS[q.id]=0; });
   lastDayKey = user.lastDay ? String(user.lastDay) : getTodayKeyGMT7();
+
+  // Load weekly/monthly definitions from sheet if present, else keep hardcoded defaults
+  if(user.weeklyDefinitions && user.weeklyDefinitions.length>0) WEEKLY_QUESTS = user.weeklyDefinitions;
+  if(user.monthlyDefinitions && user.monthlyDefinitions.length>0) MONTHLY_QUESTS = user.monthlyDefinitions;
+
+  // Weekly progress — use sheet data if key matches current week, else reset
+  const curWeekKey = getWeekKeyGMT7();
+  if(user.weeklyKey && user.weeklyKey === curWeekKey){
+    WEEKLY_PROGRESS = Object.assign({}, user.weeklyProgress||{});
+  } else {
+    WEEKLY_PROGRESS = {};
+  }
+  lastWeekKey = curWeekKey;
+  WEEKLY_QUESTS.forEach(q=>{ if(WEEKLY_PROGRESS[q.id]===undefined) WEEKLY_PROGRESS[q.id]=0; });
+
+  // Monthly progress — use sheet data if key matches current month, else reset
+  const curMonthKey = getMonthKeyGMT7();
+  if(user.monthlyKey && user.monthlyKey === curMonthKey){
+    MONTHLY_PROGRESS = Object.assign({}, user.monthlyProgress||{});
+  } else {
+    MONTHLY_PROGRESS = {};
+  }
+  lastMonthKey = curMonthKey;
+  MONTHLY_QUESTS.forEach(q=>{ if(MONTHLY_PROGRESS[q.id]===undefined) MONTHLY_PROGRESS[q.id]=0; });
+
   S.heroMaxHP    = Math.round(100+(S.stats.STR-10)*2);
   S.heroHP       = S.heroMaxHP;
   if(STAGES.length>0){
@@ -567,7 +597,13 @@ async function pushSave(){
       questDefinitions:QUESTS,
       lastDay:         lastDayKey,
       lastActive:      new Date().toISOString(),
-      tickets:         S.tickets||0
+      tickets:         S.tickets||0,
+      weeklyProgress:      WEEKLY_PROGRESS,
+      weeklyKey:           lastWeekKey,
+      weeklyDefinitions:   WEEKLY_QUESTS,
+      monthlyProgress:     MONTHLY_PROGRESS,
+      monthlyKey:          lastMonthKey,
+      monthlyDefinitions:  MONTHLY_QUESTS
     });
     if(!data.ok) throw new Error(data.error);
     setSyncStatus("ok","Synced · "+CURRENT_USER);
@@ -854,6 +890,23 @@ function changeSpeed(){
   document.getElementById("spd-lbl").textContent=SPEEDS[speedIdx]+"×";
 }
 
+let currentEditorTab = "daily";
+
+function switchEditorTab(type){
+  currentEditorTab = type;
+  document.querySelectorAll('[id^="ed-tab-"]').forEach(b=>b.classList.remove('active'));
+  document.getElementById("ed-tab-"+type+"-btn").classList.add('active');
+  const titles = {daily:"✏️ Edit Daily Quests", weekly:"✏️ Edit Weekly Quests", monthly:"✏️ Edit Monthly Quests"};
+  document.getElementById("ed-title").textContent = titles[type];
+  buildEditorRows();
+}
+
+function getEditList(){
+  if(currentEditorTab==="weekly") return WEEKLY_QUESTS;
+  if(currentEditorTab==="monthly") return MONTHLY_QUESTS;
+  return QUESTS;
+}
+
 function toggleEditor(){
   const ed=document.getElementById("quest-editor");
   if(ed.style.display==="none"||!ed.style.display){
@@ -861,6 +914,10 @@ function toggleEditor(){
     S.running=false;
     document.getElementById("btn-toggle").className="btn pause";
     document.getElementById("btn-toggle").textContent="▶ Resume";
+    currentEditorTab="daily";
+    document.querySelectorAll('[id^="ed-tab-"]').forEach(b=>b.classList.remove('active'));
+    document.getElementById("ed-tab-daily-btn").classList.add('active');
+    document.getElementById("ed-title").textContent="✏️ Edit Daily Quests";
     buildEditorRows(); ed.style.display="block";
     ed.scrollIntoView({behavior:"smooth"});
   } else {
@@ -870,8 +927,10 @@ function toggleEditor(){
 
 function buildEditorRows(){
   const stats=["STR","SPD","Sleep","HP"];
+  const list=getEditList();
+  const isWeeklyOrMonthly = currentEditorTab!=="daily";
   document.getElementById("qedit-rows").innerHTML="";
-  QUESTS.forEach((q,i)=>{
+  list.forEach((q,i)=>{
     const row=document.createElement("div"); row.className="qedit-row";
     row.innerHTML=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
       <input type="text" value="${q.emoji}" style="width:48px" id="eq${i}-emoji">
@@ -879,28 +938,48 @@ function buildEditorRows(){
       <input type="number" value="${q.max}" style="width:52px" id="eq${i}-max" min="1">
       <button class="del-btn" onclick="removeQuestRow(${i})">🗑</button>
     </div>
+    ${isWeeklyOrMonthly?`<textarea id="eq${i}-desc" placeholder="Description (shown when quest is tapped)..." style="width:100%;background:#0d0d1a;border:1px solid #0f3460;border-radius:6px;padding:6px 8px;font-size:12px;color:#e0e0e0;resize:vertical;min-height:60px;margin-bottom:5px;font-family:inherit">${(q.description||"").replace(/</g,"&lt;")}</textarea>`:""}
     <div class="rewgrid">${stats.map(s=>`<div class="rewfield"><label>${s}</label><input type="number" step="1" value="${q.rewards[s]||0}" id="eq${i}-${s}"></div>`).join("")}</div>`;
     document.getElementById("qedit-rows").appendChild(row);
   });
 }
 
 function addQuestRow(){
-  QUESTS.push({id:"q"+Date.now(),name:"New quest",emoji:"⭐",rewards:{STR:0,SPD:0,Sleep:0,HP:0},max:10});
+  const isWeeklyOrMonthly = currentEditorTab!=="daily";
+  const prefix = currentEditorTab==="weekly"?"wq":currentEditorTab==="monthly"?"mq":"q";
+  const newQ={id:prefix+Date.now(),name:"New quest",emoji:"⭐",rewards:{STR:0,SPD:0,Sleep:0,HP:0},max:10};
+  if(isWeeklyOrMonthly) newQ.description="";
+  getEditList().push(newQ);
   buildEditorRows();
 }
-function removeQuestRow(i){ QUESTS.splice(i,1); buildEditorRows(); }
+
+function removeQuestRow(i){ getEditList().splice(i,1); buildEditorRows(); }
 
 function saveQuests(){
   const stats=["STR","SPD","Sleep","HP"];
-  QUESTS=QUESTS.map((q,i)=>({
+  const list=getEditList();
+  const isWeeklyOrMonthly = currentEditorTab!=="daily";
+  const saved=list.map((q,i)=>({
     ...q,
     name: document.getElementById("eq"+i+"-name").value.trim()||q.name,
     emoji:document.getElementById("eq"+i+"-emoji").value.trim()||q.emoji,
     max:  parseInt(document.getElementById("eq"+i+"-max").value)||10,
+    ...(isWeeklyOrMonthly?{description:document.getElementById("eq"+i+"-desc").value}:{}),
     rewards:Object.fromEntries(stats.map(s=>[s,parseInt(document.getElementById("eq"+i+"-"+s).value)||0]))
   }));
-  QUESTS.forEach(q=>{ if(QUEST_PROGRESS[q.id]===undefined) QUEST_PROGRESS[q.id]=0; });
-  renderQuests();
+  if(currentEditorTab==="weekly"){
+    WEEKLY_QUESTS=saved;
+    WEEKLY_QUESTS.forEach(q=>{ if(WEEKLY_PROGRESS[q.id]===undefined) WEEKLY_PROGRESS[q.id]=0; });
+    renderWeeklyQuests();
+  } else if(currentEditorTab==="monthly"){
+    MONTHLY_QUESTS=saved;
+    MONTHLY_QUESTS.forEach(q=>{ if(MONTHLY_PROGRESS[q.id]===undefined) MONTHLY_PROGRESS[q.id]=0; });
+    renderMonthlyQuests();
+  } else {
+    QUESTS=saved;
+    QUESTS.forEach(q=>{ if(QUEST_PROGRESS[q.id]===undefined) QUEST_PROGRESS[q.id]=0; });
+    renderQuests();
+  }
   document.getElementById("quest-editor").style.display="none";
   setLog("Quests updated!");
   S.running=true;
@@ -994,9 +1073,9 @@ function checkWeeklyReset(){
   if(key!==lastWeekKey){
     lastWeekKey=key;
     WEEKLY_QUESTS.forEach(q=>{ WEEKLY_PROGRESS[q.id]=0; });
-    savePeriodicProgress();
     renderWeeklyQuests();
     setLog("📅 New week! Weekly quests reset.");
+    scheduleSave();
   }
 }
 
@@ -1005,36 +1084,17 @@ function checkMonthlyReset(){
   if(key!==lastMonthKey){
     lastMonthKey=key;
     MONTHLY_QUESTS.forEach(q=>{ MONTHLY_PROGRESS[q.id]=0; });
-    savePeriodicProgress();
     renderMonthlyQuests();
     setLog("🗓️ New month! Monthly quests reset.");
+    scheduleSave();
   }
 }
 
-// Save/load weekly+monthly progress from localStorage
-function savePeriodicProgress(){
-  localStorage.setItem("rpg_weekly_key",lastWeekKey);
-  localStorage.setItem("rpg_weekly_prog",JSON.stringify(WEEKLY_PROGRESS));
-  localStorage.setItem("rpg_monthly_key",lastMonthKey);
-  localStorage.setItem("rpg_monthly_prog",JSON.stringify(MONTHLY_PROGRESS));
-}
-
+// Initialize weekly/monthly defaults before login (applyUserData overwrites from sheet)
 function loadPeriodicProgress(){
-  const savedWKey=localStorage.getItem("rpg_weekly_key")||"";
-  const savedMKey=localStorage.getItem("rpg_monthly_key")||"";
-  const curWKey=getWeekKeyGMT7();
-  const curMKey=getMonthKeyGMT7();
-
-  if(savedWKey===curWKey){
-    try{ WEEKLY_PROGRESS=JSON.parse(localStorage.getItem("rpg_weekly_prog")||"{}"); }catch(e){}
-  }
-  lastWeekKey=curWKey;
+  lastWeekKey = getWeekKeyGMT7();
+  lastMonthKey = getMonthKeyGMT7();
   WEEKLY_QUESTS.forEach(q=>{ if(WEEKLY_PROGRESS[q.id]===undefined) WEEKLY_PROGRESS[q.id]=0; });
-
-  if(savedMKey===curMKey){
-    try{ MONTHLY_PROGRESS=JSON.parse(localStorage.getItem("rpg_monthly_prog")||"{}"); }catch(e){}
-  }
-  lastMonthKey=curMKey;
   MONTHLY_QUESTS.forEach(q=>{ if(MONTHLY_PROGRESS[q.id]===undefined) MONTHLY_PROGRESS[q.id]=0; });
 }
 
@@ -1123,7 +1183,7 @@ function doWeeklyQuest(id){
   S.heroHP=Math.min(S.heroHP+10, S.heroMaxHP);
   renderStats(); renderStages(); renderWeeklyQuests(); updateArenaUI();
   setLog("📅 Weekly: "+q.name+" — "+WEEKLY_PROGRESS[id]+"/"+q.max+"!");
-  savePeriodicProgress(); scheduleSave();
+  scheduleSave();
 }
 
 function doMonthlyQuest(id){
@@ -1137,7 +1197,7 @@ function doMonthlyQuest(id){
   S.heroHP=Math.min(S.heroHP+10, S.heroMaxHP);
   renderStats(); renderStages(); renderMonthlyQuests(); updateArenaUI();
   setLog("🗓️ Monthly: "+q.name+" — "+MONTHLY_PROGRESS[id]+"/"+q.max+"!");
-  savePeriodicProgress(); scheduleSave();
+  scheduleSave();
 }
 
 // ── Quest Description Modal ──
