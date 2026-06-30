@@ -121,6 +121,29 @@ body{font-family:system-ui,sans-serif;background:#0d0d1a;color:#e0e0e0;min-heigh
 @keyframes fadeIn{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:translateY(0)}}
 .tab-panel-wrap{background:#16213e;border:1px solid #0f3460;border-radius:0 0 12px 12px;padding:12px;margin-top:-1px}
 .tab-panel-wrap.quest-tab-wrap{padding:0;background:transparent;border:none}
+
+/* ── Weekly / Monthly Quest Tabs ── */
+.quest-sub-bar{display:flex;gap:4px;margin-bottom:0}
+.qsub-btn{flex:1;padding:6px 8px;border-radius:6px 6px 0 0;border:1px solid #0f3460;border-bottom:none;background:#0a0a14;color:#7f8fa6;font-size:11px;font-weight:500;cursor:pointer;text-align:center;transition:background .15s,color .15s;letter-spacing:.03em}
+.qsub-btn:hover{background:#16213e;color:#c0bfef}
+.qsub-btn.active{background:#16213e;color:#AFA9EC;border-color:#7F77DD88;border-bottom:1px solid #16213e;position:relative;z-index:1}
+.qsub-content{display:none}
+.qsub-content.active{display:block}
+.qsub-panel{background:#16213e;border:1px solid #0f3460;border-radius:0 0 12px 12px;padding:12px;margin-top:-1px}
+.qperiod-label{font-size:10px;color:#7f8fa6;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.qreset-info{font-size:10px;color:#444;text-align:right;margin-bottom:6px}
+
+/* ── Quest Description Modal ── */
+.qdesc-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:9000;align-items:center;justify-content:center}
+.qdesc-overlay.open{display:flex}
+.qdesc-box{background:#16213e;border:1px solid #7F77DD88;border-radius:12px;padding:20px;width:320px;max-width:92vw;color:#e0e0e0;position:relative}
+.qdesc-emoji{font-size:28px;margin-bottom:6px}
+.qdesc-title{font-size:15px;font-weight:600;margin-bottom:6px}
+.qdesc-progress{font-size:12px;color:#7f8fa6;margin-bottom:8px}
+.qdesc-body{font-size:13px;color:#c0c0d0;line-height:1.55;margin-bottom:14px;white-space:pre-wrap}
+.qdesc-rew{font-size:11px;color:#AFA9EC;margin-bottom:14px}
+.qdesc-close{position:absolute;top:10px;right:12px;background:none;border:none;color:#7f8fa6;font-size:18px;cursor:pointer;line-height:1}
+.qdesc-close:hover{color:#e0e0e0}
 </style>
 </head>
 <body>
@@ -226,10 +249,58 @@ body{font-family:system-ui,sans-serif;background:#0d0d1a;color:#e0e0e0;min-heigh
 
   <!-- Quests Tab -->
   <div class="tab-content" id="tab-quests">
-    <div class="tab-panel-wrap">
-      <div class="ptitle">Daily Quests — click to complete</div>
-      <div class="qlist" id="qlist"></div>
+    <div class="tab-panel-wrap" style="padding:0;background:transparent;border:none">
+
+      <!-- Sub-tab bar -->
+      <div class="quest-sub-bar">
+        <button class="qsub-btn active" id="qsub-daily-btn" onclick="switchQuestSub('daily')">📋 Daily</button>
+        <button class="qsub-btn" id="qsub-weekly-btn" onclick="switchQuestSub('weekly')">📅 Weekly</button>
+        <button class="qsub-btn" id="qsub-monthly-btn" onclick="switchQuestSub('monthly')">🗓️ Monthly</button>
+      </div>
+
+      <!-- Daily sub-panel -->
+      <div class="qsub-content active" id="qsub-daily">
+        <div class="qsub-panel">
+          <div class="qperiod-label">Daily Quests — click to complete</div>
+          <div class="qlist" id="qlist"></div>
+        </div>
+      </div>
+
+      <!-- Weekly sub-panel -->
+      <div class="qsub-content" id="qsub-weekly">
+        <div class="qsub-panel">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div class="qperiod-label" style="margin-bottom:0">Weekly Quests</div>
+            <div class="qreset-info" id="weekly-reset-info">Resets Mon 5AM GMT+7</div>
+          </div>
+          <div class="qlist" id="weekly-qlist"></div>
+        </div>
+      </div>
+
+      <!-- Monthly sub-panel -->
+      <div class="qsub-content" id="qsub-monthly">
+        <div class="qsub-panel">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div class="qperiod-label" style="margin-bottom:0">Monthly Quests</div>
+            <div class="qreset-info" id="monthly-reset-info">Resets 1st 5AM GMT+7</div>
+          </div>
+          <div class="qlist" id="monthly-qlist"></div>
+        </div>
+      </div>
+
     </div>
+  </div>
+</div>
+
+<!-- Quest Description Modal -->
+<div class="qdesc-overlay" id="qdesc-overlay" onclick="closeQuestDesc(event)">
+  <div class="qdesc-box">
+    <button class="qdesc-close" onclick="closeQuestDescBtn()">✕</button>
+    <div class="qdesc-emoji" id="qdesc-emoji"></div>
+    <div class="qdesc-title" id="qdesc-title"></div>
+    <div class="qdesc-progress" id="qdesc-progress"></div>
+    <div class="qdesc-body" id="qdesc-body"></div>
+    <div class="qdesc-rew" id="qdesc-rew"></div>
   </div>
 </div>
 
@@ -262,7 +333,47 @@ let STAGES = [];
 let QUESTS = [];
 let QUEST_PROGRESS = {};
 
-// ── Game State ──
+// ── Weekly / Monthly Quests (hardcoded, editable below) ──
+let WEEKLY_QUESTS = [
+  {
+    id:"wq1", emoji:"🏃", name:"Run 5km x3",
+    description:"Complete a 5km run at least 3 times this week.\n\nAny pace is fine — the goal is to keep your legs moving consistently throughout the week.",
+    max:3, rewards:{SPD:5,HP:10}
+  },
+  {
+    id:"wq2", emoji:"📖", name:"Read 7 days",
+    description:"Read for at least 20 minutes every day this week.\n\nBooks, articles, or anything that challenges your mind counts.",
+    max:7, rewards:{Sleep:3,STR:2}
+  },
+  {
+    id:"wq3", emoji:"💪", name:"Workout 4x this week",
+    description:"Complete 4 full workout sessions this week.\n\nCan be gym, bodyweight, or any sport. Each session should be at least 30 minutes.",
+    max:4, rewards:{STR:8,HP:15}
+  }
+];
+let WEEKLY_PROGRESS = {};
+
+let MONTHLY_QUESTS = [
+  {
+    id:"mq1", emoji:"🏔️", name:"30-day streak",
+    description:"Complete at least one daily quest every single day this month.\n\nConsistency is the key — don't break the chain!",
+    max:30, rewards:{STR:20,SPD:10,Sleep:10}
+  },
+  {
+    id:"mq2", emoji:"🧘", name:"Meditate 20 sessions",
+    description:"Meditate for at least 10 minutes, 20 times this month.\n\nUse any technique: guided, breathing, or silent sitting. Track each completed session.",
+    max:20, rewards:{Sleep:15,HP:20}
+  },
+  {
+    id:"mq3", emoji:"⚗️", name:"No junk food weeks",
+    description:"Go 4 full weeks without junk food.\n\nEach time you complete a full week clean, submit one count. Junk food = fast food, chips, soda, candy.",
+    max:4, rewards:{HP:25,STR:5}
+  }
+];
+let MONTHLY_PROGRESS = {};
+
+let lastWeekKey = "";
+let lastMonthKey = "";// ── Game State ──
 let S = {
   stats:    {HP:100, STR:10, SPD:10, Sleep:10},
   sp:10, spMax:10,
@@ -433,7 +544,7 @@ function applyUserData(user){
     S.bossHP=st.hp; S.bossMaxHP=st.hp;
     setText("boss-name", st.name);
   }
-  renderStats(); renderStages(); renderQuests(); updateArenaUI(); updateQuestTabBadge();
+  renderStats(); renderStages(); renderQuests(); renderWeeklyQuests(); renderMonthlyQuests(); updateArenaUI(); updateQuestTabBadge();
 }
 
 // ── Save ──
@@ -831,6 +942,37 @@ function getTodayKeyGMT7(){
   return "D"+y+"-"+(m<10?"0"+m:m)+"-"+(d<10?"0"+d:d);
 }
 
+// Returns "W{year}-{isoWeekNumber}" — week starts Monday, resets at 5AM GMT+7
+function getWeekKeyGMT7(){
+  const now=new Date();
+  const gmt7=new Date(now.getTime()+7*3600*1000);
+  const h=gmt7.getUTCHours();
+  const dow=gmt7.getUTCDay(); // 0=Sun,1=Mon,...
+  // If Monday before 5AM, treat as previous week
+  let ref=new Date(gmt7);
+  if(dow===1&&h<5) ref=new Date(gmt7.getTime()-86400000);
+  // ISO week: shift so Monday=0
+  const d=new Date(Date.UTC(ref.getUTCFullYear(),ref.getUTCMonth(),ref.getUTCDate()));
+  const day=d.getUTCDay()||7;
+  d.setUTCDate(d.getUTCDate()+4-day);
+  const yearStart=new Date(Date.UTC(d.getUTCFullYear(),0,1));
+  const week=Math.ceil(((d-yearStart)/86400000+1)/7);
+  return "W"+d.getUTCFullYear()+"-"+(week<10?"0"+week:week);
+}
+
+// Returns "M{year}-{month}"  resets at 5AM GMT+7 on 1st
+function getMonthKeyGMT7(){
+  const now=new Date();
+  const gmt7=new Date(now.getTime()+7*3600*1000);
+  const h=gmt7.getUTCHours();
+  let y=gmt7.getUTCFullYear(), m=gmt7.getUTCMonth()+1, d=gmt7.getUTCDate();
+  if(d===1&&h<5){
+    // still previous month
+    m--; if(m<1){m=12;y--;}
+  }
+  return "M"+y+"-"+(m<10?"0"+m:m);
+}
+
 function checkDailyReset(){
   const key=getTodayKeyGMT7();
   if(key!==lastDayKey){
@@ -843,9 +985,187 @@ function checkDailyReset(){
     setLog("🌅 New day! Stats decayed -5. Quests reset.");
     scheduleSave();
   }
+  checkWeeklyReset();
+  checkMonthlyReset();
 }
 
-// ── Offline Progress ──
+function checkWeeklyReset(){
+  const key=getWeekKeyGMT7();
+  if(key!==lastWeekKey){
+    lastWeekKey=key;
+    WEEKLY_QUESTS.forEach(q=>{ WEEKLY_PROGRESS[q.id]=0; });
+    savePeriodicProgress();
+    renderWeeklyQuests();
+    setLog("📅 New week! Weekly quests reset.");
+  }
+}
+
+function checkMonthlyReset(){
+  const key=getMonthKeyGMT7();
+  if(key!==lastMonthKey){
+    lastMonthKey=key;
+    MONTHLY_QUESTS.forEach(q=>{ MONTHLY_PROGRESS[q.id]=0; });
+    savePeriodicProgress();
+    renderMonthlyQuests();
+    setLog("🗓️ New month! Monthly quests reset.");
+  }
+}
+
+// Save/load weekly+monthly progress from localStorage
+function savePeriodicProgress(){
+  localStorage.setItem("rpg_weekly_key",lastWeekKey);
+  localStorage.setItem("rpg_weekly_prog",JSON.stringify(WEEKLY_PROGRESS));
+  localStorage.setItem("rpg_monthly_key",lastMonthKey);
+  localStorage.setItem("rpg_monthly_prog",JSON.stringify(MONTHLY_PROGRESS));
+}
+
+function loadPeriodicProgress(){
+  const savedWKey=localStorage.getItem("rpg_weekly_key")||"";
+  const savedMKey=localStorage.getItem("rpg_monthly_key")||"";
+  const curWKey=getWeekKeyGMT7();
+  const curMKey=getMonthKeyGMT7();
+
+  if(savedWKey===curWKey){
+    try{ WEEKLY_PROGRESS=JSON.parse(localStorage.getItem("rpg_weekly_prog")||"{}"); }catch(e){}
+  }
+  lastWeekKey=curWKey;
+  WEEKLY_QUESTS.forEach(q=>{ if(WEEKLY_PROGRESS[q.id]===undefined) WEEKLY_PROGRESS[q.id]=0; });
+
+  if(savedMKey===curMKey){
+    try{ MONTHLY_PROGRESS=JSON.parse(localStorage.getItem("rpg_monthly_prog")||"{}"); }catch(e){}
+  }
+  lastMonthKey=curMKey;
+  MONTHLY_QUESTS.forEach(q=>{ if(MONTHLY_PROGRESS[q.id]===undefined) MONTHLY_PROGRESS[q.id]=0; });
+}
+
+// ── Quest Sub-tabs ──
+function switchQuestSub(name){
+  document.querySelectorAll('.qsub-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.qsub-content').forEach(c=>c.classList.remove('active'));
+  document.getElementById('qsub-'+name).classList.add('active');
+  document.getElementById('qsub-'+name+'-btn').classList.add('active');
+}
+
+// ── Render Weekly Quests ──
+function renderWeeklyQuests(){
+  const el=document.getElementById("weekly-qlist");
+  if(!el) return;
+  if(!WEEKLY_QUESTS.length){ el.innerHTML="<div style='color:#7f8fa6;font-size:12px'>No weekly quests.</div>"; return; }
+  el.innerHTML=WEEKLY_QUESTS.map(q=>{
+    const cur=WEEKLY_PROGRESS[q.id]||0;
+    const done=cur>=q.max;
+    const pct=Math.round(cur/q.max*100);
+    const rewText=Object.entries(q.rewards).filter(([k,v])=>v>0).map(([k,v])=>`${k} +${v}`).join(" · ");
+    return `<div class="qitem${done?" done":""}" style="position:relative;cursor:pointer" onclick="openQuestDesc('weekly','${q.id}')">
+  <div style="position:absolute;top:-4px;right:-4px;width:10px;height:10px;border-radius:50%;background:${done?"#1D9E75":"#E24B2A"};border:2px solid #0d0d1a;box-shadow:0 0 6px ${done?"#1D9E75":"#E24B2A"}"></div>
+      <span style="font-size:20px">${q.emoji}</span>
+      <div style="flex:1">
+        <div class="qname">${done?"✅ ":""}${q.name}</div>
+        <div class="qrew">${rewText}</div>
+        <div style="margin-top:5px;height:4px;background:#0f3460;border-radius:4px;overflow:hidden">
+          <div style="width:${pct}%;height:100%;background:#378ADD;border-radius:4px;transition:width .2s"></div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;margin-left:10px">
+        <div style="font-size:11px;color:#7f8fa6">${cur} / ${q.max}</div>
+        <button onclick="event.stopPropagation();${done?"":"doWeeklyQuest('"+q.id+"')"}"
+          style="padding:3px 10px;font-size:11px;border-radius:6px;border:1px solid ${done?"#1a1a3e":"#378ADD"};
+                 background:${done?"transparent":"#0F2A4A"};color:${done?"#444":"#7EC8F0"};
+                 cursor:${done?"not-allowed":"pointer"};" ${done?"disabled":""}>
+          ${done?"Done":"Submit"}
+        </button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+// ── Render Monthly Quests ──
+function renderMonthlyQuests(){
+  const el=document.getElementById("monthly-qlist");
+  if(!el) return;
+  if(!MONTHLY_QUESTS.length){ el.innerHTML="<div style='color:#7f8fa6;font-size:12px'>No monthly quests.</div>"; return; }
+  el.innerHTML=MONTHLY_QUESTS.map(q=>{
+    const cur=MONTHLY_PROGRESS[q.id]||0;
+    const done=cur>=q.max;
+    const pct=Math.round(cur/q.max*100);
+    const rewText=Object.entries(q.rewards).filter(([k,v])=>v>0).map(([k,v])=>`${k} +${v}`).join(" · ");
+    return `<div class="qitem${done?" done":""}" style="position:relative;cursor:pointer" onclick="openQuestDesc('monthly','${q.id}')">
+  <div style="position:absolute;top:-4px;right:-4px;width:10px;height:10px;border-radius:50%;background:${done?"#1D9E75":"#E24B2A"};border:2px solid #0d0d1a;box-shadow:0 0 6px ${done?"#1D9E75":"#E24B2A"}"></div>
+      <span style="font-size:20px">${q.emoji}</span>
+      <div style="flex:1">
+        <div class="qname">${done?"✅ ":""}${q.name}</div>
+        <div class="qrew">${rewText}</div>
+        <div style="margin-top:5px;height:4px;background:#0f3460;border-radius:4px;overflow:hidden">
+          <div style="width:${pct}%;height:100%;background:#9F7AEA;border-radius:4px;transition:width .2s"></div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;margin-left:10px">
+        <div style="font-size:11px;color:#7f8fa6">${cur} / ${q.max}</div>
+        <button onclick="event.stopPropagation();${done?"":"doMonthlyQuest('"+q.id+"')"}"
+          style="padding:3px 10px;font-size:11px;border-radius:6px;border:1px solid ${done?"#1a1a3e":"#9F7AEA"};
+                 background:${done?"transparent":"#26155C"};color:${done?"#444":"#C4B5FD"};
+                 cursor:${done?"not-allowed":"pointer"};" ${done?"disabled":""}>
+          ${done?"Done":"Submit"}
+        </button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function doWeeklyQuest(id){
+  const q=WEEKLY_QUESTS.find(x=>x.id===id); if(!q) return;
+  if(WEEKLY_PROGRESS[id]>=q.max) return;
+  WEEKLY_PROGRESS[id]++;
+  Object.entries(q.rewards).forEach(([k,v])=>{
+    S.stats[k]=Math.max(0,Math.min(STAT_MAX[k]||1000,(S.stats[k]||0)+v));
+  });
+  S.heroMaxHP=Math.round(100+(S.stats.STR-10)*2);
+  S.heroHP=Math.min(S.heroHP+10, S.heroMaxHP);
+  renderStats(); renderStages(); renderWeeklyQuests(); updateArenaUI();
+  setLog("📅 Weekly: "+q.name+" — "+WEEKLY_PROGRESS[id]+"/"+q.max+"!");
+  savePeriodicProgress(); scheduleSave();
+}
+
+function doMonthlyQuest(id){
+  const q=MONTHLY_QUESTS.find(x=>x.id===id); if(!q) return;
+  if(MONTHLY_PROGRESS[id]>=q.max) return;
+  MONTHLY_PROGRESS[id]++;
+  Object.entries(q.rewards).forEach(([k,v])=>{
+    S.stats[k]=Math.max(0,Math.min(STAT_MAX[k]||1000,(S.stats[k]||0)+v));
+  });
+  S.heroMaxHP=Math.round(100+(S.stats.STR-10)*2);
+  S.heroHP=Math.min(S.heroHP+10, S.heroMaxHP);
+  renderStats(); renderStages(); renderMonthlyQuests(); updateArenaUI();
+  setLog("🗓️ Monthly: "+q.name+" — "+MONTHLY_PROGRESS[id]+"/"+q.max+"!");
+  savePeriodicProgress(); scheduleSave();
+}
+
+// ── Quest Description Modal ──
+function openQuestDesc(type, id){
+  let q, cur, list;
+  if(type==='weekly'){
+    list=WEEKLY_QUESTS; cur=WEEKLY_PROGRESS[id]||0;
+  } else {
+    list=MONTHLY_QUESTS; cur=MONTHLY_PROGRESS[id]||0;
+  }
+  q=list.find(x=>x.id===id); if(!q) return;
+  document.getElementById("qdesc-emoji").textContent=q.emoji;
+  document.getElementById("qdesc-title").textContent=q.name;
+  document.getElementById("qdesc-progress").textContent=(cur>=q.max?"✅ Completed":"Progress: "+cur+" / "+q.max);
+  document.getElementById("qdesc-body").textContent=q.description||"No description.";
+  const rewText=Object.entries(q.rewards).filter(([k,v])=>v>0).map(([k,v])=>`${k} +${v}`).join("  ·  ");
+  document.getElementById("qdesc-rew").textContent="Rewards: "+rewText;
+  document.getElementById("qdesc-overlay").classList.add("open");
+}
+
+function closeQuestDescBtn(){
+  document.getElementById("qdesc-overlay").classList.remove("open");
+}
+function closeQuestDesc(e){
+  if(e.target===document.getElementById("qdesc-overlay")) closeQuestDescBtn();
+}
+
+
 function simulateOffline(elapsedMs){
   const st = getStage();
   const skillDmg = S.stats.STR*2.4 + S.stats.SPD*0.6 + 5;
@@ -921,6 +1241,9 @@ function computeOfflineProgress(lastActiveStr){
 // ── Init ──
 // If we have a saved URL and username, try to auto-login
 (async function init(){
+  loadPeriodicProgress();
+  renderWeeklyQuests();
+  renderMonthlyQuests();
   if(GAS_URL && CURRENT_USER){
     setSyncStatus("syncing","Reconnecting...");
     document.getElementById("setup-screen").style.display="flex";
