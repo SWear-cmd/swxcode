@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SENTANI Branch - Invoice Pipeline</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+  :root {
+    --bg: #12141A;
+    --surface: #1B1E27;
+    --surface-2: #21242F;
+    --border: #2A2E3A;
+    --text: #E8E9ED;
+    --text-muted: #8B90A0;
+    --open: #E8A33D;
+    --delivered: #4CAF7D;
+    --reject: #E15554;
+    --paid: #5B8DEF;
+    --font-display: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
+    --font-body: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+  }
+
+  /* ---------- PIN GATE ---------- */
+  #pinGate {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .pinCard {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 40px 36px;
+    width: 320px;
+    text-align: center;
+  }
+
+  .pinCard h1 {
+    font-family: var(--font-display);
+    font-size: 20px;
+    margin: 0 0 4px;
+    letter-spacing: 0.02em;
+  }
+
+  .pinCard p {
+    color: var(--text-muted);
+    font-size: 13px;
+    margin: 0 0 24px;
+  }
+
+  .pinCard input {
+    width: 100%;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 13px;
+    padding: 11px 12px;
+    outline: none;
+  }
+
+  .pinCard input:focus { border-color: var(--paid); }
+
+  .branchBtns {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .branchBtn {
+    flex: 1;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 9px 4px;
+    border-radius: 8px;
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+  }
+  .branchBtn:hover { border-color: var(--paid); color: var(--text); }
+  .branchBtn.active { background: rgba(91,141,239,0.15); border-color: var(--paid); color: var(--paid); }
+
+  .branchPills {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .branchPill {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+  }
+  .branchPill:hover { border-color: var(--paid); color: var(--text); }
+  .branchPill.active { background: rgba(91,141,239,0.15); border-color: var(--paid); color: var(--paid); cursor: default; }
+
+  .modalOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+  }
+  .modalCard {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    width: 280px;
+  }
+  .modalCard h2 {
+    font-size: 15px;
+    margin: 0 0 12px 0;
+    color: var(--text);
+    font-family: var(--font-body);
+  }
+  .modalCard input {
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    color: var(--text);
+    font-size: 14px;
+    font-family: var(--font-body);
+  }
+  .modalCard input:focus { border-color: var(--paid); outline: none; }
+  .modalActions {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .modalActions button { flex: 1; }
+
+
+  #pinInput {
+    font-family: var(--font-mono);
+    font-size: 22px;
+    letter-spacing: 0.3em;
+    text-align: center;
+  }
+
+  .pinCard button {
+    width: 100%;
+    margin-top: 16px;
+    padding: 11px;
+    background: var(--paid);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .pinCard button:hover { opacity: 0.9; }
+
+  #pinError {
+    color: var(--reject);
+    font-size: 12px;
+    margin-top: 12px;
+    min-height: 16px;
+  }
+
+  /* ---------- DASHBOARD ---------- */
+  #dashboard { display: none; max-width: 1600px; margin: 0 auto; padding: 16px 24px 32px; }
+
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .topbar h1 {
+    font-family: var(--font-display);
+    font-size: 19px;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+
+  .topbar .meta {
+    color: var(--text-muted);
+    font-size: 11px;
+    font-family: var(--font-mono);
+  }
+
+  #refreshBtn {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 5px 12px;
+    border-radius: 7px;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: var(--font-body);
+  }
+  #refreshBtn:hover { border-color: var(--paid); }
+
+  .topbarActions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .secondaryBtn {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 5px 12px;
+    border-radius: 7px;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: var(--font-body);
+  }
+  .secondaryBtn:hover { border-color: var(--paid); color: var(--text); }
+  .secondaryBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* pipeline summary */
+  .pipeline {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 14px;
+  }
+
+  .stage {
+    padding: 10px 16px;
+    border-right: 1px solid var(--border);
+    position: relative;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .stage:last-child { border-right: none; }
+  .stage:hover { background: var(--surface-2); }
+  .stage.active { background: var(--surface-2); }
+
+  .stage .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    display: inline-block; margin-right: 6px;
+  }
+  .stage .label {
+    font-size: 11px; color: var(--text-muted); text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .stage .count {
+    font-family: var(--font-display);
+    font-size: 21px;
+    margin-top: 3px;
+  }
+
+  .stage[data-status="Open"] .dot { background: var(--open); }
+  .stage[data-status="Delivered"] .dot { background: var(--delivered); }
+  .stage[data-status="Reject"] .dot { background: var(--reject); }
+  .stage[data-status="Paid"] .dot { background: var(--paid); }
+
+  /* controls */
+  .controls {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+
+  #searchInput {
+    flex: 1;
+    min-width: 200px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 6px 12px;
+    font-family: var(--font-body);
+    font-size: 12px;
+    outline: none;
+  }
+  #searchInput:focus { border-color: var(--paid); }
+
+  .groupInput {
+    width: 100%;
+    min-width: 80px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 4px 8px;
+    font-family: var(--font-body);
+    font-size: 12px;
+    outline: none;
+  }
+  .groupInput:focus { border-color: var(--paid); }
+  .groupInput.savingGroup { border-color: var(--open); }
+  .groupInput.savedGroup { border-color: var(--delivered); }
+
+  .jtCell { cursor: pointer; }
+  .jtCell:hover .balance { text-decoration: underline; }
+
+  #kpiCrossBranchNote, #warnCrossBranchNote {
+    color: var(--reject);
+    margin: 4px 0 10px;
+  }
+
+  .jtModalCard {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    width: min(1100px, 95vw);
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .jtModalHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .jtModalHeader h2 {
+    font-size: 15px;
+    margin: 0;
+    color: var(--text);
+    font-family: var(--font-body);
+  }
+  .jtModalCloseBtn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 4px;
+  }
+  .jtModalCloseBtn:hover { color: var(--text); }
+  #jtModalBody .tableWrap { max-height: 55vh; overflow: auto; }
+
+
+  #monthFilter {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 6px 12px;
+    font-family: var(--font-body);
+    font-size: 12px;
+    outline: none;
+    cursor: pointer;
+  }
+  #monthFilter:focus { border-color: var(--paid); }
+
+  #warnMonthFilter {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 6px 12px;
+    font-family: var(--font-body);
+    font-size: 12px;
+    outline: none;
+    cursor: pointer;
+  }
+  #warnMonthFilter:focus { border-color: var(--paid); }
+
+  .filterBtns {
+    display: flex;
+    gap: 8px;
+  }
+
+  .filterBtn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+  }
+  .filterBtn:hover { border-color: var(--paid); color: var(--text); }
+
+  .giroFixBtn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 1px 7px;
+    border-radius: 6px;
+    font-size: 11px;
+    cursor: pointer;
+    margin-left: 8px;
+  }
+  .giroFixBtn:hover { border-color: var(--paid); color: var(--paid); }
+
+  .filterBtn.active[data-status="Open"] { background: rgba(232,163,61,0.15); border-color: var(--open); color: var(--open); }
+  .filterBtn.active[data-status="Delivered"] { background: rgba(76,175,125,0.15); border-color: var(--delivered); color: var(--delivered); }
+  .filterBtn.active[data-status="Paid"] { background: rgba(91,141,239,0.15); border-color: var(--paid); color: var(--paid); }
+  .filterBtn.active[data-status="Unpaid"] { background: rgba(225,85,84,0.12); border-color: var(--reject); color: var(--reject); }
+  .filterBtn.active[data-status="Coretan"] { background: rgba(139,144,160,0.15); border-color: var(--text-muted); color: var(--text-muted); }
+  .filterBtn.active[data-pajakstatus="PKP"] { background: rgba(76,175,125,0.15); border-color: var(--delivered); color: var(--delivered); }
+  .filterBtn.active[data-pajakstatus="GG"] { background: rgba(232,163,61,0.15); border-color: var(--open); color: var(--open); }
+  .filterBtn.active[data-pajakstatus="PRINCIPAL"] { background: rgba(91,141,239,0.15); border-color: var(--paid); color: var(--paid); }
+  .filterBtn.active[data-pajakstatus="WARNING"] { background: rgba(225,85,84,0.12); border-color: var(--reject); color: var(--reject); }
+  #giroMismatchBtn.active { background: rgba(225,85,84,0.12); border-color: var(--reject); color: var(--reject); }
+
+  .methodBtn.active { background: rgba(91,141,239,0.15); border-color: var(--paid); color: var(--paid); }
+
+  /* table */
+  .tableWrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: 65vh;
+  }
+
+  table { width: 100%; min-width: 900px; border-collapse: collapse; font-size: 13px; }
+
+  thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    text-align: left;
+    padding: 12px 16px;
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 1px 0 var(--border);
+  }
+
+  tbody td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--surface-2); }
+
+  .invNo { font-family: var(--font-mono); color: var(--text); }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+  }
+  .badge.Open { background: rgba(232,163,61,0.15); color: var(--open); }
+  .badge.Delivered { background: rgba(76,175,125,0.15); color: var(--delivered); }
+  .badge.Reject { background: rgba(225,85,84,0.15); color: var(--reject); }
+  .badge.Paid { background: rgba(91,141,239,0.15); color: var(--paid); }
+
+  .emptyState {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  .paginationBar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    font-size: 12px;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .pageBtns { display: flex; align-items: center; gap: 10px; }
+
+  .pageBtns button {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: var(--font-body);
+  }
+  .pageBtns button:hover:not(:disabled) { border-color: var(--paid); }
+  .pageBtns button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .balance { font-family: var(--font-mono); }
+  .balance.negative { color: var(--reject); }
+  .paidVia.paidViaWarn { color: var(--reject); font-weight: 600; }
+  .paidVia.paidViaCol { color: var(--text-muted); }
+  .kasSubFilter { display: flex; gap: 8px; margin: 10px 0; align-items: center; }
+  .kasSubBtn {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-family: var(--font-body);
+    cursor: pointer;
+  }
+  .kasSubBtn.active { background: rgba(225,85,84,0.12); border-color: var(--reject); color: var(--reject); }
+  .kasSubCount { font-weight: 600; margin-left: 4px; }
+  .picSelect {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-family: var(--font-body);
+    font-size: 12px;
+    outline: none;
+    cursor: pointer;
+    max-width: 160px;
+  }
+  .picSelect:focus { border-color: var(--paid); }
+  .picOverdue { color: var(--reject); font-size: 11px; font-weight: 600; margin-top: 3px; }
+  .picDaysOpen { color: var(--text-muted); font-size: 11px; margin-top: 3px; }
+  .balance.positive { color: var(--delivered); }
+  .balance.zero { color: var(--text-muted); }
+
+  .smlValue { font-family: var(--font-mono); font-weight: 700; }
+  .smlValue.smlDanger {
+    color: var(--reject);
+    animation: smlPulse 1.4s ease-in-out infinite;
+  }
+  .smlValue.smlWarning { color: #FFD60A; }
+  @keyframes smlPulse {
+    0%, 100% { text-shadow: 0 0 2px rgba(225,85,84,0.3); }
+    50% { text-shadow: 0 0 10px rgba(225,85,84,0.95); }
+  }
+
+  .tabBar {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tabBtn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    padding: 6px 4px;
+    margin-right: 20px;
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+  }
+  .tabBtn:hover { color: var(--text); }
+  .tabBtn.active { color: var(--paid); border-bottom-color: var(--paid); }
+
+  @media (max-width: 640px) {
+    .pipeline { grid-template-columns: repeat(2, 1fr); }
+    .stage:nth-child(2) { border-right: none; }
+    .stage:nth-child(1), .stage:nth-child(2) { border-bottom: 1px solid var(--border); }
+  }
+
+  /* ---------- WARNINGS ---------- */
+  .warnBadge {
+    display: inline-block;
+    background: var(--reject);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+
+  .warnStage .count { color: var(--reject); }
+  .warnStage[data-warn="w2"] .count,
+  .warnStage[data-warn="w3"] .count { color: var(--open); }
+
+  #warnHint {
+    margin-bottom: 10px;
+  }
+
+  /* ---------- PAJAK ---------- */
+  .subTabBar {
+    display: flex;
+    gap: 4px;
+    margin: 4px 0 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .subTabBtn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    padding: 6px 4px;
+    margin-right: 20px;
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+  }
+  .subTabBtn:hover { color: var(--text); }
+  .subTabBtn.active { color: var(--paid); border-bottom-color: var(--paid); }
+
+  .statusPajak {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+  }
+  .statusPajak.GG { background: rgba(232,163,61,0.15); color: var(--open); }
+  .statusPajak.PKP { background: rgba(76,175,125,0.15); color: var(--delivered); }
+  .statusPajak.PRINCIPAL { background: rgba(91,141,239,0.15); color: var(--paid); }
+</style>
+</head>
+<body>
+
+<!-- PIN GATE -->
+<div id="pinGate">
+  <div class="pinCard">
+    <h1>SENTANI Branch</h1>
+    <p>Enter your PIN</p>
+    <input type="password" id="pinInput" maxlength="12" inputmode="numeric" autocomplete="off" placeholder="PIN">
+    <button id="pinSubmit">Unlock</button>
+    <div id="pinError"></div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+  <div class="topbar">
+    <div>
+      <h1 id="dashboardTitle">SENTANI Invoice Pipeline</h1>
+      <div class="meta" id="lastUpdated">—</div>
+      <div class="meta" id="refreshStatus" style="min-height:14px;"></div>
+    </div>
+    <div class="topbarActions">
+      <button id="exportExcelBtn" class="secondaryBtn">Export Excel</button>
+      <button id="exportPdfBtn" class="secondaryBtn">Export PDF</button>
+      <button id="refreshBtn">Refresh</button>
+    </div>
+  </div>
+
+  <div id="invoicesView" class="tabView">
+  <div class="pipeline" id="pipeline">
+    <div class="stage" data-status="Open">
+      <div><span class="dot"></span><span class="label">Open</span></div>
+      <div class="count" id="count-Open">0</div>
+    </div>
+    <div class="stage" data-status="Delivered">
+      <div><span class="dot"></span><span class="label">Delivered</span></div>
+      <div class="count" id="count-Delivered">0</div>
+    </div>
+    <div class="stage" data-status="Paid">
+      <div><span class="dot"></span><span class="label">Paid</span></div>
+      <div class="count" id="count-Paid">0</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="filterBtns">
+      <button class="filterBtn" data-status="Open">OPEN</button>
+      <button class="filterBtn" data-status="Delivered">DELIVERED</button>
+      <button class="filterBtn" data-status="Unpaid">UNPAID</button>
+      <button class="filterBtn" data-status="Coretan">CORETAN !</button>
+    </div>
+    <select id="monthFilter">
+      <option value="">All months</option>
+    </select>
+    <input type="text" id="searchInput" placeholder="Search invoice number, customer, salesman, or Giro No...">
+  </div>
+
+  <div id="paginationBar" class="paginationBar"></div>
+  <div class="tableWrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Branch</th>
+          <th>Invoice No</th>
+          <th>Customer</th>
+          <th>Print Date</th>
+          <th>Tracking Date</th>
+          <th>Day</th>
+          <th>Salesman</th>
+          <th>Amount</th>
+          <th>Status</th>
+          <th>Status Date</th>
+          <th>Pay (d)</th>
+          <th>Paid Via</th>
+          <th>Amount Paid</th>
+          <th>Giro No</th>
+          <th>Balance</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+    <div class="emptyState" id="emptyState" style="display:none;">No invoices match this view.</div>
+  </div>
+  </div>
+
+</div>
+
+
+<script>
+  let allInvoices = []; // already filtered down to SENTANI-salesman rows only, see fetchData()
+  // Hardcoded so nobody has to see or type it. Note: this is not real
+  // secrecy - anyone using browser dev tools (View Source, or the
+  // Network tab) can still find this URL. The PIN is the actual gate;
+  // Code.gs now also has a lockout after repeated wrong PINs.
+  const GAS_URL = 'https://script.google.com/macros/s/AKfycby4st21RO3CgLQ8bc_PL545Y3ML7LTulgURxI3ZRy2V6DadPdIGmNqaD_tcS1I2NKiy/exec';
+  let apiUrl = GAS_URL;
+  let activeStatus = null; // null = show all
+
+  const BRANCH_LABELS = { DAF: 'DAF', ABP: 'ABP', KSI: 'KSI' };
+  // Cross-branch fetching now happens server-side (one PIN checked
+  // against each branch's own CONFIG!B4) - there's no branch picker
+  // and no per-branch fetch loop here anymore.
+
+  const pinGate = document.getElementById('pinGate');
+  const dashboard = document.getElementById('dashboard');
+  const pinInput = document.getElementById('pinInput');
+  const pinError = document.getElementById('pinError');
+
+  // Session-only storage: cleared when the tab closes, never written
+  // into the HTML file itself. Falls back to in-memory if storage is
+  // unavailable (e.g. some sandboxed preview environments). Only the PIN
+  // needs remembering now - it's the same PIN across all 3 branches
+  // (validated against each branch's CONFIG!B4).
+  let memoryCreds = { pin: null };
+  function saveCreds(pin) {
+    try {
+      sessionStorage.setItem('sentaniPin', pin);
+    } catch (e) {
+      memoryCreds = { pin };
+    }
+  }
+  function loadCreds() {
+    try {
+      return { pin: sessionStorage.getItem('sentaniPin') };
+    } catch (e) {
+      return memoryCreds;
+    }
+  }
+
+  document.getElementById('pinSubmit').addEventListener('click', () =>
+    tryLogin(pinInput.value.trim())
+  );
+  pinInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') tryLogin(pinInput.value.trim());
+  });
+
+  async function tryLogin(pin) {
+    if (!pin) {
+      pinError.textContent = 'Enter the PIN.';
+      return;
+    }
+    pinError.textContent = '';
+
+    const btn = document.getElementById('pinSubmit');
+    btn.disabled = true;
+    btn.textContent = 'Connecting...';
+
+    // If it's still going after a few seconds, tell the person why -
+    // large sheets take real time to read and transfer, it isn't frozen.
+    const slowHint = setTimeout(() => {
+      pinError.style.color = 'var(--text-muted)';
+      pinError.textContent = 'Still loading - large sheets can take a while, please wait...';
+    }, 4000);
+
+    const ok = await fetchData(pin);
+    clearTimeout(slowHint);
+    btn.disabled = false;
+    btn.textContent = 'Unlock';
+
+    if (ok) {
+      pinError.textContent = '';
+      loggedInPin = pin;
+      saveCreds(pin);
+      pinGate.style.display = 'none';
+      dashboard.style.display = 'block';
+    } else {
+      pinError.style.color = 'var(--reject)';
+      pinInput.value = '';
+    }
+  }
+
+  // Apps Script web app calls can be flaky in a specific way: the script
+  // itself finishes fine and logs "Completed" in Executions, but the
+  // response times out on the way back through Google's infrastructure
+  // (e.g. right after a cold start, or when the daily/warm-cache trigger
+  // happens to fire at the same moment). That shows up here either as
+  // fetch() throwing, or res.json() throwing because Google returned an
+  // HTML error page instead of JSON. Both are usually transient, so a
+  // couple of quick silent retries clears most of them up before ever
+  // bothering the user with an error.
+  async function fetchWithRetry(url, maxRetries = 2, baseDelayMs = 800) {
+    let lastErr;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const res = await fetch(url);
+        return await res.json(); // throws if the body isn't valid JSON
+      } catch (err) {
+        lastErr = err;
+        if (attempt < maxRetries) {
+          await new Promise(r => setTimeout(r, baseDelayMs * (attempt + 1))); // 800ms, then 1600ms
+        }
+      }
+    }
+    throw lastErr;
+  }
+
+  async function fetchData(pin, opts = {}) {
+    try {
+      // Backend does the cross-branch work now: one request, checked
+      // against each branch's own CONFIG!B4, already filtered to
+      // SENTANI-named salesmen and tagged with `branch` per invoice.
+      const url = `${apiUrl}?action=getSentaniInvoices&pin=${encodeURIComponent(pin)}`;
+      const json = await fetchWithRetry(url);
+
+      if (!json.success) {
+        const msg = json.error === 'Invalid PIN' ? 'Incorrect PIN, try again.' : (json.error || 'Request failed.');
+        reportError(msg, opts.duringDashboard);
+        return false;
+      }
+
+      allInvoices = json.invoices || [];
+      currentPage = 0;
+      renderSummary(computeSentaniSummary(allInvoices));
+      populateMonthFilter();
+      renderTable();
+
+      if (opts.duringDashboard) {
+        document.getElementById('refreshStatus').textContent = '';
+      }
+      document.getElementById('dashboardTitle').textContent = 'SENTANI Invoice Pipeline';
+      document.getElementById('lastUpdated').textContent =
+        'Updated ' + new Date(json.generatedAt).toLocaleString();
+      return true;
+    } catch (err) {
+      reportError('Could not reach that URL. Check it and try again.', opts.duringDashboard);
+      return false;
+    }
+  }
+
+  // pinError is only visible on the login screen. Once past login, route
+  // errors to refreshStatus instead so failures aren't silent.
+  function reportError(msg, duringDashboard) {
+    if (duringDashboard) {
+      const el = document.getElementById('refreshStatus');
+      el.textContent = msg;
+      el.style.color = 'var(--reject)';
+    } else {
+      pinError.textContent = msg;
+    }
+  }
+
+  // Backend's json.summary counts every invoice in the branch sheet, not
+  // just the SENTANI-salesman subset shown here - so the Open/Delivered/Paid
+  // pipeline counts are recomputed locally from the already-filtered rows.
+  function computeSentaniSummary(rows) {
+    const s = { Open: 0, Delivered: 0, Paid: 0 };
+    rows.forEach(r => { if (Object.prototype.hasOwnProperty.call(s, r.status)) s[r.status]++; });
+    return s;
+  }
+
+  function renderSummary(summary) {
+    ['Open', 'Delivered', 'Paid'].forEach(s => {
+      document.getElementById('count-' + s).textContent = summary[s] || 0;
+    });
+  }
+
+  function setActiveStatus(status) {
+    activeStatus = activeStatus === status ? null : status;
+    document.querySelectorAll('.stage').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.filterBtn').forEach(b => b.classList.remove('active'));
+    if (activeStatus) {
+      document.querySelectorAll(`[data-status="${activeStatus}"]`).forEach(el => el.classList.add('active'));
+    }
+    goToFirstPage();
+  }
+
+  document.querySelectorAll('.stage').forEach(stage => {
+    stage.addEventListener('click', () => setActiveStatus(stage.dataset.status));
+  });
+
+  document.querySelectorAll('.filterBtn[data-status]').forEach(btn => {
+    btn.addEventListener('click', () => setActiveStatus(btn.dataset.status));
+  });
+
+  // Debounced: waits until typing pauses for 250ms before filtering,
+  // instead of re-filtering 50,000 rows on every single keystroke.
+  let searchDebounceTimer = null;
+  document.getElementById('searchInput').addEventListener('input', () => {
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(goToFirstPage, 250);
+  });
+  document.getElementById('monthFilter').addEventListener('change', goToFirstPage);
+  document.getElementById('refreshBtn').addEventListener('click', async () => {
+    const creds = loadCreds();
+    const statusEl = document.getElementById('refreshStatus');
+    if (!creds.pin) {
+      statusEl.textContent = 'No saved connection - please log in again.';
+      statusEl.style.color = 'var(--reject)';
+      return;
+    }
+    const btn = document.getElementById('refreshBtn');
+    btn.disabled = true;
+    btn.textContent = 'Refreshing...';
+    statusEl.textContent = '';
+
+    const ok = await fetchData(creds.pin, { duringDashboard: true });
+
+    btn.disabled = false;
+    btn.textContent = 'Refresh';
+    if (ok) {
+      statusEl.textContent = 'Refreshed.';
+      statusEl.style.color = 'var(--delivered)';
+      setTimeout(() => { if (statusEl.textContent === 'Refreshed.') statusEl.textContent = ''; }, 3000);
+    }
+  });
+
+  // Kept only so saveCreds()/tryLogin() have a PIN to store on login;
+  // there's no branch-switch UI anymore since all 3 branches load at once.
+  let loggedInPin = null;
+
+  document.getElementById('exportExcelBtn').addEventListener('click', exportExcel);
+  document.getElementById('exportPdfBtn').addEventListener('click', exportPdf);
+
+  // Column headers + row shape shared by both export formats.
+  const EXPORT_HEADERS = ['Branch', 'Invoice No', 'Customer', 'Print Date', 'Tracking Date', 'Day', 'Salesman', 'Amount', 'Status', 'Status Date', 'Pay (d)', 'Paid Via', 'Amount Paid', 'Giro No', 'Balance'];
+
+  function buildExportRows() {
+    return getFilteredRows().map(r => {
+      const amount = parseFloat(r.amount);
+      const paid = parseFloat(r.amountPaid) || 0;
+      const balance = isNaN(amount) ? '' : paid - amount;
+      return [
+        BRANCH_LABELS[r.branch] || r.branch || '',
+        r.invoiceNo || '',
+        r.customer || '',
+        formatDate(r.printDate) === '—' ? '' : formatDateRaw(r.printDate),
+        formatDate(r.trackingDate) === '—' ? '' : formatDateRaw(r.trackingDate),
+        trackingDayLabel(r.printDate, r.trackingDate) === '—' ? '' : trackingDayLabel(r.printDate, r.trackingDate),
+        r.salesman || '',
+        isNaN(amount) ? '' : amount,
+        r.status || '',
+        formatDateRaw(r.statusDate),
+        payDayLabel(r.statusDate, r.trackingDate) === '—' ? '' : payDayLabel(r.statusDate, r.trackingDate),
+        r.paidVia || r.paymentMethod || '',
+        r.amountPaid ? paid : '',
+        r.giroNo || '',
+        balance === '' ? '' : balance
+      ];
+    });
+  }
+
+  // Plain (non-HTML) date string for spreadsheet/PDF cells.
+  function formatDateRaw(val) {
+    if (!val) return '';
+    const ddmmyy = parseDDMMYY(val);
+    if (ddmmyy) return ddmmyy.toLocaleDateString();
+    const d = new Date(val);
+    return isNaN(d) ? String(val) : d.toLocaleDateString();
+  }
+
+  function exportExcel() {
+    const rows = buildExportRows();
+    if (rows.length === 0) { alert('No rows to export for the current filter.'); return; }
+    const ws = XLSX.utils.aoa_to_sheet([EXPORT_HEADERS, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Invoices');
+    XLSX.writeFile(wb, `sentani-invoice-pipeline-${todayStamp()}.xlsx`);
+  }
+
+  function exportPdf() {
+    const rows = buildExportRows();
+    if (rows.length === 0) { alert('No rows to export for the current filter.'); return; }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt' });
+    doc.setFontSize(14);
+    doc.text(`SENTANI Invoice Pipeline - All Branches`, 40, 30);
+    doc.autoTable({
+      head: [EXPORT_HEADERS],
+      body: rows.map(row => row.map(cell => typeof cell === 'number' ? cell.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : cell)),
+      startY: 45,
+      styles: { fontSize: 14, cellPadding: 4 },
+      headStyles: { fillColor: [27, 30, 39] }
+    });
+    doc.save(`sentani-invoice-pipeline-${todayStamp()}.pdf`);
+  }
+
+  function todayStamp() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  // Parses dates like "29-06-26" (DD-MM-YY) into a real Date.
+  // Returns null if the string doesn't match that shape.
+  function parseDDMMYY(val) {
+    if (!val) return null;
+    // Accepts dd-mm-yy or dd/mm/yy - some rows use slashes instead of
+    // dashes, and without this both separators used to fall through to
+    // JS's native Date parser, which assumes US month/day order and
+    // silently produced the wrong date.
+    const m = String(val).trim().match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})$/);
+    if (!m) return null;
+    let [, dd, mm, yy] = m;
+    dd = parseInt(dd, 10);
+    mm = parseInt(mm, 10);
+    yy = parseInt(yy, 10);
+    if (yy < 100) yy += 2000; // "26" -> 2026
+    if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null; // not a valid dd-mm-yy shape
+    const d = new Date(yy, mm - 1, dd);
+    return isNaN(d) ? null : d;
+  }
+
+  // "Day" column on the Invoices tab: Tracking Date (from TRACKING's
+  // "Delivery Date" column, via r.trackingDate) minus Print Date, shown
+  // as e.g. "2 d" / "12 d" / "50 d". Returns '—' if either date is
+  // missing or unparseable, or if the invoice hasn't reached TRACKING
+  // yet (no Delivery Date recorded).
+  function trackingDayLabel(printDateVal, trackingDateVal) {
+    const printD = parseDDMMYY(printDateVal);
+    const trackD = parseDDMMYY(trackingDateVal);
+    if (!printD || !trackD) return '—';
+    const diffDays = Math.round((trackD - printD) / 86400000);
+    return diffDays + ' d';
+  }
+
+  // "Pay (d)" column on the Invoices tab: Status Date minus Tracking
+  // Date, shown as e.g. "20 d". Returns '—' if either date is missing
+  // or unparseable.
+  function payDayLabel(statusDateVal, trackingDateVal) {
+    const statusD = parseDDMMYY(statusDateVal);
+    const trackD = parseDDMMYY(trackingDateVal);
+    if (!statusD || !trackD) return '—';
+    const diffDays = Math.round((statusD - trackD) / 86400000);
+    return diffDays + ' d';
+  }
+
+  function monthKeyOf(dateVal) {
+    const d = parseDDMMYY(dateVal);
+    if (!d) return null;
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  }
+
+  function monthLabelOf(key) {
+    const [y, m] = key.split('-').map(Number);
+    return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  }
+
+  // Rebuilds the month dropdown options from whatever invoices are loaded.
+  function populateMonthFilter() {
+    const select = document.getElementById('monthFilter');
+    const previousValue = select.value;
+
+    const keys = new Set();
+    allInvoices.forEach(r => {
+      const key = monthKeyOf(r.printDate);
+      if (key) keys.add(key);
+    });
+
+    const sortedKeys = Array.from(keys).sort(); // "2026-06" sorts correctly as a string
+    select.innerHTML = '<option value="">All months</option>' +
+      sortedKeys.map(k => `<option value="${k}">${monthLabelOf(k)}</option>`).join('');
+
+    if (sortedKeys.includes(previousValue)) select.value = previousValue;
+  }
+
+  // Open/Delivered invoices with a 0 (or blank) amount are almost always
+  // data-entry placeholders (invoice printed/tracked but Net Amount never
+  // filled in), not real outstanding balances - they get pulled out into
+  // their own CORETAN ! filter instead of cluttering UNPAID. Amount often
+  // comes through as an empty string rather than a literal "0", so both
+  // are treated as coretan here.
+  function isCoretan(r) {
+    if (r.status !== 'Open' && r.status !== 'Delivered') return false;
+    const raw = String(r.amount == null ? '' : r.amount).trim();
+    if (raw === '') return true; // blank Net Amount cell
+    const amount = parseFloat(raw);
+    return !isNaN(amount) && amount === 0;
+  }
+
+  function getFilteredRows() {
+    const query = document.getElementById('searchInput').value.trim().toLowerCase();
+    const selectedMonth = document.getElementById('monthFilter').value;
+    let rows = allInvoices;
+
+    if (activeStatus === 'Unpaid') {
+      rows = rows.filter(r => {
+        if (r.status === 'Reject') return false;
+        if (isCoretan(r)) return false;
+        if (r.status !== 'Paid') return true;
+        // Paid, but still check for a partial payment (balance > 1000 outstanding)
+        const amount = parseFloat(r.amount);
+        const paid = parseFloat(r.amountPaid) || 0;
+        if (isNaN(amount)) return false;
+        return (amount - paid) > 1000;
+      });
+    } else if (activeStatus === 'Coretan') {
+      rows = rows.filter(isCoretan);
+    } else if (activeStatus) {
+      rows = rows.filter(r => r.status === activeStatus);
+    }
+    if (selectedMonth) rows = rows.filter(r => monthKeyOf(r.printDate) === selectedMonth);
+    if (query) {
+      rows = rows.filter(r =>
+        String(r.invoiceNo).toLowerCase().includes(query) ||
+        String(r.customer).toLowerCase().includes(query) ||
+        String(r.salesman).toLowerCase().includes(query) ||
+        String(r.giroNo).toLowerCase().includes(query)
+      );
+    }
+    return rows;
+  }
+
+  const PAGE_SIZE = 100;
+  let currentPage = 0;
+
+  function renderTable() {
+    const allFiltered = getFilteredRows();
+    const totalPages = Math.max(1, Math.ceil(allFiltered.length / PAGE_SIZE));
+    if (currentPage >= totalPages) currentPage = totalPages - 1;
+    if (currentPage < 0) currentPage = 0;
+
+    const start = currentPage * PAGE_SIZE;
+    const rows = allFiltered.slice(start, start + PAGE_SIZE);
+
+    const tbody = document.getElementById('tableBody');
+    const emptyState = document.getElementById('emptyState');
+    tbody.innerHTML = '';
+
+    if (allFiltered.length === 0) {
+      emptyState.style.display = 'block';
+      renderPagination(0, 0, 0);
+      return;
+    }
+    emptyState.style.display = 'none';
+
+    // Building rows as one HTML string and setting innerHTML once is far
+    // faster than appendChild-ing thousands of elements one at a time.
+    const html = rows.map(r => `
+      <tr>
+        <td>${escapeHtml(BRANCH_LABELS[r.branch] || r.branch || '')}</td>
+        <td class="invNo">${escapeHtml(r.invoiceNo)}</td>
+        <td>${escapeHtml(r.customer)}</td>
+        <td>${formatDate(r.printDate)}</td>
+        <td>${formatDate(r.trackingDate)}</td>
+        <td>${trackingDayLabel(r.printDate, r.trackingDate)}</td>
+        <td>${escapeHtml(r.salesman)}</td>
+
+        <td>${formatNumber(r.amount)}</td>
+        <td><span class="badge ${r.status}">${r.status}</span></td>
+        <td>${formatDate(r.statusDate)}</td>
+        <td>${payDayLabel(r.statusDate, r.trackingDate)}</td>
+        <td>${renderPaidVia(r)}</td>
+        <td>${r.amountPaid ? formatNumber(r.amountPaid) : '—'}</td>
+        <td>${r.giroNo ? escapeHtml(r.giroNo) : '—'}</td>
+        <td>${renderBalance(r)}</td>
+      </tr>
+    `).join('');
+    tbody.innerHTML = html;
+
+    renderPagination(start + 1, Math.min(start + PAGE_SIZE, allFiltered.length), allFiltered.length);
+  }
+
+  function renderPagination(rangeStart, rangeEnd, total) {
+    const el = document.getElementById('paginationBar');
+    if (!el) return;
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    el.innerHTML = `
+      <span class="pageInfo">${total === 0 ? 'No rows' : `Showing ${rangeStart}-${rangeEnd} of ${total.toLocaleString('en-US')}`}</span>
+      <div class="pageBtns">
+        <button id="prevPageBtn" ${currentPage === 0 ? 'disabled' : ''}>Prev</button>
+        <span class="pageInfo">Page ${currentPage + 1} of ${totalPages}</span>
+        <button id="nextPageBtn" ${currentPage >= totalPages - 1 ? 'disabled' : ''}>Next</button>
+      </div>
+    `;
+    document.getElementById('prevPageBtn')?.addEventListener('click', () => { currentPage--; renderTable(); });
+    document.getElementById('nextPageBtn')?.addEventListener('click', () => { currentPage++; renderTable(); });
+  }
+
+  function goToFirstPage() { currentPage = 0; renderTable(); }
+
+  function formatNumber(val) {
+    if (val === '' || val === null || val === undefined) return '';
+    const num = parseFloat(val);
+    if (isNaN(num)) return escapeHtml(val);
+    return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  // Paid Via, reconciled against the small-pocket admin's sheet on the
+  // backend (see paidVia field from the GAS backend):
+  //   "Cash Kas" / "Giro Kas" / "Trf Kas"     - small pocket & system agree
+  //   "Cash Kas X" / "Giro Kas X" / "Trf Kas X" - mismatch, needs checking
+  //   "Cash Col" / "Giro Col" / "Trf Col"     - collected by big-pocket
+  //                                              collector (expected, no
+  //                                              small-pocket record)
+  // Falls back to the plain payment method if paidVia wasn't computed
+  // (e.g. an older cached response from before this feature existed).
+  function renderPaidVia(r) {
+    const via = r.paidVia || r.paymentMethod || '';
+    if (!via) return '—';
+    if (via.indexOf(' X') !== -1) {
+      return `<span class="paidVia paidViaWarn">${escapeHtml(via)}</span>`;
+    }
+    if (via.indexOf('Col') !== -1) {
+      return `<span class="paidVia paidViaCol">${escapeHtml(via)}</span>`;
+    }
+    return `<span class="paidVia">${escapeHtml(via)}</span>`;
+  }
+
+  // Balance = Amount Paid - Amount. Negative = still owing, positive = overpaid.
+  function renderBalance(r) {
+    const amount = parseFloat(r.amount);
+    if (isNaN(amount)) return '—';
+    const paid = parseFloat(r.amountPaid) || 0;
+    const diff = paid - amount;
+
+    if (Math.abs(diff) < 0.005) return '<span class="balance zero">0.00</span>';
+
+    const cls = diff < 0 ? 'negative' : 'positive';
+    const sign = diff < 0 ? '-' : '+';
+    return `<span class="balance ${cls}">${sign}${formatNumber(Math.abs(diff))}</span>`;
+  }
+
+  function formatDate(val) {
+    if (!val) return '—';
+    const ddmmyy = parseDDMMYY(val);
+    if (ddmmyy) return ddmmyy.toLocaleDateString();
+    const d = new Date(val);
+    return isNaN(d) ? escapeHtml(val) : d.toLocaleDateString();
+  }
+
+  function escapeHtml(str) {
+    return String(str ?? '').replace(/[&<>"']/g, m => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[m]));
+  }
+
+  // Auto-unlock if a PIN is already saved for this browser tab session
+  window.addEventListener('load', () => {
+    const creds = loadCreds();
+    if (creds.pin) {
+      pinInput.value = creds.pin;
+      tryLogin(creds.pin);
+    }
+  });
+</script>
+</body>
+</html>
