@@ -324,13 +324,20 @@
     background:var(--accent-dim); border-color:var(--accent); color:var(--accent);
   }
 
-  .ol-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:var(--radius); border:1px solid var(--border); }
+  /* Table body scrolls within its own box; title/refresh/filter row above it
+     stays put instead of being scrolled off-screen. Height is set by JS
+     (sizeOlTable) to fill the remaining viewport under the controls. */
+  .ol-table-wrap {
+    overflow-x:auto; overflow-y:auto; -webkit-overflow-scrolling:touch;
+    border-radius:var(--radius); border:1px solid var(--border);
+  }
   .ol-table { width:100%; border-collapse:collapse; font-size:0.75rem; table-layout:auto; }
   .ol-table thead tr { background:var(--surface2); }
   .ol-table th {
+    position:sticky; top:0; z-index:5;
     padding:7px 8px; text-align:left; font-family:'Barlow Condensed',sans-serif;
     font-size:0.6rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;
-    color:var(--muted); border-bottom:1px solid var(--border); white-space:nowrap;
+    color:var(--muted); background:var(--surface2); border-bottom:1px solid var(--border); white-space:nowrap;
   }
   .ol-table td {
     padding:7px 8px; border-bottom:1px solid var(--border);
@@ -567,7 +574,7 @@
       <button class="ol-filter-btn" id="filterPending" onclick="setOlFilter('pending')">Pending</button>
       <button class="ol-filter-btn" id="filterJtStock" onclick="setOlFilter('jtstock')">JT / Stock Habis</button>
     </div>
-    <div class="ol-table-wrap">
+    <div class="ol-table-wrap" id="olTableWrap">
       <table class="ol-table">
         <thead>
           <tr>
@@ -851,6 +858,8 @@ function switchTab(tab) {
     // Data was already preloaded at login; if it's there, just re-render
     // instantly instead of hitting the server again.
     if (olLoaded) { renderOlFiltered(); } else { loadOrderList(true); }
+    // Panel just became visible — measure it now that it has real layout.
+    requestAnimationFrame(sizeOlTable);
   }
 }
 
@@ -1053,7 +1062,25 @@ function renderOlFiltered() {
   var statusFiltered = filterOlByStatus(dateFiltered, olFilter);
   updateOlRangeLabel();
   renderOrderList(statusFiltered);
+  requestAnimationFrame(sizeOlTable);
 }
+
+// Make the table body scroll within its own box instead of the whole page,
+// so the title/refresh/filter controls above it never get scrolled away.
+// Height = space left in the viewport below the table's current top,
+// minus the fixed bottom tab bar.
+function sizeOlTable() {
+  var wrap = document.getElementById('olTableWrap');
+  var panel = document.getElementById('panel-ol');
+  if (!wrap || !panel || !panel.classList.contains('active')) return;
+  var tabBar = document.getElementById('tabBar');
+  var tabBarH = tabBar ? tabBar.offsetHeight : 56;
+  var rect = wrap.getBoundingClientRect();
+  var avail = window.innerHeight - rect.top - tabBarH - 14;
+  wrap.style.maxHeight = Math.max(avail, 180) + 'px';
+}
+window.addEventListener('resize', sizeOlTable);
+window.addEventListener('orientationchange', function(){ setTimeout(sizeOlTable, 200); });
 
 function updateOlRangeLabel() {
   var now = new Date();
