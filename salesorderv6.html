@@ -299,6 +299,10 @@
     font-family:'Barlow Condensed',sans-serif; font-size:0.7rem; font-weight:700;
     letter-spacing:0.14em; text-transform:uppercase; color:var(--muted);
   }
+  .ol-title .ol-range {
+    display:block; font-size:0.62rem; font-weight:500; letter-spacing:0.04em;
+    text-transform:none; color:var(--muted); margin-top:2px;
+  }
   .btn-ol-refresh {
     background:var(--accent-dim); border:1px solid rgba(245,197,24,0.3);
     border-radius:6px; color:var(--accent); padding:4px 10px;
@@ -307,6 +311,19 @@
     display:flex; align-items:center; gap:4px;
   }
   .btn-ol-refresh:active { background:rgba(245,197,24,0.22); }
+
+  .ol-filter-row { display:flex; gap:7px; margin-bottom:10px; flex-wrap:wrap; }
+  .ol-filter-btn {
+    background:var(--surface2); border:1px solid var(--border); border-radius:20px;
+    color:var(--muted); padding:6px 13px; font-family:'Barlow Condensed',sans-serif;
+    font-size:0.68rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;
+    cursor:pointer; transition:all 0.15s;
+  }
+  .ol-filter-btn:active { opacity:0.8; }
+  .ol-filter-btn.active {
+    background:var(--accent-dim); border-color:var(--accent); color:var(--accent);
+  }
+
   .ol-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:var(--radius); border:1px solid var(--border); }
   .ol-table { width:100%; border-collapse:collapse; font-size:0.75rem; table-layout:auto; }
   .ol-table thead tr { background:var(--surface2); }
@@ -536,7 +553,7 @@
 <div class="tab-panel" id="panel-ol">
   <div class="ol-wrap">
     <div class="ol-header-row">
-      <div class="ol-title">My Order List</div>
+      <div class="ol-title">My Order List<span class="ol-range" id="olRange"></span></div>
       <button class="btn-ol-refresh" onclick="loadOrderList(true)">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
@@ -544,6 +561,11 @@
         </svg>
         Refresh
       </button>
+    </div>
+    <div class="ol-filter-row">
+      <button class="ol-filter-btn active" id="filterAll" onclick="setOlFilter('all')">All</button>
+      <button class="ol-filter-btn" id="filterPending" onclick="setOlFilter('pending')">Pending</button>
+      <button class="ol-filter-btn" id="filterJtStock" onclick="setOlFilter('jtstock')">JT / Stock Habis</button>
     </div>
     <div class="ol-table-wrap">
       <table class="ol-table">
@@ -636,6 +658,7 @@ var QUEUE_KEY     = 'so_queue_orders';
 var FAILED_KEY    = 'so_queue_failed';
 var MAX_RETRIES   = 5;
 var MAX_QUEUE_ITEMS = 300; // batas aman supaya localStorage tidak pernah penuh lagi
+var OL_DAYS_BACK  = 14; // Order List: hanya tampilkan data (hari ini - 14 hari) s/d hari ini
 var currentUser   = '';
 var currentPass  = '';
 var currentDivs  = [];   
@@ -721,6 +744,7 @@ function doLogout() {
   currentUser = ''; currentPass = ''; currentDivs = [];
   customers = []; items = []; rows = []; rowCount = 0;
   achieveLoaded = false; jtLoaded = false; olLoaded = false;
+  olRawRows = []; olFilter = 'all';
   document.getElementById('app').classList.remove('show');
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('loginUser').value = '';
@@ -805,6 +829,10 @@ function showApp() {
   switchTab('so');
   initApp();
   processQueue(); // Jalankan antrean saat awal masuk app
+
+  // Preload Order List data right away so it's ready by the time the user
+  // taps the Orders tab, instead of only fetching on first tab open.
+  loadOrderList(true);
 }
 
 // ── TAB SWITCHING ─────────────────────────────────────────────
@@ -819,7 +847,11 @@ function switchTab(tab) {
   document.getElementById('headerSub').textContent   = titles[tab][1];
   if (tab === 'achieve') loadAchievement();
   if (tab === 'jt')      loadJT();
-  if (tab === 'ol')      loadOrderList(true);
+  if (tab === 'ol') {
+    // Data was already preloaded at login; if it's there, just re-render
+    // instantly instead of hitting the server again.
+    if (olLoaded) { renderOlFiltered(); } else { loadOrderList(true); }
+  }
 }
 
 // ── INIT APP ──────────────────────────────────────────────────
@@ -956,10 +988,12 @@ function renderJT(rows) {
 }
 
 // ── ORDER LIST ────────────────────────────────────────────────
-var olLoaded = false;
+var olLoaded  = false;
+var olRawRows = [];   // full data as returned from server (before date/status filtering)
+var olFilter  = 'all'; // 'all' | 'pending' | 'jtstock'
 
 function loadOrderList(force) {
-  if (olLoaded && !force) return;
+  if (olLoaded && !force) { renderOlFiltered(); return; }
   var tbody = document.getElementById('olBody');
   tbody.innerHTML = '<tr><td colspan="7" class="ol-empty" style="padding:20px">' +
     '<div class="skel skel-row" style="width:100%;margin-bottom:6px"></div>' +
@@ -969,14 +1003,64 @@ function loadOrderList(force) {
   gasCall({ action: 'getOrderList', username: currentUser }, function(data) {
     olLoaded = true;
     if (data && data.status === 'ok' && data.rows) {
-      renderOrderList(data.rows);
+      olRawRows = data.rows;
+      renderOlFiltered();
     } else {
+      olRawRows = [];
       tbody.innerHTML = '<tr><td colspan="7" class="ol-empty">No orders found for ' + esc(currentUser) + '</td></tr>';
     }
   }, function() {
     olLoaded = false;
     tbody.innerHTML = '<tr><td colspan="7" class="ol-empty" style="color:var(--red)">Network error. Tap Refresh to retry.</td></tr>';
   });
+}
+
+// Keep only rows whose timestamp falls within [today - OL_DAYS_BACK, today].
+function filterOlByDate(rowsIn) {
+  var now = new Date();
+  var cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate() - OL_DAYS_BACK, 0, 0, 0, 0);
+  var upper  = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  return rowsIn.filter(function(r) {
+    var d = new Date(r.timestamp);
+    if (isNaN(d)) return true; // keep unparsable timestamps rather than silently hide them
+    return d >= cutoff && d <= upper;
+  });
+}
+
+// Apply the active status filter on top of the date-filtered rows.
+function filterOlByStatus(rowsIn, filter) {
+  if (filter === 'all') return rowsIn;
+  return rowsIn.filter(function(r) {
+    var s = String(r.status || '').trim().toLowerCase();
+    if (filter === 'pending')  return !s || s === 'pending';
+    if (filter === 'jtstock')  return s === 'jt' || s === 'stock habis';
+    return true;
+  });
+}
+
+function setOlFilter(type) {
+  olFilter = type;
+  ['filterAll','filterPending','filterJtStock'].forEach(function(id){
+    document.getElementById(id).classList.remove('active');
+  });
+  var activeId = type === 'pending' ? 'filterPending' : type === 'jtstock' ? 'filterJtStock' : 'filterAll';
+  document.getElementById(activeId).classList.add('active');
+  renderOlFiltered();
+}
+
+function renderOlFiltered() {
+  var dateFiltered   = filterOlByDate(olRawRows);
+  var statusFiltered = filterOlByStatus(dateFiltered, olFilter);
+  updateOlRangeLabel();
+  renderOrderList(statusFiltered);
+}
+
+function updateOlRangeLabel() {
+  var now = new Date();
+  var start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - OL_DAYS_BACK);
+  var pad = function(n){ return String(n).padStart(2,'0'); };
+  var fmt = function(d){ return pad(d.getDate()) + '/' + pad(d.getMonth()+1) + '/' + d.getFullYear(); };
+  document.getElementById('olRange').textContent = fmt(start) + ' – ' + fmt(now);
 }
 
 function statusBadge(val) {
@@ -993,7 +1077,10 @@ function statusBadge(val) {
 function renderOrderList(rows) {
   var tbody = document.getElementById('olBody');
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="7" class="ol-empty">No orders found for ' + esc(currentUser) + '</td></tr>';
+    var emptyMsg = olFilter === 'all'
+      ? 'No orders found for ' + esc(currentUser) + ' in the last ' + OL_DAYS_BACK + ' days'
+      : 'No matching orders in the last ' + OL_DAYS_BACK + ' days';
+    tbody.innerHTML = '<tr><td colspan="7" class="ol-empty">' + emptyMsg + '</td></tr>';
     return;
   }
   var groups = [];
