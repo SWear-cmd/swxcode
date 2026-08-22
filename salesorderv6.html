@@ -1341,20 +1341,8 @@ function updateTotal() {
   document.getElementById('totalCount').textContent = filled + ' item(s)';
 }
 
-// ── GEOLOCATION HELPER ────────────────────────────────────────
-function getLocation() {
-  return new Promise(function(resolve) {
-    if (!navigator.geolocation) return resolve({ lat: '', lng: '' });
-    navigator.geolocation.getCurrentPosition(
-      function(pos) { resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }); },
-      function(err) { resolve({ lat: '', lng: '' }); }, // ditolak/gagal → tetap lanjut submit tanpa lokasi
-      { enableHighAccuracy: true, timeout: 4000, maximumAge: 60000 }
-    );
-  });
-}
-
 // ── SUBMIT WITH LOCAL QUEUE (OPTIMISTIC UI) ───────────────────
-async function submitOrder() {
+function submitOrder() {
   try {
     var customer = custInput.value.trim();
     if (!customer) { toast('Please select a customer.', true); return; }
@@ -1363,8 +1351,6 @@ async function submitOrder() {
 
     var keterangan = document.getElementById('ketInput') ? document.getElementById('ketInput').value.trim() : '';
 
-    var loc = await getLocation();
-
     var payload = {
       id: 'ORD-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
       customer:   customer,
@@ -1372,8 +1358,6 @@ async function submitOrder() {
       username:   currentUser,
       divisions:  currentDivs,
       timestamp:  new Date().toISOString(),
-      lat: loc.lat,
-      lng: loc.lng,
       items: valid.map(function(r){
         return { name:r.name, category:r.category, price:r.price, qty:r.qtyBesar||0, qtyKecil:r.qtyKecil||0, subtotal:r.price*(r.qtyBesar||0) };
       })
