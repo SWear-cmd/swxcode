@@ -7,6 +7,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
     --bg:#0b0f14; --panel:#141a22; --panel2:#1a212b; --border:#242c38;
@@ -42,8 +43,11 @@
   .area-pill{background:var(--panel);border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:14px;font-size:12px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.2;}
   .area-pill:hover{border-color:#33405190;}
   .area-pill.active{background:var(--teal);color:#062421;border-color:var(--teal);}
+  .area-pill.area-pill-alert{background:#ff1f3d;border-color:#ff1f3d;color:#fff;box-shadow:0 0 10px 1px rgba(255,31,61,.7);}
+  .area-pill.area-pill-alert.active{background:#ff1f3d;border-color:#ff1f3d;color:#fff;}
   .area-pill-count{font-size:13px;font-weight:700;}
   .area-pill-label{font-size:11px;font-weight:600;}
+  .area-filter-gap{width:28px;}
 
   .toolrow{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px;}
   .toolrow-right{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
@@ -154,6 +158,7 @@
   <div class="tabbar">
     <button class="tab-pill active" data-tab="invoice">INVOICE</button>
     <button class="tab-pill" data-tab="packing">PACKING LIST</button>
+    <button class="tab-pill" data-tab="tracking">TRACKING</button>
   </div>
 
   <!-- ============ INVOICE TAB ============ -->
@@ -214,8 +219,9 @@
               <th>Total Kubikasi</th>
               <th>Area</th>
               <th>Sopir</th>
-              <th>Tgl Antar</th>
+              <th>TGL REKAP</th>
               <th>Jumlah Invoice</th>
+              <th>Tgl Antar</th>
               <th>Aksi</th>
             </tr>
           </thead>
@@ -223,6 +229,35 @@
         </table>
       </div>
       <div class="empty hidden" id="plEmpty">Belum ada packing list.</div>
+    </div>
+  </div>
+
+  <!-- ============ TRACKING TAB ============ -->
+  <div class="tab-panel" id="tab-tracking">
+    <div class="toolrow">
+      <input class="search" id="trackSearch" placeholder="Cari no invoice, toko, no PL...">
+      <div class="toolrow-right">
+        <span class="subtitle" id="trackMeta">0 baris</span>
+        <button class="btn primary" id="trackExportBtn">Export Excel</button>
+      </div>
+    </div>
+    <div class="tablewrap">
+      <div class="tablescroll">
+        <table>
+          <thead>
+            <tr>
+              <th>No Invoice</th>
+              <th>Nama Toko</th>
+              <th>Kubikasi</th>
+              <th>Branch</th>
+              <th>Status</th>
+              <th>Exported</th>
+            </tr>
+          </thead>
+          <tbody id="trackTbody"></tbody>
+        </table>
+      </div>
+      <div class="empty hidden" id="trackEmpty">Belum ada invoice dengan status FULL/CORETAN/BATAL.</div>
     </div>
   </div>
 </div>
@@ -263,6 +298,7 @@
       <span class="lbl"><b id="plDetailSelectedCount">0</b> dipilih</span>
       <select id="plDetailBulkStatus">
         <option value="">Ubah status jadi...</option>
+        <option value="NULL">NULL</option>
         <option value="FULL">FULL</option>
         <option value="CORETAN">CORETAN</option>
         <option value="REKAP ULANG">REKAP ULANG</option>
@@ -359,6 +395,26 @@
   const SESSION_PIN_KEY = 'invoiceview_pin';
   let currentPin = null;
   let isFullAccess = false;
+  let currentLabel = '';
+  const RESTRICTED_LABELS = ['SENTANI', 'ENTROP', 'ABE'];
+  const TRACKING_LABEL = 'TRACKING';
+  function isRestrictedLabel(){ return RESTRICTED_LABELS.includes((currentLabel || '').toUpperCase()); }
+  function isTrackingLabel(){ return (currentLabel || '').toUpperCase() === TRACKING_LABEL; }
+  function canEditPlHeader(){ return !isRestrictedLabel(); }
+  function canEditPlStatus(){ return !isRestrictedLabel(); }
+
+  function applyLabelPermissions(){
+    const invoiceTabBtn = document.querySelector('.tab-pill[data-tab="invoice"]');
+    const trackingTabBtn = document.querySelector('.tab-pill[data-tab="tracking"]');
+    invoiceTabBtn.style.display = isTrackingLabel() ? 'none' : '';
+    trackingTabBtn.style.display = isRestrictedLabel() ? 'none' : '';
+    // if the currently active tab just got hidden, switch to an allowed one
+    const activeBtn = document.querySelector('.tab-pill.active');
+    if (activeBtn && activeBtn.style.display === 'none'){
+      const fallback = document.querySelector('.tab-pill:not([style*="display: none"])');
+      if (fallback) fallback.click();
+    }
+  }
 
   async function getPublicIp(){
     try{ const r = await fetch('https://api.ipify.org?format=json'); const j = await r.json(); return j.ip || 'unknown'; }
@@ -383,6 +439,7 @@
       const { data } = await sb.rpc('is_full_access_pin', { p_pin: currentPin });
       isFullAccess = !!data;
     }catch(e){ isFullAccess = false; }
+    applyLabelPermissions();
     refreshAll();
   }
 
@@ -405,6 +462,7 @@
       }
       const label = data.label || '';
       currentPin = pin;
+      currentLabel = label;
       sessionStorage.setItem(SESSION_KEY, label);
       sessionStorage.setItem(SESSION_PIN_KEY, pin);
       const ip = await getPublicIp();
@@ -457,6 +515,7 @@
   // ---- state ----
   let invoices = [];        // rows from get_invoices, keyed by id
   let plItems = [];         // rows from get_packing_list_items
+  let trackItems = [];      // rows from get_tracking_items
   let selected = new Set(); // selected invoice ids on Invoice tab (numbers)
   let currentAreaFilter = null; // null = SEMUA (all areas)
   let dragSelecting = false;
@@ -480,7 +539,7 @@
   // ---- data load ----
   async function refreshAll(){
     document.getElementById('updatedAt').textContent = 'Memuat...';
-    await Promise.all([loadInvoices(), loadPackingList()]);
+    await Promise.all([loadInvoices(), loadPackingList(), loadTrackingItems()]);
     document.getElementById('updatedAt').textContent = 'Terakhir dimuat: ' + new Date().toLocaleString('id-ID');
   }
 
@@ -512,15 +571,21 @@
   function renderAreaFilter(){
     const monthRows = invoices.filter(r => isThisOrLastMonth(r.print_date));
     const areas = [...new Set(monthRows.map(r => r.area).filter(Boolean))].sort();
-    if (currentAreaFilter && !areas.includes(currentAreaFilter)) currentAreaFilter = null;
+    const PINNED_AREAS = ['JAYAPURA','ABE','SENTANI','SUPERMARKET','ARSO','KOYA','BDT','KANVAS'];
+    if (currentAreaFilter && !areas.includes(currentAreaFilter) && !PINNED_AREAS.includes(currentAreaFilter)) currentAreaFilter = null;
     const wrap = document.getElementById('areaFilter');
     wrap.innerHTML = '';
     const counts = {};
     monthRows.forEach(r => { const a = r.area || ''; counts[a] = (counts[a] || 0) + 1; });
+    const overdueAreas = new Set();
+    monthRows.forEach(r => {
+      const age = ageInDays(r.print_date);
+      if (age !== null && age > 5) overdueAreas.add(r.area || '');
+    });
     const makeBtn = (label, value) => {
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'area-pill' + (currentAreaFilter === value ? ' active' : '');
+      b.className = 'area-pill' + (currentAreaFilter === value ? ' active' : '') + (value !== null && overdueAreas.has(value) ? ' area-pill-alert' : '');
       const count = value === null ? monthRows.length : (counts[value] || 0);
       b.innerHTML = `<span class="area-pill-count">${count}</span><span class="area-pill-label">${escapeHtml(label)}</span>`;
       b.addEventListener('click', () => {
@@ -532,7 +597,15 @@
       wrap.appendChild(b);
     };
     makeBtn('SEMUA', null);
-    areas.forEach(a => makeBtn(a, a));
+    const PRIORITY_1 = ['JAYAPURA','ABE','SENTANI','SUPERMARKET','ARSO','KOYA'];
+    const PRIORITY_2 = ['BDT','KANVAS'];
+    PRIORITY_1.forEach(a => makeBtn(a, a));
+    const gap = document.createElement('div');
+    gap.className = 'area-filter-gap';
+    wrap.appendChild(gap);
+    PRIORITY_2.forEach(a => makeBtn(a, a));
+    const pinned = new Set([...PRIORITY_1, ...PRIORITY_2]);
+    areas.filter(a => !pinned.has(a)).forEach(a => makeBtn(a, a));
   }
 
   async function loadPackingList(){
@@ -602,14 +675,14 @@
       tr.dataset.id = r.id;
       tr.innerHTML =
         `<td class="check-td"><input type="checkbox" class="row-check" data-id="${r.id}" ${checked}></td>` +
-        `<td class="select-cell">${escapeHtml(r.no_invoice)}</td>` +
-        `<td>${fmtDateShort(r.print_date)}</td>` +
-        `<td class="num">${ageInDays(r.print_date) ?? '-'}</td>` +
-        `<td class="select-cell">${escapeHtml(r.nama_toko)}</td>` +
-        `<td><input type="text" class="kub-input" inputmode="decimal" data-id="${r.id}" data-field="kubikasi" value="${escapeHtml(r.kubikasi)}"></td>` +
-        `<td class="area-cell" data-id="${r.id}"><span class="cell-flex"><span class="area-text">${escapeHtml(r.area)}</span><button type="button" class="edit-area-btn" data-id="${r.id}" title="Edit Area/Sub-Area">\u270f\ufe0f</button></span></td>` +
-        `<td class="subarea-cell" data-id="${r.id}"><span class="cell-flex"><span class="area-text">${escapeHtml(r.sub_area)}</span></span></td>` +
-        `<td><input type="text" class="txt-input" data-id="${r.id}" data-field="gudang" value="${escapeHtml(r.gudang)}"></td>` +
+        `<td>${escapeHtml(r.no_invoice)}</td>` +
+        `<td class="select-cell">${fmtDateShort(r.print_date)}</td>` +
+        `<td class="num select-cell">${ageInDays(r.print_date) ?? '-'}</td>` +
+        `<td>${escapeHtml(r.nama_toko)}</td>` +
+        `<td class="select-cell"><input type="text" class="kub-input" inputmode="decimal" data-id="${r.id}" data-field="kubikasi" value="${escapeHtml(r.kubikasi)}"></td>` +
+        `<td class="area-cell select-cell" data-id="${r.id}"><span class="cell-flex"><span class="area-text">${escapeHtml(r.area)}</span><button type="button" class="edit-area-btn" data-id="${r.id}" title="Edit Area/Sub-Area">\u270f\ufe0f</button></span></td>` +
+        `<td class="subarea-cell select-cell" data-id="${r.id}"><span class="cell-flex"><span class="area-text">${escapeHtml(r.sub_area)}</span></span></td>` +
+        `<td class="select-cell"><input type="text" class="txt-input" data-id="${r.id}" data-field="gudang" value="${escapeHtml(r.gudang)}"></td>` +
         (isFullAccess
           ? `<td><button type="button" class="btn btn-sm hide-invoice-btn" data-id="${r.id}" data-no="${escapeHtml(r.no_invoice)}">Sembunyikan</button></td>`
           : `<td style="display:none;"></td>`);
@@ -638,6 +711,7 @@
     });
     tbody.querySelectorAll('.select-cell').forEach(td => {
       td.addEventListener('mousedown', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
         e.preventDefault();
         const id = Number(td.closest('tr').dataset.id);
         dragSelecting = true;
@@ -804,7 +878,7 @@
       if (!map.has(r.no_pl)){
         map.set(r.no_pl, {
           no_pl: r.no_pl, tgl: r.tgl, sopir: r.sopir, pl_area: r.pl_area,
-          total_kubikasi: r.total_kubikasi, count: 0
+          total_kubikasi: r.total_kubikasi, tgl_antar: r.tgl_antar, count: 0
         });
       }
       map.get(r.no_pl).count++;
@@ -828,8 +902,9 @@
         `<td>${escapeHtml(g.sopir || '-')}</td>` +
         `<td>${escapeHtml(g.tgl || '-')}</td>` +
         `<td class="num">${g.count}</td>` +
+        `<td>${g.tgl_antar ? fmtDateShort(g.tgl_antar) : '-'}</td>` +
         `<td class="pl-summary-actions">` +
-          `<button type="button" class="btn btn-sm pl-edit-header-btn" data-pl="${escapeHtml(g.no_pl)}">Sopir/Tgl/Area</button>` +
+          (canEditPlHeader() ? `<button type="button" class="btn btn-sm pl-edit-header-btn" data-pl="${escapeHtml(g.no_pl)}">Sopir/Tgl/Area</button>` : '') +
           `<button type="button" class="btn btn-sm pl-view-detail-btn" data-pl="${escapeHtml(g.no_pl)}">Lihat Invoice</button>` +
         `</td>`;
       tbody.appendChild(tr);
@@ -851,6 +926,94 @@
     }
   }
   document.getElementById('plSearch').addEventListener('input', renderPackingListTable);
+
+  // ---- Tracking tab ----
+  async function loadTrackingItems(){
+    const { data, error } = await sb.rpc('get_tracking_items', { p_pin: currentPin });
+    if (error){ alert('Gagal memuat tracking: ' + error.message); return; }
+    trackItems = data || [];
+    renderTrackingTable();
+  }
+
+  function filteredTrackItems(){
+    const term = document.getElementById('trackSearch').value.trim().toLowerCase();
+    return term
+      ? trackItems.filter(r => [r.no_invoice, r.nama_toko, r.no_pl]
+          .some(f => String(f||'').toLowerCase().includes(term)))
+      : trackItems;
+  }
+
+  function renderTrackingTable(){
+    const rows = filteredTrackItems();
+    const byPl = new Map();
+    rows.forEach(r => {
+      if (!byPl.has(r.no_pl)) byPl.set(r.no_pl, []);
+      byPl.get(r.no_pl).push(r);
+    });
+    const plKeys = [...byPl.keys()].sort((a, b) => String(b || '').localeCompare(String(a || '')));
+
+    const tbody = document.getElementById('trackTbody');
+    tbody.innerHTML = '';
+    plKeys.forEach(noPl => {
+      const groupRows = byPl.get(noPl);
+      const g = groupRows[0];
+      const groupTr = document.createElement('tr');
+      groupTr.className = 'pl-group-row';
+      groupTr.innerHTML = `<td colspan="6"><b>${escapeHtml(noPl)}</b> &middot; ${escapeHtml(g.sopir || '-')} &middot; ${escapeHtml(g.pl_area || '-')} &middot; ${g.tgl || '-'}</td>`;
+      tbody.appendChild(groupTr);
+
+      groupRows.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+          `<td>${escapeHtml(r.no_invoice)}</td>` +
+          `<td>${escapeHtml(r.nama_toko)}</td>` +
+          `<td class="num">${fmtNumber(r.kubikasi)}</td>` +
+          `<td>${escapeHtml(r.branch)}</td>` +
+          `<td>${escapeHtml(r.status)}</td>` +
+          `<td>${r.exported ? '\u2714' : '-'}</td>`;
+        tbody.appendChild(tr);
+      });
+    });
+
+    document.getElementById('trackEmpty').classList.toggle('hidden', rows.length > 0);
+    document.getElementById('trackMeta').textContent = rows.length + ' baris';
+
+    const exportable = trackItems.filter(r => r.status === 'FULL' && !r.exported);
+    document.getElementById('trackExportBtn').disabled = exportable.length === 0;
+  }
+  document.getElementById('trackSearch').addEventListener('input', renderTrackingTable);
+
+  document.getElementById('trackExportBtn').addEventListener('click', async () => {
+    const exportable = trackItems.filter(r => r.status === 'FULL' && !r.exported);
+    if (!exportable.length) return;
+
+    const byBranch = { DAF: [], ABP: [], KSI: [] };
+    exportable.forEach(r => {
+      if (byBranch[r.branch]) byBranch[r.branch].push(r.no_invoice);
+    });
+
+    const maxLen = Math.max(byBranch.DAF.length, byBranch.ABP.length, byBranch.KSI.length);
+    const aoa = [[], []]; // rows 1-2 blank
+    for (let i = 0; i < maxLen; i++){
+      aoa.push([byBranch.DAF[i] || '', byBranch.ABP[i] || '', byBranch.KSI[i] || '']);
+    }
+
+    const btn = document.getElementById('trackExportBtn');
+    btn.disabled = true;
+    try{
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      XLSX.utils.book_append_sheet(wb, ws, 'Manifest');
+      XLSX.writeFile(wb, 'TRACKING_' + todayISO() + '.xlsx');
+
+      const ids = exportable.map(r => r.id);
+      const { error } = await sb.rpc('mark_invoices_exported', { p_pin: currentPin, p_ids: ids });
+      if (error){ alert('Export dibuat, tapi gagal menandai exported: ' + error.message); return; }
+      await loadTrackingItems();
+    } finally {
+      btn.disabled = false;
+    }
+  });
 
   // ---- Sopir / Tgl Antar / Area edit modal ----
   function openPlEditHeaderModal(noPl){
@@ -899,6 +1062,11 @@
 
   function updatePlDetailBulkBar(){
     const bar = document.getElementById('plDetailBulkBar');
+    if (!canEditPlStatus()){
+      bar.style.display = 'none';
+      document.getElementById('selectAllPlDetail').style.display = 'none';
+      return;
+    }
     const count = plSelected.size;
     document.getElementById('plDetailSelectedCount').textContent = count;
     bar.classList.toggle('idle', count === 0);
@@ -938,7 +1106,7 @@
       sb.rpc('update_packing_list_status', { p_pin: currentPin, p_id: id, p_status: newStatus, p_reason: reason || null })
     ));
     const failed = results.filter(r => r.error);
-    await Promise.all([loadInvoices(), loadPackingList()]);
+    await Promise.all([loadInvoices(), loadPackingList(), loadTrackingItems()]);
     if (failed.length){
       alert('Gagal mengubah status untuk ' + failed.length + ' baris: ' + failed[0].error.message);
       return false;
@@ -974,15 +1142,17 @@
       const stClass = stClassMap[r.status] || 'st-REKAP';
       const reasonTag = (r.status === 'CORETAN' && r.coretan_reason)
         ? `<span class="reason-tag">${escapeHtml(r.coretan_reason)}</span>` : '';
+      const statusDisabled = canEditPlStatus() ? '' : 'disabled';
       tr.innerHTML =
-        `<td class="check-td"><input type="checkbox" class="pl-row-check" data-id="${r.id}" ${checked}></td>` +
-        `<td class="pl-select-cell">${escapeHtml(r.no_invoice)}</td>` +
-        `<td class="pl-select-cell">${escapeHtml(r.nama_toko)}</td>` +
-        `<td class="num">${fmtNumber(r.kubikasi)}</td>` +
-        `<td>${escapeHtml(r.area)}</td>` +
-        `<td>${escapeHtml(r.sub_area)}</td>` +
-        `<td>${escapeHtml(r.gudang)}</td>` +
-        `<td><select class="status-select ${stClass}" data-id="${r.id}" data-prev="${escapeHtml(r.status)}">` +
+        `<td class="check-td"><input type="checkbox" class="pl-row-check" data-id="${r.id}" ${checked} ${statusDisabled}></td>` +
+        `<td>${escapeHtml(r.no_invoice)}</td>` +
+        `<td>${escapeHtml(r.nama_toko)}</td>` +
+        `<td class="num pl-select-cell">${fmtNumber(r.kubikasi)}</td>` +
+        `<td class="pl-select-cell">${escapeHtml(r.area)}</td>` +
+        `<td class="pl-select-cell">${escapeHtml(r.sub_area)}</td>` +
+        `<td class="pl-select-cell">${escapeHtml(r.gudang)}</td>` +
+        `<td><select class="status-select ${stClass}" data-id="${r.id}" data-prev="${escapeHtml(r.status)}" ${statusDisabled}>` +
+          `<option value="" ${!r.status?'selected':''}>NULL</option>` +
           `<option value="FULL" ${r.status==='FULL'?'selected':''}>FULL</option>` +
           `<option value="CORETAN" ${r.status==='CORETAN'?'selected':''}>CORETAN</option>` +
           `<option value="REKAP ULANG" ${r.status==='REKAP ULANG'?'selected':''}>REKAP ULANG</option>` +
@@ -1024,7 +1194,7 @@
     tbody.querySelectorAll('.status-select').forEach(sel => {
       sel.addEventListener('change', async () => {
         const id = Number(sel.dataset.id);
-        const newStatus = sel.value;
+        const newStatus = sel.value || null;
         let reason = null;
         if (newStatus === 'CORETAN'){
           const row = plItems.find(r => r.id === id);
@@ -1052,14 +1222,15 @@
   });
   document.getElementById('plDetailBulkApplyBtn').addEventListener('click', async () => {
     const statusSel = document.getElementById('plDetailBulkStatus');
-    const newStatus = statusSel.value;
-    if (!newStatus || plSelected.size === 0 || !activeDetailPl) return;
+    const rawStatus = statusSel.value;
+    if (!rawStatus || plSelected.size === 0 || !activeDetailPl) return;
+    const newStatus = rawStatus === 'NULL' ? null : rawStatus;
     const ids = [...plSelected];
     let reason = null;
     if (newStatus === 'CORETAN'){
       reason = await askCoretanReason(ids.length + ' invoice dipilih');
       if (!reason) return;
-    } else if (!confirm('Ubah status ' + ids.length + ' invoice menjadi ' + newStatus + '?')){
+    } else if (!confirm('Ubah status ' + ids.length + ' invoice menjadi ' + (newStatus || 'NULL') + '?')){
       return;
     }
     const applyBtn = document.getElementById('plDetailBulkApplyBtn');
@@ -1117,7 +1288,7 @@
 
       genOverlay.classList.add('hidden');
       selected.clear();
-      await Promise.all([loadInvoices(), loadPackingList()]);
+      await Promise.all([loadInvoices(), loadPackingList(), loadTrackingItems()]);
     }catch(err){
       msgEl.textContent = 'Gagal: ' + (err && err.message ? err.message : String(err));
       msgEl.className = 'automsg error';
@@ -1185,6 +1356,7 @@
   const cachedPin = sessionStorage.getItem(SESSION_PIN_KEY);
   if (cachedLabel !== null && cachedPin !== null){
     currentPin = cachedPin;
+    currentLabel = cachedLabel;
     unlockApp();
   }
 </script>
