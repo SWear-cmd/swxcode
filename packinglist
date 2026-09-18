@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>INVOICE &amp; PACKING LIST</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#141a22; --panel2:#1a212b; --border:#242c38;
+    --text:#e7ecf3; --muted:#8b95a5; --green:#4caf82; --red:#e0637a;
+    --blue:#5b9bd5; --teal:#4fb8b0;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1280px;margin:0 auto;padding:24px 20px 60px;}
+  .topbar{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:20px;}
+  h1{font-size:20px;margin:0 0 4px;font-weight:700;letter-spacing:.2px;}
+  .subtitle{font-size:12px;color:var(--muted);}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;}
+  .btn{background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer;transition:background .15s ease,border-color .15s ease;}
+  .btn:hover{background:#212a36;border-color:#33405190;}
+  .btn:disabled{opacity:.4;cursor:default;}
+  .btn.primary{background:var(--teal);color:#062421;border-color:var(--teal);font-weight:600;}
+  .btn.primary:hover{background:#5fc9c1;}
+
+  .tabbar{display:flex;gap:8px;margin-bottom:16px;}
+  .tab-pill{background:var(--panel);border:1px solid var(--border);color:var(--muted);padding:9px 18px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;}
+  .tab-pill.active{background:var(--teal);color:#062421;border-color:var(--teal);}
+  .tab-panel{display:none;}
+  .tab-panel.active{display:block;}
+
+  .sumbox{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--teal);border-radius:10px;padding:10px 16px;margin-bottom:14px;width:fit-content;transition:border-color .15s ease;}
+  .sumbox .lbl{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);}
+  .sumbox .val{font-size:20px;font-weight:700;color:var(--teal);transition:color .15s ease;}
+  .sumbox.over-limit{border-color:var(--red);}
+  .sumbox.over-limit .val{color:var(--red);}
+
+  .area-filter{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
+  .area-pill{background:var(--panel);border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:14px;font-size:12px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.2;}
+  .area-pill:hover{border-color:#33405190;}
+  .area-pill.active{background:var(--teal);color:#062421;border-color:var(--teal);}
+  .area-pill-count{font-size:13px;font-weight:700;}
+  .area-pill-label{font-size:11px;font-weight:600;}
+
+  .toolrow{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px;}
+  .toolrow-right{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  .search{background:var(--panel);border:1px solid var(--border);color:var(--text);padding:9px 14px;border-radius:8px;font-size:13px;min-width:220px;}
+  .search::placeholder{color:var(--muted);}
+
+  .tablewrap{background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+  .tablescroll{overflow-x:auto;overflow-y:auto;max-height:65vh;}
+  table{width:100%;min-width:900px;border-collapse:collapse;font-size:12.5px;}
+  thead th{text-align:left;font-size:10.5px;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);padding:10px 8px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--panel);z-index:2;white-space:nowrap;}
+  tbody td{padding:8px;border-bottom:1px solid #1d2530;white-space:nowrap;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:#171f29;}
+  th.check-th, td.check-td{text-align:center;width:34px;}
+  .row-check, #selectAllInv{width:15px;height:15px;cursor:pointer;accent-color:var(--teal);}
+  .select-cell{cursor:pointer;user-select:none;-webkit-user-select:none;}
+  tr.row-selected{background:rgba(79,184,176,.14);}
+  tr.row-selected:hover{background:rgba(79,184,176,.2);}
+  .num{text-align:right;font-variant-numeric:tabular-nums;}
+  .kub-input{width:90px;background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:6px;font-size:12.5px;text-align:right;font-variant-numeric:tabular-nums;}
+  .txt-input{width:110px;background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:6px;font-size:12.5px;}
+  .area-locked{color:var(--teal);}
+  .area-cell .cell-flex,.subarea-cell .cell-flex{display:flex;align-items:center;gap:6px;}
+  .area-text{color:var(--teal);}
+  .edit-area-btn,.save-area-btn,.cancel-area-btn{background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 4px;line-height:1;}
+  .edit-area-btn:hover{color:var(--teal);}
+  .save-area-btn:hover{color:var(--teal);}
+  .cancel-area-btn:hover{color:var(--red);}
+  .edit-area-input,.edit-subarea-input{width:100px;background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:6px;font-size:12.5px;}
+  .kub-input:focus, .txt-input:focus{outline:2px solid var(--blue);outline-offset:1px;}
+  .status-select{background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:6px;font-size:12.5px;}
+  .status-select.st-FULL{border-color:var(--green);color:var(--green);}
+  .status-select.st-REKAP{border-color:#f0b93d;color:#f0b93d;}
+  .status-select.st-BATAL{border-color:var(--red);color:var(--red);}
+  .status-select.st-CORETAN{border-color:#b28dff;color:#b28dff;}
+  .empty{padding:50px 20px;text-align:center;color:var(--muted);}
+  .hidden{display:none !important;}
+  .pl-group-row td{background:#101820;color:var(--muted);font-size:11.5px;padding:8px;border-bottom:1px solid var(--border);}
+  .pl-group-row b{color:var(--text);}
+
+  .modal-overlay{position:fixed;inset:0;background:rgba(4,7,10,.65);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px;}
+  .modal-box{background:var(--panel);border:1px solid var(--border);border-radius:14px;width:100%;max-width:420px;padding:20px;}
+  .modal-box-wide{max-width:960px;}
+  .modal-box-wide .tablescroll{max-height:50vh;}
+  .pl-summary-actions{display:flex;gap:6px;flex-wrap:wrap;}
+  .btn-sm{padding:5px 10px;font-size:12px;}
+  .pagebar{display:flex;align-items:center;justify-content:center;gap:14px;padding:10px 8px;border-top:1px solid var(--border);}
+  .pagebar-inline{padding:0;border-top:none;gap:8px;}
+  .pagebar-info{font-size:12px;color:var(--muted);}
+  .pagebar .btn:disabled{opacity:.35;}
+  .modal-box h3{margin:0 0 4px;font-size:16px;}
+  .modal-sub{font-size:12px;color:var(--muted);margin-bottom:16px;}
+  .modal-row{display:flex;gap:8px;margin-bottom:10px;}
+  .modal-field{flex:1;display:flex;flex-direction:column;gap:4px;}
+  .modal-field label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;}
+  .modal-field input{background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;}
+  .modal-field input:focus{outline:2px solid var(--blue);outline-offset:1px;}
+  .modal-field input[readonly]{color:var(--teal);font-weight:700;}
+  .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:6px;}
+  .pl-toolbar{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--teal);border-radius:10px;padding:10px 16px;margin-bottom:14px;width:fit-content;flex-wrap:wrap;transition:opacity .15s ease;}
+  .pl-toolbar.idle{opacity:.45;}
+  .pl-toolbar .lbl{font-size:12.5px;color:var(--text);}
+  .pl-toolbar select{background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:8px;font-size:12.5px;}
+  .reason-tag{display:block;font-size:10.5px;color:var(--muted);margin-top:3px;max-width:140px;white-space:normal;}
+  tr.pl-rekap > td:not(:first-child):not(:last-child){text-decoration:line-through;opacity:.55;}
+  .reason-options{display:flex;flex-direction:column;gap:8px;margin:4px 0 12px;}
+  .reason-options label{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;color:var(--text);}
+  .reason-options input[type="radio"]{accent-color:var(--teal);}
+  .automsg{font-size:12px;margin-bottom:10px;min-height:14px;}
+  .automsg.error{color:var(--red);}
+  .automsg.success{color:var(--green);}
+
+  #pinOverlay{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;}
+  #pinOverlay.hidden{display:none;}
+  .pin-box{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:28px 26px;width:260px;text-align:center;}
+  .pin-box h2{margin:0 0 4px;font-size:16px;}
+  .pin-box p{margin:0 0 16px;font-size:12px;color:var(--muted);}
+  .pin-box input{width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:8px;font-size:16px;letter-spacing:2px;text-align:center;box-sizing:border-box;margin-bottom:12px;}
+  .pin-box .btn{width:100%;background:var(--teal);color:#062421;border-color:var(--teal);font-weight:600;}
+  .pin-box .pin-error{color:var(--red);font-size:12px;min-height:16px;margin-top:8px;}
+</style>
+</head>
+<body>
+
+<div id="pinOverlay">
+  <div class="pin-box">
+    <h2>Masuk</h2>
+    <p>Masukkan PIN untuk membuka Invoice &amp; Packing List</p>
+    <input type="password" id="pinInput" inputmode="numeric" autocomplete="off" placeholder="••••" maxlength="12">
+    <button class="btn" id="pinSubmitBtn">Masuk</button>
+    <div class="pin-error" id="pinError"></div>
+  </div>
+</div>
+
+<div class="wrap" id="mainWrap" style="display:none;">
+  <div class="topbar">
+    <div>
+      <h1>INVOICE &amp; PACKING LIST</h1>
+      <div class="subtitle" id="updatedAt">Memuat...</div>
+    </div>
+    <div class="actions">
+      <button class="btn" id="refreshBtn">Refresh</button>
+      <button class="btn" id="bulkHideBtn" style="display:none;" disabled>Sembunyikan Terpilih</button>
+      <button class="btn primary" id="generateBtn" disabled>Generate</button>
+    </div>
+  </div>
+
+  <div class="tabbar">
+    <button class="tab-pill active" data-tab="invoice">INVOICE</button>
+    <button class="tab-pill" data-tab="packing">PACKING LIST</button>
+  </div>
+
+  <!-- ============ INVOICE TAB ============ -->
+  <div class="tab-panel active" id="tab-invoice">
+    <div class="area-filter" id="areaFilter"></div>
+    <div class="sumbox" id="sumBox">
+      <span class="lbl">Total Kubikasi Terpilih</span>
+      <span class="val" id="sumKubikasi">0</span>
+      <span class="lbl">/ 11</span>
+    </div>
+    <div class="toolrow">
+      <input class="search" id="invSearch" placeholder="Cari no invoice, toko, area...">
+      <div class="toolrow-right">
+        <span class="subtitle" id="invMeta">0 invoice tersedia</span>
+        <div class="pagebar pagebar-inline" id="invPageBar">
+          <button class="btn btn-sm" id="invPrevBtn" type="button">&larr; Sebelumnya</button>
+          <span class="pagebar-info" id="invPageInfo">Halaman 1 / 1</span>
+          <button class="btn btn-sm" id="invNextBtn" type="button">Berikutnya &rarr;</button>
+        </div>
+      </div>
+    </div>
+    <div class="tablewrap">
+      <div class="tablescroll">
+        <table>
+          <thead>
+            <tr>
+              <th class="check-th"><input type="checkbox" id="selectAllInv"></th>
+              <th>No Invoice</th>
+              <th>Tgl</th>
+              <th>Umur</th>
+              <th>Nama Toko</th>
+              <th>Kubikasi</th>
+              <th>Area</th>
+              <th>Sub-Area</th>
+              <th>Gudang</th>
+              <th id="invAksiTh" style="display:none;">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="invTbody"></tbody>
+        </table>
+      </div>
+      <div class="empty hidden" id="invEmpty">Tidak ada invoice yang tersedia (semua sudah punya packing list, atau belum ada invoice masuk).</div>
+    </div>
+  </div>
+
+  <!-- ============ PACKING LIST TAB ============ -->
+  <div class="tab-panel" id="tab-packing">
+    <div class="toolrow">
+      <input class="search" id="plSearch" placeholder="Cari no invoice, toko, no PL...">
+      <span class="subtitle" id="plMeta">0 baris</span>
+    </div>
+    <div class="tablewrap">
+      <div class="tablescroll">
+        <table>
+          <thead>
+            <tr>
+              <th>No PL</th>
+              <th>Total Kubikasi</th>
+              <th>Area</th>
+              <th>Sopir</th>
+              <th>Tgl Antar</th>
+              <th>Jumlah Invoice</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="plTbody"></tbody>
+        </table>
+      </div>
+      <div class="empty hidden" id="plEmpty">Belum ada packing list.</div>
+    </div>
+  </div>
+</div>
+
+<!-- PL header edit modal (Sopir / Tgl Antar) -->
+<div class="modal-overlay hidden" id="plEditHeaderOverlay">
+  <div class="modal-box">
+    <h3>Sopir, Tgl Antar &amp; Area</h3>
+    <div class="modal-sub" id="plEditHeaderSub">—</div>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label for="plEditTgl">Tgl Antar</label>
+        <input type="date" id="plEditTgl">
+      </div>
+      <div class="modal-field">
+        <label for="plEditSopir">Sopir</label>
+        <input type="text" id="plEditSopir" placeholder="Nama sopir">
+      </div>
+      <div class="modal-field">
+        <label for="plEditArea">Area</label>
+        <input type="text" id="plEditArea" placeholder="Area">
+      </div>
+    </div>
+    <div class="automsg" id="plEditHeaderMsg"></div>
+    <div class="modal-actions">
+      <button class="btn" id="plEditHeaderCancelBtn" type="button">Batal</button>
+      <button class="btn primary" id="plEditHeaderSaveBtn" type="button">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- PL detail modal: invoices inside a packing list -->
+<div class="modal-overlay hidden" id="plDetailOverlay">
+  <div class="modal-box modal-box-wide">
+    <h3 id="plDetailTitle">Isi Packing List</h3>
+    <div class="modal-sub" id="plDetailSub">—</div>
+    <div class="pl-toolbar idle" id="plDetailBulkBar">
+      <span class="lbl"><b id="plDetailSelectedCount">0</b> dipilih</span>
+      <select id="plDetailBulkStatus">
+        <option value="">Ubah status jadi...</option>
+        <option value="FULL">FULL</option>
+        <option value="CORETAN">CORETAN</option>
+        <option value="REKAP ULANG">REKAP ULANG</option>
+        <option value="BATAL">BATAL</option>
+      </select>
+      <button class="btn primary" id="plDetailBulkApplyBtn" type="button">Terapkan</button>
+      <button class="btn" id="plDetailBulkClearBtn" type="button">Batal Pilih</button>
+    </div>
+    <div class="tablewrap">
+      <div class="tablescroll">
+        <table>
+          <thead>
+            <tr>
+              <th class="check-th"><input type="checkbox" id="selectAllPlDetail"></th>
+              <th>No Invoice</th>
+              <th>Nama Toko</th>
+              <th>Kubikasi</th>
+              <th>Area</th>
+              <th>Sub-Area</th>
+              <th>Gudang</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="plDetailTbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="plDetailCloseBtn" type="button">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<!-- Generate modal -->
+<div class="modal-overlay hidden" id="genOverlay">
+  <div class="modal-box">
+    <h3>Generate Packing List</h3>
+    <div class="modal-sub" id="genSub">—</div>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label for="genTgl">Tgl</label>
+        <input type="date" id="genTgl">
+      </div>
+      <div class="modal-field">
+        <label for="genSopir">Sopir</label>
+        <input type="text" id="genSopir" placeholder="Nama sopir">
+      </div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label for="genArea">Area</label>
+        <input type="text" id="genArea" placeholder="Area">
+      </div>
+      <div class="modal-field">
+        <label for="genTotal">Total Kubikasi</label>
+        <input type="text" id="genTotal" readonly>
+      </div>
+    </div>
+    <div class="automsg" id="genMsg"></div>
+    <div class="modal-actions">
+      <button class="btn" id="genCancelBtn" type="button">Batal</button>
+      <button class="btn primary" id="genConfirmBtn" type="button">Generate &amp; Buat PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- Coretan reason modal -->
+<div class="modal-overlay hidden" id="coretanOverlay">
+  <div class="modal-box">
+    <h3>Alasan Coretan</h3>
+    <div class="modal-sub" id="coretanSub">—</div>
+    <div class="reason-options">
+      <label><input type="radio" name="coretanReason" value="BARANG HABIS"> BARANG HABIS</label>
+      <label><input type="radio" name="coretanReason" value="TIDAK PESAN"> TIDAK PESAN</label>
+      <label><input type="radio" name="coretanReason" value="DEKAT ED"> DEKAT ED</label>
+    </div>
+    <div class="automsg" id="coretanMsg"></div>
+    <div class="modal-actions">
+      <button class="btn" id="coretanCancelBtn" type="button">Batal</button>
+      <button class="btn primary" id="coretanConfirmBtn" type="button">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ---- Supabase (same project as RekeningView / finance suite) ----
+  const SUPABASE_URL = 'https://swxgkuaoctrcfbgncwaz.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_0e8sOfljWkkin-hwhNweEw_CWqt1Az-';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // ---- PIN gate ----
+  const TOOL_NAME = 'InvoiceView';
+  const SESSION_KEY = 'invoiceview_pin_label';
+  const SESSION_PIN_KEY = 'invoiceview_pin';
+  let currentPin = null;
+  let isFullAccess = false;
+
+  async function getPublicIp(){
+    try{ const r = await fetch('https://api.ipify.org?format=json'); const j = await r.json(); return j.ip || 'unknown'; }
+    catch(e){ return 'unknown'; }
+  }
+
+  function getDeviceId(){
+    let id = localStorage.getItem('device_id');
+    if (!id){
+      id = (window.crypto && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : 'dev-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+      localStorage.setItem('device_id', id);
+    }
+    return id;
+  }
+
+  async function unlockApp(){
+    document.getElementById('pinOverlay').classList.add('hidden');
+    document.getElementById('mainWrap').style.display = '';
+    try{
+      const { data } = await sb.rpc('is_full_access_pin', { p_pin: currentPin });
+      isFullAccess = !!data;
+    }catch(e){ isFullAccess = false; }
+    refreshAll();
+  }
+
+  async function submitPin(){
+    const pin = document.getElementById('pinInput').value.trim();
+    const errEl = document.getElementById('pinError');
+    errEl.textContent = '';
+    if (!pin) return;
+    const submitBtn = document.getElementById('pinSubmitBtn');
+    submitBtn.disabled = true;
+    try{
+      const { data, error } = await sb.rpc('verify_access_pin', {
+        p_pin: pin,
+        p_device_id: getDeviceId()
+      });
+      if (error || !data || !data.success){
+        errEl.textContent = (data && data.error === 'locked') ? 'Terkunci, coba lagi nanti' : 'PIN salah';
+        submitBtn.disabled = false;
+        return;
+      }
+      const label = data.label || '';
+      currentPin = pin;
+      sessionStorage.setItem(SESSION_KEY, label);
+      sessionStorage.setItem(SESSION_PIN_KEY, pin);
+      const ip = await getPublicIp();
+      sb.rpc('log_pin_login', { p_tool: TOOL_NAME, p_label: label, p_ip: ip, p_user_agent: navigator.userAgent }).then(()=>{});
+      unlockApp();
+    }catch(e){
+      errEl.textContent = 'Gagal memverifikasi PIN';
+      submitBtn.disabled = false;
+    }
+  }
+  document.getElementById('pinSubmitBtn').addEventListener('click', submitPin);
+  document.getElementById('pinInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') submitPin(); });
+
+  // ---- helpers ----
+  function escapeHtml(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function fmtNumber(n){
+    const v = Number(n) || 0;
+    return v.toLocaleString('id-ID', { minimumFractionDigits: v % 1 === 0 ? 0 : 2, maximumFractionDigits: 3 });
+  }
+  function todayISO(){
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function fmtDateShort(dateStr){
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    if (isNaN(d)) return '-';
+    return String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear();
+  }
+  function ageInDays(dateStr){
+    if (!dateStr) return null;
+    const d = new Date(dateStr);
+    if (isNaN(d)) return null;
+    const d0 = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const now = new Date();
+    const n0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return Math.round((n0 - d0) / 86400000);
+  }
+  function sanitizeKubikasiValue(v){
+    v = String(v == null ? '' : v).replace(/[^0-9.]/g, '');
+    const firstDot = v.indexOf('.');
+    if (firstDot !== -1){
+      v = v.slice(0, firstDot + 1) + v.slice(firstDot + 1).replace(/\./g, '');
+    }
+    return v;
+  }
+
+  // ---- state ----
+  let invoices = [];        // rows from get_invoices, keyed by id
+  let plItems = [];         // rows from get_packing_list_items
+  let selected = new Set(); // selected invoice ids on Invoice tab (numbers)
+  let currentAreaFilter = null; // null = SEMUA (all areas)
+  let dragSelecting = false;
+  let dragForceValue = true;
+  document.addEventListener('mouseup', () => { dragSelecting = false; plDragSelecting = false; });
+
+  let plSelected = new Set();  // selected packing-list row ids
+  let plDragSelecting = false;
+  let plDragForceValue = true;
+
+  // ---- tabs ----
+  document.querySelectorAll('.tab-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-pill').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  // ---- data load ----
+  async function refreshAll(){
+    document.getElementById('updatedAt').textContent = 'Memuat...';
+    await Promise.all([loadInvoices(), loadPackingList()]);
+    document.getElementById('updatedAt').textContent = 'Terakhir dimuat: ' + new Date().toLocaleString('id-ID');
+  }
+
+  async function loadInvoices(){
+    const CHUNK = 1000;
+    let all = [];
+    let from = 0;
+    for (let guard = 0; guard < 200; guard++){ // safety cap: 200k rows max
+      const { data, error } = await sb.rpc('get_invoices', { p_pin: currentPin }).range(from, from + CHUNK - 1);
+      if (error){ alert('Gagal memuat invoice: ' + error.message); return; }
+      const chunk = data || [];
+      all = all.concat(chunk);
+      if (chunk.length < CHUNK) break;
+      from += CHUNK;
+    }
+    invoices = all;
+    // BDT CASH customers are grouped under a dedicated BDT area regardless of their stored area
+    invoices.forEach(r => {
+      if (String(r.nama_toko || '').toUpperCase().includes('BDT CASH')) r.area = 'BDT';
+    });
+    // drop selections for ids no longer available (e.g. just packed)
+    const idsNow = new Set(invoices.map(r => r.id));
+    [...selected].forEach(id => { if (!idsNow.has(id)) selected.delete(id); });
+    renderAreaFilter();
+    renderInvoiceTable();
+  }
+
+  // ---- Area filter pills ----
+  function renderAreaFilter(){
+    const monthRows = invoices.filter(r => isThisOrLastMonth(r.print_date));
+    const areas = [...new Set(monthRows.map(r => r.area).filter(Boolean))].sort();
+    if (currentAreaFilter && !areas.includes(currentAreaFilter)) currentAreaFilter = null;
+    const wrap = document.getElementById('areaFilter');
+    wrap.innerHTML = '';
+    const counts = {};
+    monthRows.forEach(r => { const a = r.area || ''; counts[a] = (counts[a] || 0) + 1; });
+    const makeBtn = (label, value) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'area-pill' + (currentAreaFilter === value ? ' active' : '');
+      const count = value === null ? monthRows.length : (counts[value] || 0);
+      b.innerHTML = `<span class="area-pill-count">${count}</span><span class="area-pill-label">${escapeHtml(label)}</span>`;
+      b.addEventListener('click', () => {
+        currentAreaFilter = value;
+        currentInvPage = 1;
+        renderAreaFilter();
+        renderInvoiceTable();
+      });
+      wrap.appendChild(b);
+    };
+    makeBtn('SEMUA', null);
+    areas.forEach(a => makeBtn(a, a));
+  }
+
+  async function loadPackingList(){
+    const { data, error } = await sb.rpc('get_packing_list_items', { p_pin: currentPin });
+    if (error){ alert('Gagal memuat packing list: ' + error.message); return; }
+    plItems = data || [];
+    renderPackingListTable();
+  }
+
+  // ---- Invoice tab render ----
+  // only show invoices dated in the current month or the previous month
+  function isThisOrLastMonth(dateStr){
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    if (isNaN(d)) return false;
+    const now = new Date();
+    const cur = now.getFullYear() * 12 + now.getMonth();
+    const dm = d.getFullYear() * 12 + d.getMonth();
+    return (cur - dm) >= 0 && (cur - dm) <= 1;
+  }
+
+  function filteredInvoices(){
+    const term = document.getElementById('invSearch').value.trim().toLowerCase();
+    let rows = invoices.filter(r => isThisOrLastMonth(r.print_date));
+    if (currentAreaFilter) rows = rows.filter(r => (r.area || '') === currentAreaFilter);
+    if (term){
+      rows = rows.filter(r => [r.no_invoice, r.nama_toko, r.area, r.sub_area, r.gudang]
+        .some(f => String(f||'').toLowerCase().includes(term)));
+    }
+    return rows.slice().sort((a, b) => {
+      const subA = String(a.sub_area || '');
+      const subB = String(b.sub_area || '');
+      const numA = parseInt(subA, 10);
+      const numB = parseInt(subB, 10);
+      const hasNumA = !isNaN(numA);
+      const hasNumB = !isNaN(numB);
+      let subCmp;
+      if (hasNumA && hasNumB){
+        subCmp = numA - numB;
+        if (subCmp === 0) subCmp = subA.localeCompare(subB, 'id');
+      } else if (hasNumA !== hasNumB){
+        subCmp = hasNumA ? -1 : 1;
+      } else {
+        subCmp = subA.localeCompare(subB, 'id');
+      }
+      if (subCmp !== 0) return subCmp;
+      return String(a.nama_toko || '').localeCompare(String(b.nama_toko || ''), 'id');
+    });
+  }
+
+  const INV_PAGE_SIZE = 100;
+  let currentInvPage = 1;
+
+  function renderInvoiceTable(){
+    const rows = filteredInvoices();
+    const totalPages = Math.max(1, Math.ceil(rows.length / INV_PAGE_SIZE));
+    if (currentInvPage > totalPages) currentInvPage = totalPages;
+    if (currentInvPage < 1) currentInvPage = 1;
+    const pageRows = rows.slice((currentInvPage - 1) * INV_PAGE_SIZE, currentInvPage * INV_PAGE_SIZE);
+
+    const tbody = document.getElementById('invTbody');
+    tbody.innerHTML = '';
+    pageRows.forEach(r => {
+      const tr = document.createElement('tr');
+      const checked = selected.has(r.id) ? 'checked' : '';
+      if (selected.has(r.id)) tr.classList.add('row-selected');
+      tr.dataset.id = r.id;
+      tr.innerHTML =
+        `<td class="check-td"><input type="checkbox" class="row-check" data-id="${r.id}" ${checked}></td>` +
+        `<td class="select-cell">${escapeHtml(r.no_invoice)}</td>` +
+        `<td>${fmtDateShort(r.print_date)}</td>` +
+        `<td class="num">${ageInDays(r.print_date) ?? '-'}</td>` +
+        `<td class="select-cell">${escapeHtml(r.nama_toko)}</td>` +
+        `<td><input type="text" class="kub-input" inputmode="decimal" data-id="${r.id}" data-field="kubikasi" value="${escapeHtml(r.kubikasi)}"></td>` +
+        `<td class="area-cell" data-id="${r.id}"><span class="cell-flex"><span class="area-text">${escapeHtml(r.area)}</span><button type="button" class="edit-area-btn" data-id="${r.id}" title="Edit Area/Sub-Area">\u270f\ufe0f</button></span></td>` +
+        `<td class="subarea-cell" data-id="${r.id}"><span class="cell-flex"><span class="area-text">${escapeHtml(r.sub_area)}</span></span></td>` +
+        `<td><input type="text" class="txt-input" data-id="${r.id}" data-field="gudang" value="${escapeHtml(r.gudang)}"></td>` +
+        (isFullAccess
+          ? `<td><button type="button" class="btn btn-sm hide-invoice-btn" data-id="${r.id}" data-no="${escapeHtml(r.no_invoice)}">Sembunyikan</button></td>`
+          : `<td style="display:none;"></td>`);
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById('invAksiTh').style.display = isFullAccess ? '' : 'none';
+    document.getElementById('invEmpty').classList.toggle('hidden', rows.length > 0);
+    document.getElementById('invMeta').textContent = rows.length + ' invoice tersedia';
+    document.getElementById('invPageInfo').textContent = 'Halaman ' + currentInvPage + ' / ' + totalPages;
+    document.getElementById('invPrevBtn').disabled = currentInvPage <= 1;
+    document.getElementById('invNextBtn').disabled = currentInvPage >= totalPages;
+
+    function toggleRow(id, force){
+      const tr = tbody.querySelector(`tr[data-id="${id}"]`);
+      const cb = tbody.querySelector(`.row-check[data-id="${id}"]`);
+      const shouldSelect = force !== undefined ? force : !selected.has(id);
+      if (shouldSelect) selected.add(id); else selected.delete(id);
+      if (cb) cb.checked = shouldSelect;
+      if (tr) tr.classList.toggle('row-selected', shouldSelect);
+      updateSumBox();
+    }
+
+    tbody.querySelectorAll('.row-check').forEach(cb => {
+      cb.addEventListener('change', () => toggleRow(Number(cb.dataset.id), cb.checked));
+    });
+    tbody.querySelectorAll('.select-cell').forEach(td => {
+      td.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        const id = Number(td.closest('tr').dataset.id);
+        dragSelecting = true;
+        dragForceValue = !selected.has(id);
+        toggleRow(id, dragForceValue);
+      });
+      td.addEventListener('mouseenter', () => {
+        if (!dragSelecting) return;
+        const id = Number(td.closest('tr').dataset.id);
+        toggleRow(id, dragForceValue);
+      });
+    });
+    tbody.querySelectorAll('.kub-input').forEach(inp => {
+      inp.addEventListener('focus', () => { inp.select(); });
+      inp.addEventListener('click', () => { inp.select(); });
+      inp.addEventListener('input', () => { inp.value = sanitizeKubikasiValue(inp.value); updateSumBox(); });
+      inp.addEventListener('change', () => saveInvoiceField(inp));
+    });
+    tbody.querySelectorAll('.txt-input').forEach(inp => {
+      inp.addEventListener('change', () => saveInvoiceField(inp));
+    });
+    tbody.querySelectorAll('.edit-area-btn').forEach(btn => {
+      btn.addEventListener('click', () => startEditArea(Number(btn.dataset.id)));
+    });
+    tbody.querySelectorAll('.hide-invoice-btn').forEach(btn => {
+      btn.addEventListener('click', () => hideInvoice(Number(btn.dataset.id), btn.dataset.no));
+    });
+
+    updateSumBox();
+    document.getElementById('selectAllInv').checked = pageRows.length > 0 && pageRows.every(r => selected.has(r.id));
+  }
+
+  function startEditArea(id){
+    const row = invoices.find(r => r.id === id);
+    if (!row) return;
+    const tbody = document.getElementById('invTbody');
+    const areaTd = tbody.querySelector(`.area-cell[data-id="${id}"]`);
+    const subTd = tbody.querySelector(`.subarea-cell[data-id="${id}"]`);
+    if (!areaTd || !subTd) return;
+    areaTd.innerHTML = `<span class="cell-flex"><input type="text" class="edit-area-input" value="${escapeHtml(row.area)}"></span>`;
+    subTd.innerHTML =
+      `<span class="cell-flex"><input type="text" class="edit-subarea-input" value="${escapeHtml(row.sub_area)}">` +
+      `<button type="button" class="save-area-btn" title="Simpan">\u2714</button>` +
+      `<button type="button" class="cancel-area-btn" title="Batal">\u2715</button></span>`;
+    subTd.querySelector('.save-area-btn').addEventListener('click', () => saveAreaEdit(id));
+    subTd.querySelector('.cancel-area-btn').addEventListener('click', () => renderInvoiceTable());
+    areaTd.querySelector('input').focus();
+  }
+
+  async function saveAreaEdit(id){
+    const row = invoices.find(r => r.id === id);
+    if (!row) return;
+    const tbody = document.getElementById('invTbody');
+    const areaTd = tbody.querySelector(`.area-cell[data-id="${id}"]`);
+    const subTd = tbody.querySelector(`.subarea-cell[data-id="${id}"]`);
+    const newArea = areaTd.querySelector('input').value.trim();
+    const newSub = subTd.querySelector('input').value.trim();
+    if (!newArea || !newSub){ alert('Area dan Sub-Area tidak boleh kosong'); return; }
+    const { error } = await sb.rpc('upsert_customer_area', {
+      p_pin: currentPin, p_customer: row.nama_toko, p_area: newArea, p_sub_area: newSub
+    });
+    if (error){ alert('Gagal menyimpan Area: ' + error.message); return; }
+    // this customer's area/sub-area is shared across all their invoices — update every matching row
+    invoices.forEach(r => {
+      if (r.nama_toko === row.nama_toko){ r.area = newArea; r.sub_area = newSub; r.area_locked = true; }
+    });
+    renderAreaFilter();
+    renderInvoiceTable();
+  }
+
+  async function hideInvoice(id, noInvoice){
+    if (!isFullAccess) return;
+    if (!confirm('Sembunyikan invoice ' + (noInvoice || id) + '? Invoice ini tidak akan muncul lagi di daftar.')) return;
+    const { error } = await sb.rpc('hide_invoice', { p_pin: currentPin, p_id: id });
+    if (error){ alert('Gagal menyembunyikan invoice: ' + error.message); return; }
+    invoices = invoices.filter(r => r.id !== id);
+    selected.delete(id);
+    renderAreaFilter();
+    renderInvoiceTable();
+  }
+
+  async function hideInvoicesBulk(ids){
+    if (!isFullAccess || !ids.length) return;
+    if (!confirm('Sembunyikan ' + ids.length + ' invoice terpilih? Invoice ini tidak akan muncul lagi di daftar.')) return;
+    const bulkHideBtn = document.getElementById('bulkHideBtn');
+    bulkHideBtn.disabled = true;
+    const results = await Promise.all(ids.map(id =>
+      sb.rpc('hide_invoice', { p_pin: currentPin, p_id: id }).then(({ error }) => ({ id, error }))
+    ));
+    const failed = results.filter(r => r.error);
+    const succeededIds = new Set(results.filter(r => !r.error).map(r => r.id));
+    invoices = invoices.filter(r => !succeededIds.has(r.id));
+    succeededIds.forEach(id => selected.delete(id));
+    if (failed.length) alert('Gagal menyembunyikan ' + failed.length + ' invoice: ' + failed[0].error.message);
+    renderAreaFilter();
+    renderInvoiceTable();
+  }
+  document.getElementById('bulkHideBtn').addEventListener('click', () => {
+    hideInvoicesBulk([...selected]);
+  });
+
+  async function saveInvoiceField(inp){
+    const id = Number(inp.dataset.id);
+    const field = inp.dataset.field;
+    const row = invoices.find(r => r.id === id);
+    if (!row) return;
+
+    let value = inp.value;
+    if (field === 'kubikasi') value = parseFloat(sanitizeKubikasiValue(value)) || 0;
+    row[field] = value;
+
+    const payload = {
+      p_pin: currentPin,
+      p_id: id,
+      p_kubikasi: field === 'kubikasi' ? value : row.kubikasi,
+      p_area: field === 'area' ? value : row.area,
+      p_sub_area: field === 'sub_area' ? value : row.sub_area,
+      p_gudang: field === 'gudang' ? value : row.gudang
+    };
+    const { error } = await sb.rpc('update_invoice_fields', payload);
+    if (error) alert('Gagal menyimpan: ' + error.message);
+    if (field === 'kubikasi') updateSumBox();
+  }
+
+  const MAX_KUBIKASI = 11;
+  function updateSumBox(){
+    const total = invoices
+      .filter(r => selected.has(r.id))
+      .reduce((s, r) => s + (Number(r.kubikasi) || 0), 0);
+    document.getElementById('sumKubikasi').textContent = fmtNumber(total);
+    document.getElementById('generateBtn').disabled = selected.size === 0;
+    document.getElementById('sumBox').classList.toggle('over-limit', total > MAX_KUBIKASI);
+    const bulkHideBtn = document.getElementById('bulkHideBtn');
+    bulkHideBtn.style.display = isFullAccess ? '' : 'none';
+    bulkHideBtn.disabled = selected.size === 0;
+  }
+
+  document.getElementById('selectAllInv').addEventListener('change', (e) => {
+    const rows = filteredInvoices();
+    const pageRows = rows.slice((currentInvPage - 1) * INV_PAGE_SIZE, currentInvPage * INV_PAGE_SIZE);
+    if (e.target.checked) pageRows.forEach(r => selected.add(r.id));
+    else pageRows.forEach(r => selected.delete(r.id));
+    renderInvoiceTable();
+  });
+  document.getElementById('invSearch').addEventListener('input', () => { currentInvPage = 1; renderInvoiceTable(); });
+  document.getElementById('invPrevBtn').addEventListener('click', () => { currentInvPage--; renderInvoiceTable(); });
+  document.getElementById('invNextBtn').addEventListener('click', () => { currentInvPage++; renderInvoiceTable(); });
+  document.getElementById('refreshBtn').addEventListener('click', refreshAll);
+
+  // ---- Packing List tab render (grouped by PL) ----
+  function filteredPlItems(){
+    const term = document.getElementById('plSearch').value.trim().toLowerCase();
+    return term
+      ? plItems.filter(r => [r.no_invoice, r.nama_toko, r.no_pl, r.area]
+          .some(f => String(f||'').toLowerCase().includes(term)))
+      : plItems;
+  }
+
+  // group the flat invoice-level plItems rows into one summary row per no_pl
+  function getPlGroups(){
+    const rows = filteredPlItems();
+    const map = new Map();
+    rows.forEach(r => {
+      if (!map.has(r.no_pl)){
+        map.set(r.no_pl, {
+          no_pl: r.no_pl, tgl: r.tgl, sopir: r.sopir, pl_area: r.pl_area,
+          total_kubikasi: r.total_kubikasi, count: 0
+        });
+      }
+      map.get(r.no_pl).count++;
+    });
+    return [...map.values()].sort((a, b) => String(b.no_pl || '').localeCompare(String(a.no_pl || '')));
+  }
+
+  let activeDetailPl = null; // no_pl currently open in the detail modal
+
+  function renderPackingListTable(){
+    const groups = getPlGroups();
+    const tbody = document.getElementById('plTbody');
+    tbody.innerHTML = '';
+
+    groups.forEach(g => {
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        `<td><b>${escapeHtml(g.no_pl)}</b></td>` +
+        `<td class="num">${fmtNumber(g.total_kubikasi)}</td>` +
+        `<td>${escapeHtml(g.pl_area || '-')}</td>` +
+        `<td>${escapeHtml(g.sopir || '-')}</td>` +
+        `<td>${escapeHtml(g.tgl || '-')}</td>` +
+        `<td class="num">${g.count}</td>` +
+        `<td class="pl-summary-actions">` +
+          `<button type="button" class="btn btn-sm pl-edit-header-btn" data-pl="${escapeHtml(g.no_pl)}">Sopir/Tgl/Area</button>` +
+          `<button type="button" class="btn btn-sm pl-view-detail-btn" data-pl="${escapeHtml(g.no_pl)}">Lihat Invoice</button>` +
+        `</td>`;
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById('plEmpty').classList.toggle('hidden', groups.length > 0);
+    document.getElementById('plMeta').textContent = groups.length + ' packing list';
+
+    tbody.querySelectorAll('.pl-edit-header-btn').forEach(btn => {
+      btn.addEventListener('click', () => openPlEditHeaderModal(btn.dataset.pl));
+    });
+    tbody.querySelectorAll('.pl-view-detail-btn').forEach(btn => {
+      btn.addEventListener('click', () => openPlDetailModal(btn.dataset.pl));
+    });
+
+    // if the detail modal is open, refresh its contents too (e.g. after a header edit or status change)
+    if (activeDetailPl && !document.getElementById('plDetailOverlay').classList.contains('hidden')){
+      renderPlDetailTable(activeDetailPl);
+    }
+  }
+  document.getElementById('plSearch').addEventListener('input', renderPackingListTable);
+
+  // ---- Sopir / Tgl Antar / Area edit modal ----
+  function openPlEditHeaderModal(noPl){
+    const g = getPlGroups().find(x => x.no_pl === noPl);
+    document.getElementById('plEditHeaderSub').textContent = noPl;
+    document.getElementById('plEditHeaderMsg').textContent = '';
+    document.getElementById('plEditTgl').value = g && g.tgl ? g.tgl : '';
+    document.getElementById('plEditSopir').value = g && g.sopir ? g.sopir : '';
+    document.getElementById('plEditArea').value = g && g.pl_area ? g.pl_area : '';
+    document.getElementById('plEditHeaderSaveBtn').dataset.pl = noPl;
+    document.getElementById('plEditHeaderOverlay').classList.remove('hidden');
+  }
+  document.getElementById('plEditHeaderCancelBtn').addEventListener('click', () => {
+    document.getElementById('plEditHeaderOverlay').classList.add('hidden');
+  });
+  document.getElementById('plEditHeaderSaveBtn').addEventListener('click', async function(){
+    const noPl = this.dataset.pl;
+    const tgl = document.getElementById('plEditTgl').value;
+    const sopir = document.getElementById('plEditSopir').value.trim();
+    const area = document.getElementById('plEditArea').value.trim();
+    const msgEl = document.getElementById('plEditHeaderMsg');
+    if (!tgl){ msgEl.textContent = 'Tgl wajib diisi.'; msgEl.className = 'automsg error'; return; }
+    this.disabled = true;
+    const { error } = await sb.rpc('update_packing_list_header', {
+      p_pin: currentPin, p_no_pl: noPl, p_sopir: sopir, p_tgl: tgl, p_area: area
+    });
+    this.disabled = false;
+    if (error){ msgEl.textContent = 'Gagal menyimpan: ' + error.message; msgEl.className = 'automsg error'; return; }
+    plItems.forEach(r => { if (r.no_pl === noPl){ r.sopir = sopir; r.tgl = tgl; r.pl_area = area; } });
+    document.getElementById('plEditHeaderOverlay').classList.add('hidden');
+    renderPackingListTable();
+  });
+
+  // ---- PL detail modal (invoices inside one packing list) ----
+  function openPlDetailModal(noPl){
+    activeDetailPl = noPl;
+    document.getElementById('plDetailTitle').textContent = 'Isi Packing List: ' + noPl;
+    renderPlDetailTable(noPl);
+    document.getElementById('plDetailOverlay').classList.remove('hidden');
+  }
+  document.getElementById('plDetailCloseBtn').addEventListener('click', () => {
+    document.getElementById('plDetailOverlay').classList.add('hidden');
+    activeDetailPl = null;
+    plSelected.clear();
+  });
+
+  function updatePlDetailBulkBar(){
+    const bar = document.getElementById('plDetailBulkBar');
+    const count = plSelected.size;
+    document.getElementById('plDetailSelectedCount').textContent = count;
+    bar.classList.toggle('idle', count === 0);
+    document.getElementById('plDetailBulkStatus').disabled = count === 0;
+    document.getElementById('plDetailBulkApplyBtn').disabled = count === 0;
+    document.getElementById('plDetailBulkClearBtn').disabled = count === 0;
+  }
+
+  let coretanResolve = null;
+  function askCoretanReason(subText){
+    document.getElementById('coretanSub').textContent = subText;
+    document.getElementById('coretanMsg').textContent = '';
+    document.querySelectorAll('input[name="coretanReason"]').forEach(r => r.checked = false);
+    document.getElementById('coretanOverlay').classList.remove('hidden');
+    return new Promise(resolve => { coretanResolve = resolve; });
+  }
+  document.getElementById('coretanCancelBtn').addEventListener('click', () => {
+    document.getElementById('coretanOverlay').classList.add('hidden');
+    if (coretanResolve) coretanResolve(null);
+    coretanResolve = null;
+  });
+  document.getElementById('coretanConfirmBtn').addEventListener('click', () => {
+    const chosen = document.querySelector('input[name="coretanReason"]:checked');
+    if (!chosen){
+      const msgEl = document.getElementById('coretanMsg');
+      msgEl.textContent = 'Pilih alasan terlebih dahulu.';
+      msgEl.className = 'automsg error';
+      return;
+    }
+    document.getElementById('coretanOverlay').classList.add('hidden');
+    if (coretanResolve) coretanResolve(chosen.value);
+    coretanResolve = null;
+  });
+
+  async function applyPackingListStatus(ids, newStatus, reason){
+    const results = await Promise.all(ids.map(id =>
+      sb.rpc('update_packing_list_status', { p_pin: currentPin, p_id: id, p_status: newStatus, p_reason: reason || null })
+    ));
+    const failed = results.filter(r => r.error);
+    await Promise.all([loadInvoices(), loadPackingList()]);
+    if (failed.length){
+      alert('Gagal mengubah status untuk ' + failed.length + ' baris: ' + failed[0].error.message);
+      return false;
+    }
+    if (newStatus === 'REKAP ULANG'){
+      alert('Invoice dikembalikan ke tab INVOICE dan bisa dipilih lagi.');
+    }
+    return true;
+  }
+
+  function renderPlDetailTable(noPl){
+    const rows = plItems.filter(r => r.no_pl === noPl);
+
+    // drop selections for ids no longer in this PL (e.g. REKAP ULANG removed them)
+    const idsNow = new Set(rows.map(r => r.id));
+    [...plSelected].forEach(id => { if (!idsNow.has(id)) plSelected.delete(id); });
+
+    const g = rows[0];
+    document.getElementById('plDetailSub').textContent = g
+      ? `Tgl ${g.tgl || '-'} \u00b7 Sopir ${g.sopir || '-'} \u00b7 Area ${g.pl_area || '-'} \u00b7 Total Kubikasi ${fmtNumber(g.total_kubikasi)}`
+      : '-';
+
+    const tbody = document.getElementById('plDetailTbody');
+    tbody.innerHTML = '';
+
+    rows.forEach(r => {
+      const tr = document.createElement('tr');
+      tr.dataset.id = r.id;
+      if (plSelected.has(r.id)) tr.classList.add('row-selected');
+      if (r.status === 'REKAP ULANG') tr.classList.add('pl-rekap');
+      const checked = plSelected.has(r.id) ? 'checked' : '';
+      const stClassMap = { FULL: 'st-FULL', BATAL: 'st-BATAL', CORETAN: 'st-CORETAN' };
+      const stClass = stClassMap[r.status] || 'st-REKAP';
+      const reasonTag = (r.status === 'CORETAN' && r.coretan_reason)
+        ? `<span class="reason-tag">${escapeHtml(r.coretan_reason)}</span>` : '';
+      tr.innerHTML =
+        `<td class="check-td"><input type="checkbox" class="pl-row-check" data-id="${r.id}" ${checked}></td>` +
+        `<td class="pl-select-cell">${escapeHtml(r.no_invoice)}</td>` +
+        `<td class="pl-select-cell">${escapeHtml(r.nama_toko)}</td>` +
+        `<td class="num">${fmtNumber(r.kubikasi)}</td>` +
+        `<td>${escapeHtml(r.area)}</td>` +
+        `<td>${escapeHtml(r.sub_area)}</td>` +
+        `<td>${escapeHtml(r.gudang)}</td>` +
+        `<td><select class="status-select ${stClass}" data-id="${r.id}" data-prev="${escapeHtml(r.status)}">` +
+          `<option value="FULL" ${r.status==='FULL'?'selected':''}>FULL</option>` +
+          `<option value="CORETAN" ${r.status==='CORETAN'?'selected':''}>CORETAN</option>` +
+          `<option value="REKAP ULANG" ${r.status==='REKAP ULANG'?'selected':''}>REKAP ULANG</option>` +
+          `<option value="BATAL" ${r.status==='BATAL'?'selected':''}>BATAL</option>` +
+        `</select>${reasonTag}</td>`;
+      tbody.appendChild(tr);
+    });
+
+    updatePlDetailBulkBar();
+
+    function togglePlRow(id, force){
+      const tr = tbody.querySelector(`tr[data-id="${id}"]`);
+      const cb = tbody.querySelector(`.pl-row-check[data-id="${id}"]`);
+      const shouldSelect = force !== undefined ? force : !plSelected.has(id);
+      if (shouldSelect) plSelected.add(id); else plSelected.delete(id);
+      if (cb) cb.checked = shouldSelect;
+      if (tr) tr.classList.toggle('row-selected', shouldSelect);
+      updatePlDetailBulkBar();
+    }
+
+    tbody.querySelectorAll('.pl-row-check').forEach(cb => {
+      cb.addEventListener('change', () => togglePlRow(Number(cb.dataset.id), cb.checked));
+    });
+    tbody.querySelectorAll('.pl-select-cell').forEach(td => {
+      td.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        const id = Number(td.closest('tr').dataset.id);
+        plDragSelecting = true;
+        plDragForceValue = !plSelected.has(id);
+        togglePlRow(id, plDragForceValue);
+      });
+      td.addEventListener('mouseenter', () => {
+        if (!plDragSelecting) return;
+        const id = Number(td.closest('tr').dataset.id);
+        togglePlRow(id, plDragForceValue);
+      });
+    });
+
+    tbody.querySelectorAll('.status-select').forEach(sel => {
+      sel.addEventListener('change', async () => {
+        const id = Number(sel.dataset.id);
+        const newStatus = sel.value;
+        let reason = null;
+        if (newStatus === 'CORETAN'){
+          const row = plItems.find(r => r.id === id);
+          reason = await askCoretanReason('Invoice ' + (row ? row.no_invoice : ''));
+          if (!reason){ sel.value = sel.dataset.prev; return; }
+        }
+        sel.disabled = true;
+        const ok = await applyPackingListStatus([id], newStatus, reason);
+        sel.disabled = false;
+        if (!ok) renderPlDetailTable(noPl);
+      });
+    });
+  }
+
+  document.getElementById('selectAllPlDetail').addEventListener('change', (e) => {
+    if (!activeDetailPl) return;
+    const rows = plItems.filter(r => r.no_pl === activeDetailPl);
+    if (e.target.checked) rows.forEach(r => plSelected.add(r.id));
+    else rows.forEach(r => plSelected.delete(r.id));
+    renderPlDetailTable(activeDetailPl);
+  });
+  document.getElementById('plDetailBulkClearBtn').addEventListener('click', () => {
+    plSelected.clear();
+    if (activeDetailPl) renderPlDetailTable(activeDetailPl);
+  });
+  document.getElementById('plDetailBulkApplyBtn').addEventListener('click', async () => {
+    const statusSel = document.getElementById('plDetailBulkStatus');
+    const newStatus = statusSel.value;
+    if (!newStatus || plSelected.size === 0 || !activeDetailPl) return;
+    const ids = [...plSelected];
+    let reason = null;
+    if (newStatus === 'CORETAN'){
+      reason = await askCoretanReason(ids.length + ' invoice dipilih');
+      if (!reason) return;
+    } else if (!confirm('Ubah status ' + ids.length + ' invoice menjadi ' + newStatus + '?')){
+      return;
+    }
+    const applyBtn = document.getElementById('plDetailBulkApplyBtn');
+    applyBtn.disabled = true;
+    const ok = await applyPackingListStatus(ids, newStatus, reason);
+    applyBtn.disabled = false;
+    statusSel.value = '';
+    if (ok){ plSelected.clear(); if (activeDetailPl) renderPlDetailTable(activeDetailPl); }
+  });
+
+  // ---- Generate packing list + PDF ----
+  const genOverlay = document.getElementById('genOverlay');
+  document.getElementById('generateBtn').addEventListener('click', () => {
+    if (selected.size === 0) return;
+    const rows = invoices.filter(r => selected.has(r.id));
+    const total = rows.reduce((s, r) => s + (Number(r.kubikasi) || 0), 0);
+    const areas = [...new Set(rows.map(r => r.area).filter(Boolean))];
+
+    document.getElementById('genSub').textContent = rows.length + ' invoice dipilih';
+    document.getElementById('genTgl').value = todayISO();
+    document.getElementById('genSopir').value = '';
+    document.getElementById('genArea').value = areas.length === 1 ? areas[0] : '';
+    document.getElementById('genTotal').value = fmtNumber(total);
+    document.getElementById('genMsg').textContent = '';
+    document.getElementById('genMsg').className = 'automsg';
+    genOverlay.classList.remove('hidden');
+  });
+  document.getElementById('genCancelBtn').addEventListener('click', () => genOverlay.classList.add('hidden'));
+  genOverlay.addEventListener('click', (e) => { if (e.target === genOverlay) genOverlay.classList.add('hidden'); });
+
+  document.getElementById('genConfirmBtn').addEventListener('click', async () => {
+    const tgl = document.getElementById('genTgl').value;
+    const sopir = document.getElementById('genSopir').value.trim();
+    const area = document.getElementById('genArea').value.trim();
+    const msgEl = document.getElementById('genMsg');
+
+    if (!tgl){ msgEl.textContent = 'Tgl wajib diisi.'; msgEl.className = 'automsg error'; return; }
+
+    const selectedRows = invoices.filter(r => selected.has(r.id));
+    if (!selectedRows.length){ msgEl.textContent = 'Tidak ada invoice dipilih.'; msgEl.className = 'automsg error'; return; }
+    const total = selectedRows.reduce((s, r) => s + (Number(r.kubikasi) || 0), 0);
+
+    msgEl.textContent = 'Membuat packing list...'; msgEl.className = 'automsg';
+    const confirmBtn = document.getElementById('genConfirmBtn');
+    confirmBtn.disabled = true;
+    try{
+      const { data: noPl, error } = await sb.rpc('generate_packing_list', {
+        p_pin: currentPin,
+        p_ids: selectedRows.map(r => r.id),
+        p_tgl: tgl, p_sopir: sopir, p_area: area
+      });
+      if (error) throw error;
+
+      buildPackingListPdf(noPl, selectedRows, { tgl, sopir, area, total });
+
+      genOverlay.classList.add('hidden');
+      selected.clear();
+      await Promise.all([loadInvoices(), loadPackingList()]);
+    }catch(err){
+      msgEl.textContent = 'Gagal: ' + (err && err.message ? err.message : String(err));
+      msgEl.className = 'automsg error';
+    }finally{
+      confirmBtn.disabled = false;
+    }
+  });
+
+  function buildPackingListPdf(noPl, rows, header){
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+
+    doc.setFontSize(14);
+    doc.text('PACKING LIST', 40, 36);
+    doc.setFontSize(10);
+    doc.text('No PL: ' + noPl, 40, 52);
+
+    const infoY = 70;
+    doc.text('TGL: ' + (header.tgl || '-'), 40, infoY);
+    doc.text('SOPIR: ' + (header.sopir || '-'), 200, infoY);
+    doc.text('AREA: ' + (header.area || '-'), 400, infoY);
+    doc.text('TOTAL KUBIKASI: ' + fmtNumber(header.total), 560, infoY);
+
+    // sort ascending by Gudang (A, B, ...) and insert a blank separator row
+    // between groups; "No" numbering stays continuous across the whole list
+    const sorted = [...rows].sort((a, b) => {
+      const g = String(a.gudang || '').localeCompare(String(b.gudang || ''));
+      if (g !== 0) return g;
+      return String(a.nama_toko || '').localeCompare(String(b.nama_toko || ''), 'id');
+    });
+    const COLS = 9; // No, No Invoice, Nama Toko, Kubikasi, Gudang, KPL GDG, ADM, SPV, KET
+    const body = [];
+    let lastGudang = null;
+    let no = 0;
+    sorted.forEach(r => {
+      if (lastGudang !== null && (r.gudang || '') !== lastGudang){
+        body.push(new Array(COLS).fill(''));
+      }
+      lastGudang = r.gudang || '';
+      no += 1;
+      body.push([
+        String(no),
+        r.no_invoice || '',
+        r.nama_toko || '',
+        fmtNumber(r.kubikasi),
+        r.gudang || '',
+        '', '', '', ''
+      ]);
+    });
+
+    doc.autoTable({
+      startY: infoY + 14,
+      head: [['No','No Invoice','Nama Toko','Kubikasi','Gudang','KPL GDG','ADM','SPV','KET']],
+      body: body,
+      styles: { fontSize: 8, cellPadding: 4 },
+      headStyles: { fillColor: [20, 26, 34] },
+      theme: 'grid'
+    });
+
+    doc.save(noPl + '.pdf');
+  }
+
+  // ---- restore session ----
+  const cachedLabel = sessionStorage.getItem(SESSION_KEY);
+  const cachedPin = sessionStorage.getItem(SESSION_PIN_KEY);
+  if (cachedLabel !== null && cachedPin !== null){
+    currentPin = cachedPin;
+    unlockApp();
+  }
+</script>
+</body>
+</html>
