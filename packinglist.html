@@ -48,6 +48,7 @@
   .area-pill-count{font-size:13px;font-weight:700;}
   .area-pill-label{font-size:11px;font-weight:600;}
   .area-filter-gap{width:28px;}
+  .area-filter-gap-lunas{width:84px;}
 
   .toolrow{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px;}
   .toolrow-right{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
@@ -83,6 +84,9 @@
   .status-select.st-REKAP{border-color:#f0b93d;color:#f0b93d;}
   .status-select.st-BATAL{border-color:var(--red);color:var(--red);}
   .status-select.st-CORETAN{border-color:#b28dff;color:#b28dff;}
+  .kascol-badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:.03em;}
+  .kascol-badge.kascol-kas{background:rgba(91,155,213,.18);color:var(--blue);border:1px solid var(--blue);}
+  .kascol-badge.kascol-col{background:rgba(224,99,122,.18);color:var(--red);border:1px solid var(--red);}
   .empty{padding:50px 20px;text-align:center;color:var(--muted);}
   .hidden{display:none !important;}
   .pl-group-row td{background:#101820;color:var(--muted);font-size:11.5px;padding:8px;border-bottom:1px solid var(--border);}
@@ -195,6 +199,7 @@
               <th>Sub-Area</th>
               <th>Gudang</th>
               <th id="invAksiTh" style="display:none;">Aksi</th>
+              <th>KAS/Col</th>
             </tr>
           </thead>
           <tbody id="invTbody"></tbody>
@@ -383,6 +388,34 @@
   </div>
 </div>
 
+<!-- LUNAS modal: invoices whose KAS/Col is not blank -->
+<div class="modal-overlay hidden" id="lunasOverlay">
+  <div class="modal-box modal-box-wide">
+    <h3>LUNAS (KAS/Col)</h3>
+    <div class="modal-sub" id="lunasSub">—</div>
+    <div class="tablewrap">
+      <div class="tablescroll">
+        <table>
+          <thead>
+            <tr>
+              <th>No Invoice</th>
+              <th>Nama Toko</th>
+              <th>Area</th>
+              <th>Gudang</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="lunasTbody"></tbody>
+        </table>
+      </div>
+      <div class="empty hidden" id="lunasEmpty">Tidak ada invoice dengan status KAS/Col.</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="lunasCloseBtn" type="button">Tutup</button>
+    </div>
+  </div>
+</div>
+
 <script>
   // ---- Supabase (same project as RekeningView / finance suite) ----
   const SUPABASE_URL = 'https://swxgkuaoctrcfbgncwaz.supabase.co';
@@ -526,6 +559,9 @@
   let plDragSelecting = false;
   let plDragForceValue = true;
 
+  let kasFakturSet = new Set();   // no_faktur values present in kas_kecil (normalized upper/trim)
+  let colInvoiceSet = new Set();  // invoice_no values present in invoice_payments (normalized upper/trim)
+
   // ---- tabs ----
   document.querySelectorAll('.tab-pill').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -539,9 +575,87 @@
   // ---- data load ----
   async function refreshAll(){
     document.getElementById('updatedAt').textContent = 'Memuat...';
-    await Promise.all([loadInvoices(), loadPackingList(), loadTrackingItems()]);
+    await Promise.all([loadInvoices(), loadPackingList(), loadTrackingItems(), loadKasColStatus()]);
+    renderInvoiceTable();
     document.getElementById('updatedAt').textContent = 'Terakhir dimuat: ' + new Date().toLocaleString('id-ID');
   }
+
+  // ---- KAS/Col status (kas_kecil.no_faktur / invoice_payments.invoice_no) ----
+  async function loadKasColStatus(){
+    const CHUNK = 1000;
+    try{
+      const kasRows = [];
+      let from = 0;
+      for (let guard = 0; guard < 200; guard++){ // safety cap: 200k rows max
+        const { data, error } = await sb.rpc('get_kas_kecil_faktur_list').range(from, from + CHUNK - 1);
+        if (error) throw error;
+        const chunk = data || [];
+        kasRows.push(...chunk);
+        if (chunk.length < CHUNK) break;
+        from += CHUNK;
+      }
+      const colRows = [];
+      from = 0;
+      for (let guard = 0; guard < 200; guard++){
+        const { data, error } = await sb.rpc('get_invoice_payment_no_list').range(from, from + CHUNK - 1);
+        if (error) throw error;
+        const chunk = data || [];
+        colRows.push(...chunk);
+        if (chunk.length < CHUNK) break;
+        from += CHUNK;
+      }
+      kasFakturSet = new Set(kasRows.map(r => String(r.no_faktur || '').trim().toUpperCase()).filter(Boolean));
+      colInvoiceSet = new Set(colRows.map(r => String(r.invoice_no || '').trim().toUpperCase()).filter(Boolean));
+    }catch(e){
+      console.error('Gagal memuat status KAS/Col:', e);
+    }
+  }
+
+  function getKasColStatus(noInvoice){
+    const key = String(noInvoice || '').trim().toUpperCase();
+    if (!key) return '';
+    if (kasFakturSet.has(key)) return 'KAS';
+    if (colInvoiceSet.has(key)) return 'COL';
+    return '';
+  }
+
+  function renderKasColBadge(status){
+    if (!status) return '';
+    const cls = status === 'COL' ? 'kascol-badge kascol-col' : 'kascol-badge kascol-kas';
+    return `<span class="${cls}">${status}</span>`;
+  }
+
+  // ---- LUNAS modal ----
+  function renderLunasModal(){
+    const rows = invoices.filter(r => getKasColStatus(r.no_invoice) !== '');
+    const tbody = document.getElementById('lunasTbody');
+    tbody.innerHTML = '';
+    rows.forEach(r => {
+      const status = getKasColStatus(r.no_invoice);
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        `<td>${escapeHtml(r.no_invoice)}</td>` +
+        `<td>${escapeHtml(r.nama_toko)}</td>` +
+        `<td>${escapeHtml(r.area)}</td>` +
+        `<td>${escapeHtml(r.gudang)}</td>` +
+        `<td>${renderKasColBadge(status)}</td>`;
+      tbody.appendChild(tr);
+    });
+    document.getElementById('lunasEmpty').classList.toggle('hidden', rows.length > 0);
+    document.getElementById('lunasSub').textContent = rows.length + ' invoice';
+  }
+
+  function openLunasModal(){
+    renderLunasModal();
+    document.getElementById('lunasOverlay').classList.remove('hidden');
+  }
+
+  document.getElementById('lunasCloseBtn').addEventListener('click', () => {
+    document.getElementById('lunasOverlay').classList.add('hidden');
+  });
+  document.getElementById('lunasOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'lunasOverlay') document.getElementById('lunasOverlay').classList.add('hidden');
+  });
 
   async function loadInvoices(){
     const CHUNK = 1000;
@@ -606,6 +720,17 @@
     PRIORITY_2.forEach(a => makeBtn(a, a));
     const pinned = new Set([...PRIORITY_1, ...PRIORITY_2]);
     areas.filter(a => !pinned.has(a)).forEach(a => makeBtn(a, a));
+
+    const lunasGap = document.createElement('div');
+    lunasGap.className = 'area-filter-gap area-filter-gap-lunas';
+    wrap.appendChild(lunasGap);
+    const lunasBtn = document.createElement('button');
+    lunasBtn.type = 'button';
+    lunasBtn.className = 'btn';
+    lunasBtn.id = 'lunasBtn';
+    lunasBtn.textContent = 'LUNAS';
+    lunasBtn.addEventListener('click', openLunasModal);
+    wrap.appendChild(lunasBtn);
   }
 
   async function loadPackingList(){
@@ -685,7 +810,8 @@
         `<td class="select-cell"><input type="text" class="txt-input" data-id="${r.id}" data-field="gudang" value="${escapeHtml(r.gudang)}"></td>` +
         (isFullAccess
           ? `<td><button type="button" class="btn btn-sm hide-invoice-btn" data-id="${r.id}" data-no="${escapeHtml(r.no_invoice)}">Sembunyikan</button></td>`
-          : `<td style="display:none;"></td>`);
+          : `<td style="display:none;"></td>`) +
+        `<td>${renderKasColBadge(getKasColStatus(r.no_invoice))}</td>`;
       tbody.appendChild(tr);
     });
 
@@ -1020,7 +1146,7 @@
     const g = getPlGroups().find(x => x.no_pl === noPl);
     document.getElementById('plEditHeaderSub').textContent = noPl;
     document.getElementById('plEditHeaderMsg').textContent = '';
-    document.getElementById('plEditTgl').value = g && g.tgl ? g.tgl : '';
+    document.getElementById('plEditTgl').value = g && g.tgl_antar ? g.tgl_antar : '';
     document.getElementById('plEditSopir').value = g && g.sopir ? g.sopir : '';
     document.getElementById('plEditArea').value = g && g.pl_area ? g.pl_area : '';
     document.getElementById('plEditHeaderSaveBtn').dataset.pl = noPl;
@@ -1042,7 +1168,7 @@
     });
     this.disabled = false;
     if (error){ msgEl.textContent = 'Gagal menyimpan: ' + error.message; msgEl.className = 'automsg error'; return; }
-    plItems.forEach(r => { if (r.no_pl === noPl){ r.sopir = sopir; r.tgl = tgl; r.pl_area = area; } });
+    plItems.forEach(r => { if (r.no_pl === noPl){ r.sopir = sopir; r.tgl_antar = tgl; r.pl_area = area; } });
     document.getElementById('plEditHeaderOverlay').classList.add('hidden');
     renderPackingListTable();
   });
