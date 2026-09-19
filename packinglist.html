@@ -78,6 +78,10 @@
   .save-area-btn:hover{color:var(--teal);}
   .cancel-area-btn:hover{color:var(--red);}
   .edit-area-input,.edit-subarea-input{width:100px;background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:6px;font-size:12.5px;}
+  .toko-cell .cell-flex{display:flex;align-items:center;gap:6px;}
+  .edit-toko-btn{background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 4px;line-height:1;}
+  .edit-toko-btn:hover{color:var(--teal);}
+  .edit-toko-input{width:160px;background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:6px;font-size:12.5px;}
   .kub-input:focus, .txt-input:focus{outline:2px solid var(--blue);outline-offset:1px;}
   .status-select{background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:6px;font-size:12.5px;}
   .status-select.st-FULL{border-color:var(--green);color:var(--green);}
@@ -561,6 +565,21 @@
 
   let kasFakturSet = new Set();   // no_faktur values present in kas_kecil (normalized upper/trim)
   let colInvoiceSet = new Set();  // invoice_no values present in invoice_payments (normalized upper/trim)
+  let invoiceLabels = {};         // no_invoice (exact) -> extra label for this single row, e.g. "ANUGRAH"
+
+  function isBdtCash(namaToko){
+    return String(namaToko || '').toUpperCase().includes('BDT CASH');
+  }
+  function displayToko(namaToko, noInvoice){
+    const label = invoiceLabels[noInvoice];
+    return label ? namaToko + ' - ' + label : namaToko;
+  }
+  async function loadInvoiceLabels(){
+    const { data, error } = await sb.rpc('get_invoice_toko_labels');
+    if (error){ console.error('Gagal memuat label toko:', error.message); return; }
+    invoiceLabels = {};
+    (data || []).forEach(r => { if (r.label) invoiceLabels[r.no_invoice] = r.label; });
+  }
 
   // ---- tabs ----
   document.querySelectorAll('.tab-pill').forEach(btn => {
@@ -575,7 +594,7 @@
   // ---- data load ----
   async function refreshAll(){
     document.getElementById('updatedAt').textContent = 'Memuat...';
-    await Promise.all([loadInvoices(), loadPackingList(), loadTrackingItems(), loadKasColStatus()]);
+    await Promise.all([loadInvoices(), loadPackingList(), loadTrackingItems(), loadKasColStatus(), loadInvoiceLabels()]);
     renderInvoiceTable();
     document.getElementById('updatedAt').textContent = 'Terakhir dimuat: ' + new Date().toLocaleString('id-ID');
   }
@@ -635,7 +654,7 @@
       const tr = document.createElement('tr');
       tr.innerHTML =
         `<td>${escapeHtml(r.no_invoice)}</td>` +
-        `<td>${escapeHtml(r.nama_toko)}</td>` +
+        `<td>${escapeHtml(displayToko(r.nama_toko, r.no_invoice))}</td>` +
         `<td>${escapeHtml(r.area)}</td>` +
         `<td>${escapeHtml(r.gudang)}</td>` +
         `<td>${renderKasColBadge(status)}</td>`;
@@ -803,7 +822,7 @@
         `<td>${escapeHtml(r.no_invoice)}</td>` +
         `<td class="select-cell">${fmtDateShort(r.print_date)}</td>` +
         `<td class="num select-cell">${ageInDays(r.print_date) ?? '-'}</td>` +
-        `<td>${escapeHtml(r.nama_toko)}</td>` +
+        `<td class="toko-cell" data-id="${r.id}"><span class="cell-flex"><span class="toko-text">${escapeHtml(displayToko(r.nama_toko, r.no_invoice))}</span>${isBdtCash(r.nama_toko) ? `<button type="button" class="edit-toko-btn" data-id="${r.id}" title="Tambah Nama Toko">\u270f\ufe0f</button>` : ''}</span></td>` +
         `<td class="select-cell"><input type="text" class="kub-input" inputmode="decimal" data-id="${r.id}" data-field="kubikasi" value="${escapeHtml(r.kubikasi)}"></td>` +
         `<td class="area-cell select-cell" data-id="${r.id}"><span class="cell-flex"><span class="area-text">${escapeHtml(r.area)}</span><button type="button" class="edit-area-btn" data-id="${r.id}" title="Edit Area/Sub-Area">\u270f\ufe0f</button></span></td>` +
         `<td class="subarea-cell select-cell" data-id="${r.id}"><span class="cell-flex"><span class="area-text">${escapeHtml(r.sub_area)}</span></span></td>` +
@@ -862,6 +881,9 @@
     tbody.querySelectorAll('.edit-area-btn').forEach(btn => {
       btn.addEventListener('click', () => startEditArea(Number(btn.dataset.id)));
     });
+    tbody.querySelectorAll('.edit-toko-btn').forEach(btn => {
+      btn.addEventListener('click', () => startEditToko(Number(btn.dataset.id)));
+    });
     tbody.querySelectorAll('.hide-invoice-btn').forEach(btn => {
       btn.addEventListener('click', () => hideInvoice(Number(btn.dataset.id), btn.dataset.no));
     });
@@ -905,6 +927,36 @@
       if (r.nama_toko === row.nama_toko){ r.area = newArea; r.sub_area = newSub; r.area_locked = true; }
     });
     renderAreaFilter();
+    renderInvoiceTable();
+  }
+
+  function startEditToko(id){
+    const row = invoices.find(r => r.id === id);
+    if (!row) return;
+    const tbody = document.getElementById('invTbody');
+    const tokoTd = tbody.querySelector(`.toko-cell[data-id="${id}"]`);
+    if (!tokoTd) return;
+    const currentLabel = invoiceLabels[row.no_invoice] || '';
+    tokoTd.innerHTML =
+      `<span class="cell-flex"><input type="text" class="edit-toko-input" placeholder="Nama toko tambahan" value="${escapeHtml(currentLabel)}">` +
+      `<button type="button" class="save-area-btn" title="Simpan">\u2714</button>` +
+      `<button type="button" class="cancel-area-btn" title="Batal">\u2715</button></span>`;
+    tokoTd.querySelector('.save-area-btn').addEventListener('click', () => saveTokoEdit(id));
+    tokoTd.querySelector('.cancel-area-btn').addEventListener('click', () => renderInvoiceTable());
+    tokoTd.querySelector('input').focus();
+  }
+
+  async function saveTokoEdit(id){
+    const row = invoices.find(r => r.id === id);
+    if (!row) return;
+    const tbody = document.getElementById('invTbody');
+    const tokoTd = tbody.querySelector(`.toko-cell[data-id="${id}"]`);
+    const newLabel = tokoTd.querySelector('input').value.trim();
+    const { error } = await sb.rpc('upsert_invoice_toko_label', {
+      p_pin: currentPin, p_no_invoice: row.no_invoice, p_label: newLabel
+    });
+    if (error){ alert('Gagal menyimpan Nama Toko: ' + error.message); return; }
+    if (newLabel) invoiceLabels[row.no_invoice] = newLabel; else delete invoiceLabels[row.no_invoice];
     renderInvoiceTable();
   }
 
@@ -1030,6 +1082,7 @@
         `<td class="num">${g.count}</td>` +
         `<td>${g.tgl_antar ? fmtDateShort(g.tgl_antar) : '-'}</td>` +
         `<td class="pl-summary-actions">` +
+          `<button type="button" class="btn btn-sm pl-reprint-btn" data-pl="${escapeHtml(g.no_pl)}">Cetak Ulang</button>` +
           (canEditPlHeader() ? `<button type="button" class="btn btn-sm pl-edit-header-btn" data-pl="${escapeHtml(g.no_pl)}">Sopir/Tgl/Area</button>` : '') +
           `<button type="button" class="btn btn-sm pl-view-detail-btn" data-pl="${escapeHtml(g.no_pl)}">Lihat Invoice</button>` +
         `</td>`;
@@ -1039,12 +1092,24 @@
     document.getElementById('plEmpty').classList.toggle('hidden', groups.length > 0);
     document.getElementById('plMeta').textContent = groups.length + ' packing list';
 
+    tbody.querySelectorAll('.pl-reprint-btn').forEach(btn => {
+      btn.addEventListener('click', () => reprintPackingList(btn.dataset.pl));
+    });
     tbody.querySelectorAll('.pl-edit-header-btn').forEach(btn => {
       btn.addEventListener('click', () => openPlEditHeaderModal(btn.dataset.pl));
     });
     tbody.querySelectorAll('.pl-view-detail-btn').forEach(btn => {
       btn.addEventListener('click', () => openPlDetailModal(btn.dataset.pl));
     });
+
+    function reprintPackingList(noPl){
+      const rows = plItems.filter(r => r.no_pl === noPl);
+      if (!rows.length) return;
+      const g = rows[0];
+      buildPackingListPdf(noPl, rows, {
+        tgl: g.tgl, sopir: g.sopir, area: g.pl_area, total: g.total_kubikasi
+      });
+    }
 
     // if the detail modal is open, refresh its contents too (e.g. after a header edit or status change)
     if (activeDetailPl && !document.getElementById('plDetailOverlay').classList.contains('hidden')){
@@ -1092,7 +1157,7 @@
         const tr = document.createElement('tr');
         tr.innerHTML =
           `<td>${escapeHtml(r.no_invoice)}</td>` +
-          `<td>${escapeHtml(r.nama_toko)}</td>` +
+          `<td>${escapeHtml(displayToko(r.nama_toko, r.no_invoice))}</td>` +
           `<td class="num">${fmtNumber(r.kubikasi)}</td>` +
           `<td>${escapeHtml(r.branch)}</td>` +
           `<td>${escapeHtml(r.status)}</td>` +
@@ -1272,7 +1337,7 @@
       tr.innerHTML =
         `<td class="check-td"><input type="checkbox" class="pl-row-check" data-id="${r.id}" ${checked} ${statusDisabled}></td>` +
         `<td>${escapeHtml(r.no_invoice)}</td>` +
-        `<td>${escapeHtml(r.nama_toko)}</td>` +
+        `<td>${escapeHtml(displayToko(r.nama_toko, r.no_invoice))}</td>` +
         `<td class="num pl-select-cell">${fmtNumber(r.kubikasi)}</td>` +
         `<td class="pl-select-cell">${escapeHtml(r.area)}</td>` +
         `<td class="pl-select-cell">${escapeHtml(r.sub_area)}</td>` +
@@ -1425,18 +1490,19 @@
 
   function buildPackingListPdf(noPl, rows, header){
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
 
-    doc.setFontSize(14);
-    doc.text('PACKING LIST', 40, 36);
-    doc.setFontSize(10);
-    doc.text('No PL: ' + noPl, 40, 52);
+    doc.setFontSize(18);
+    doc.text('PACKING LIST', 30, 36);
+    doc.setFontSize(15);
 
-    const infoY = 70;
-    doc.text('TGL: ' + (header.tgl || '-'), 40, infoY);
-    doc.text('SOPIR: ' + (header.sopir || '-'), 200, infoY);
-    doc.text('AREA: ' + (header.area || '-'), 400, infoY);
-    doc.text('TOTAL KUBIKASI: ' + fmtNumber(header.total), 560, infoY);
+    const leftX = 30, rightX = 320;
+    const row1Y = 56, row2Y = 76, row3Y = 96;
+    doc.text('No PL: ' + noPl, leftX, row1Y);
+    doc.text('TGL: ' + (header.tgl || '-'), rightX, row1Y);
+    doc.text('SOPIR: ' + (header.sopir || '-'), leftX, row2Y);
+    doc.text('AREA: ' + (header.area || '-'), rightX, row2Y);
+    doc.text('TOTAL KUBIKASI: ' + fmtNumber(header.total), leftX, row3Y);
 
     // sort ascending by Gudang (A, B, ...) and insert a blank separator row
     // between groups; "No" numbering stays continuous across the whole list
@@ -1458,7 +1524,7 @@
       body.push([
         String(no),
         r.no_invoice || '',
-        r.nama_toko || '',
+        displayToko(r.nama_toko, r.no_invoice) || '',
         fmtNumber(r.kubikasi),
         r.gudang || '',
         '', '', '', ''
@@ -1466,11 +1532,24 @@
     });
 
     doc.autoTable({
-      startY: infoY + 14,
+      startY: row3Y + 30,
+      margin: { left: 20, right: 20 },
+      tableWidth: 555,
       head: [['No','No Invoice','Nama Toko','Kubikasi','Gudang','KPL GDG','ADM','SPV','KET']],
       body: body,
-      styles: { fontSize: 8, cellPadding: 4 },
-      headStyles: { fillColor: [20, 26, 34] },
+      styles: { fontSize: 11, cellPadding: 3, overflow: 'linebreak' },
+      headStyles: { fillColor: [20, 26, 34], fontSize: 11 },
+      columnStyles: {
+        0: { cellWidth: 20 },              // No
+        1: { cellWidth: 140, fontSize: 14 }, // No Invoice
+        2: { cellWidth: 175, fontSize: 14 }, // Nama Toko
+        3: { cellWidth: 45 },              // Kubikasi
+        4: { cellWidth: 35 },              // Gudang
+        5: { cellWidth: 35 },              // KPL GDG
+        6: { cellWidth: 35 },              // ADM
+        7: { cellWidth: 35 },              // SPV
+        8: { cellWidth: 35 }               // KET
+      },
       theme: 'grid'
     });
 
