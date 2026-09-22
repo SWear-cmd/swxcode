@@ -91,6 +91,8 @@
   .kascol-badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:.03em;}
   .kascol-badge.kascol-kas{background:rgba(91,155,213,.18);color:var(--blue);border:1px solid var(--blue);}
   .kascol-badge.kascol-col{background:rgba(224,99,122,.18);color:var(--red);border:1px solid var(--red);}
+  #approvalBadge{display:inline-block;background:var(--red);color:#fff;border-radius:10px;padding:0 6px;font-size:11px;font-weight:700;margin-left:4px;}
+  .req-status-badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;background:rgba(240,185,61,.18);color:#f0b93d;border:1px solid #f0b93d;}
   .empty{padding:50px 20px;text-align:center;color:var(--muted);}
   .hidden{display:none !important;}
   .pl-group-row td{background:#101820;color:var(--muted);font-size:11.5px;padding:8px;border-bottom:1px solid var(--border);}
@@ -159,6 +161,8 @@
     <div class="actions">
       <button class="btn" id="refreshBtn">Refresh</button>
       <button class="btn" id="bulkHideBtn" style="display:none;" disabled>Sembunyikan Terpilih</button>
+      <button class="btn" id="requestCancelBtn" style="display:none;">Request Batal PL</button>
+      <button class="btn" id="approvalBtn" style="display:none;">Persetujuan Batal <span id="approvalBadge" class="hidden"></span></button>
       <button class="btn primary" id="generateBtn" disabled>Generate</button>
     </div>
   </div>
@@ -366,6 +370,16 @@
         <input type="text" id="genTotal" readonly>
       </div>
     </div>
+    <div class="tablewrap" style="margin-bottom:12px;">
+      <div class="tablescroll" style="max-height:220px;">
+        <table>
+          <thead>
+            <tr><th>No Invoice</th><th>Nama Toko</th><th>Kubikasi</th></tr>
+          </thead>
+          <tbody id="genReviewTbody"></tbody>
+        </table>
+      </div>
+    </div>
     <div class="automsg" id="genMsg"></div>
     <div class="modal-actions">
       <button class="btn" id="genCancelBtn" type="button">Batal</button>
@@ -388,6 +402,53 @@
     <div class="modal-actions">
       <button class="btn" id="coretanCancelBtn" type="button">Batal</button>
       <button class="btn primary" id="coretanConfirmBtn" type="button">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Request cancel-from-PL modal (restricted labels) -->
+<div class="modal-overlay hidden" id="requestCancelOverlay">
+  <div class="modal-box modal-box-wide">
+    <h3>Request Batal dari Packing List</h3>
+    <div class="modal-sub">Cari invoice yang masih berstatus NULL di packing list, lalu ajukan pembatalan. SPV akan menyetujui sebelum invoice kembali ke tab INVOICE.</div>
+    <input class="search" id="reqCancelSearch" placeholder="Cari no invoice, toko, no PL..." style="width:100%;margin-bottom:10px;">
+    <div class="tablewrap">
+      <div class="tablescroll" style="max-height:50vh;">
+        <table>
+          <thead>
+            <tr><th>No Invoice</th><th>Nama Toko</th><th>No PL</th><th>Area</th><th>Gudang</th><th>Aksi</th></tr>
+          </thead>
+          <tbody id="reqCancelTbody"></tbody>
+        </table>
+      </div>
+      <div class="empty hidden" id="reqCancelEmpty">Tidak ada invoice dengan status NULL di packing list.</div>
+    </div>
+    <div class="automsg" id="reqCancelMsg"></div>
+    <div class="modal-actions">
+      <button class="btn" id="reqCancelCloseBtn" type="button">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<!-- Approval modal (SPV / full access) -->
+<div class="modal-overlay hidden" id="approvalOverlay">
+  <div class="modal-box modal-box-wide">
+    <h3>Persetujuan Batal dari Packing List</h3>
+    <div class="modal-sub" id="approvalSub">—</div>
+    <div class="tablewrap">
+      <div class="tablescroll" style="max-height:50vh;">
+        <table>
+          <thead>
+            <tr><th>No Invoice</th><th>Nama Toko</th><th>No PL</th><th>Area</th><th>Diminta Oleh</th><th>Waktu</th><th>Aksi</th></tr>
+          </thead>
+          <tbody id="approvalTbody"></tbody>
+        </table>
+      </div>
+      <div class="empty hidden" id="approvalEmpty">Tidak ada request yang menunggu persetujuan.</div>
+    </div>
+    <div class="automsg" id="approvalMsg"></div>
+    <div class="modal-actions">
+      <button class="btn" id="approvalCloseBtn" type="button">Tutup</button>
     </div>
   </div>
 </div>
@@ -439,6 +500,7 @@
   function isTrackingLabel(){ return (currentLabel || '').toUpperCase() === TRACKING_LABEL; }
   function canEditPlHeader(){ return !isRestrictedLabel(); }
   function canEditPlStatus(){ return !isRestrictedLabel(); }
+  function isApprover(){ return isFullAccess || (currentLabel || '').toUpperCase() === 'SPV'; }
 
   function applyLabelPermissions(){
     const invoiceTabBtn = document.querySelector('.tab-pill[data-tab="invoice"]');
@@ -451,6 +513,8 @@
       const fallback = document.querySelector('.tab-pill:not([style*="display: none"])');
       if (fallback) fallback.click();
     }
+    document.getElementById('requestCancelBtn').style.display = isRestrictedLabel() ? '' : 'none';
+    document.getElementById('approvalBtn').style.display = isApprover() ? '' : 'none';
   }
 
   async function getPublicIp(){
@@ -563,6 +627,8 @@
   let plDragSelecting = false;
   let plDragForceValue = true;
 
+  let pendingCancelIds = new Set();     // invoice ids with a PENDING pl_cancel_requests row
+  let pendingCancelRequests = [];       // full pending request rows, loaded only for approvers
   let kasFakturSet = new Set();   // no_faktur values present in kas_kecil (normalized upper/trim)
   let colInvoiceSet = new Set();  // invoice_no values present in invoice_payments (normalized upper/trim)
   let invoiceLabels = {};         // no_invoice (exact) -> extra label for this single row, e.g. "ANUGRAH"
@@ -594,10 +660,158 @@
   // ---- data load ----
   async function refreshAll(){
     document.getElementById('updatedAt').textContent = 'Memuat...';
-    await Promise.all([loadInvoices(), loadPackingList(), loadTrackingItems(), loadKasColStatus(), loadInvoiceLabels()]);
+    await Promise.all([loadInvoices(), loadPackingList(), loadTrackingItems(), loadKasColStatus(), loadInvoiceLabels(), loadPendingCancelIds(), loadApprovalQueue()]);
     renderInvoiceTable();
     document.getElementById('updatedAt').textContent = 'Terakhir dimuat: ' + new Date().toLocaleString('id-ID');
   }
+
+  // ---- PL cancel request / approval ----
+  async function loadPendingCancelIds(){
+    const { data, error } = await sb.rpc('get_pending_pl_cancel_invoice_ids');
+    if (error){ console.error('Gagal memuat status request:', error.message); return; }
+    pendingCancelIds = new Set((data || []).map(r => r.invoice_id));
+  }
+
+  async function loadApprovalQueue(){
+    if (!isApprover()){ pendingCancelRequests = []; updateApprovalBadge(); return; }
+    const { data, error } = await sb.rpc('get_pending_pl_cancel_requests', { p_pin: currentPin });
+    if (error){ console.error('Gagal memuat antrian persetujuan:', error.message); return; }
+    pendingCancelRequests = data || [];
+    updateApprovalBadge();
+  }
+
+  function updateApprovalBadge(){
+    const badge = document.getElementById('approvalBadge');
+    if (pendingCancelRequests.length > 0){
+      badge.textContent = pendingCancelRequests.length;
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+  }
+
+  // -- Request modal (restricted labels) --
+  function eligibleForCancelRequest(){
+    const term = document.getElementById('reqCancelSearch').value.trim().toLowerCase();
+    let rows = plItems.filter(r => !r.status);
+    if (term){
+      rows = rows.filter(r => [r.no_invoice, r.nama_toko, r.no_pl, r.pl_area]
+        .some(f => String(f||'').toLowerCase().includes(term)));
+    }
+    return rows;
+  }
+
+  function renderRequestCancelModal(){
+    const rows = eligibleForCancelRequest();
+    const tbody = document.getElementById('reqCancelTbody');
+    tbody.innerHTML = '';
+    rows.forEach(r => {
+      const tr = document.createElement('tr');
+      const pending = pendingCancelIds.has(r.id);
+      tr.innerHTML =
+        `<td>${escapeHtml(r.no_invoice)}</td>` +
+        `<td>${escapeHtml(displayToko(r.nama_toko, r.no_invoice))}</td>` +
+        `<td>${escapeHtml(r.no_pl)}</td>` +
+        `<td>${escapeHtml(r.area)}</td>` +
+        `<td>${escapeHtml(r.gudang)}</td>` +
+        `<td>${pending
+          ? `<span class="req-status-badge">Menunggu Persetujuan</span>`
+          : `<button type="button" class="btn btn-sm req-cancel-btn" data-id="${r.id}">Request Batal</button>`}</td>`;
+      tbody.appendChild(tr);
+    });
+    document.getElementById('reqCancelEmpty').classList.toggle('hidden', rows.length > 0);
+    tbody.querySelectorAll('.req-cancel-btn').forEach(btn => {
+      btn.addEventListener('click', () => submitCancelRequest(Number(btn.dataset.id), btn));
+    });
+  }
+
+  async function submitCancelRequest(invoiceId, btn){
+    const msgEl = document.getElementById('reqCancelMsg');
+    msgEl.textContent = ''; msgEl.className = 'automsg';
+    if (btn) btn.disabled = true;
+    const { error } = await sb.rpc('request_pl_cancel', { p_pin: currentPin, p_invoice_id: invoiceId });
+    if (error){
+      msgEl.textContent = 'Gagal: ' + error.message; msgEl.className = 'automsg error';
+      if (btn) btn.disabled = false;
+      return;
+    }
+    pendingCancelIds.add(invoiceId);
+    msgEl.textContent = 'Request terkirim, menunggu persetujuan SPV.'; msgEl.className = 'automsg success';
+    renderRequestCancelModal();
+  }
+
+  function openRequestCancelModal(){
+    document.getElementById('reqCancelSearch').value = '';
+    document.getElementById('reqCancelMsg').textContent = '';
+    renderRequestCancelModal();
+    document.getElementById('requestCancelOverlay').classList.remove('hidden');
+  }
+  document.getElementById('requestCancelBtn').addEventListener('click', openRequestCancelModal);
+  document.getElementById('reqCancelCloseBtn').addEventListener('click', () => {
+    document.getElementById('requestCancelOverlay').classList.add('hidden');
+  });
+  document.getElementById('requestCancelOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'requestCancelOverlay') document.getElementById('requestCancelOverlay').classList.add('hidden');
+  });
+  document.getElementById('reqCancelSearch').addEventListener('input', renderRequestCancelModal);
+
+  // -- Approval modal (SPV / full access) --
+  function renderApprovalModal(){
+    const tbody = document.getElementById('approvalTbody');
+    tbody.innerHTML = '';
+    pendingCancelRequests.forEach(r => {
+      const tr = document.createElement('tr');
+      const when = r.requested_at ? new Date(r.requested_at).toLocaleString('id-ID') : '-';
+      tr.innerHTML =
+        `<td>${escapeHtml(r.no_invoice)}</td>` +
+        `<td>${escapeHtml(r.nama_toko)}</td>` +
+        `<td>${escapeHtml(r.no_pl)}</td>` +
+        `<td>${escapeHtml(r.area)}</td>` +
+        `<td>${escapeHtml(r.requested_by_label)}</td>` +
+        `<td>${escapeHtml(when)}</td>` +
+        `<td class="pl-summary-actions">` +
+          `<button type="button" class="btn btn-sm primary approve-req-btn" data-id="${r.id}">Setujui</button>` +
+          `<button type="button" class="btn btn-sm reject-req-btn" data-id="${r.id}">Tolak</button>` +
+        `</td>`;
+      tbody.appendChild(tr);
+    });
+    document.getElementById('approvalEmpty').classList.toggle('hidden', pendingCancelRequests.length > 0);
+    document.getElementById('approvalSub').textContent = pendingCancelRequests.length + ' request menunggu';
+    tbody.querySelectorAll('.approve-req-btn').forEach(btn => {
+      btn.addEventListener('click', () => resolveCancelRequest(Number(btn.dataset.id), true));
+    });
+    tbody.querySelectorAll('.reject-req-btn').forEach(btn => {
+      btn.addEventListener('click', () => resolveCancelRequest(Number(btn.dataset.id), false));
+    });
+  }
+
+  async function resolveCancelRequest(requestId, approve){
+    const msgEl = document.getElementById('approvalMsg');
+    msgEl.textContent = ''; msgEl.className = 'automsg';
+    if (!approve && !confirm('Tolak request ini?')) return;
+    const { error } = await sb.rpc('resolve_pl_cancel_request', { p_pin: currentPin, p_request_id: requestId, p_approve: approve });
+    if (error){ msgEl.textContent = 'Gagal: ' + error.message; msgEl.className = 'automsg error'; return; }
+    await Promise.all([loadInvoices(), loadPackingList(), loadTrackingItems(), loadPendingCancelIds(), loadApprovalQueue()]);
+    renderApprovalModal();
+    msgEl.textContent = approve ? 'Invoice dikembalikan ke tab INVOICE.' : 'Request ditolak.';
+    msgEl.className = 'automsg success';
+  }
+
+  function openApprovalModal(){
+    document.getElementById('approvalMsg').textContent = '';
+    renderApprovalModal();
+    document.getElementById('approvalOverlay').classList.remove('hidden');
+  }
+  document.getElementById('approvalBtn').addEventListener('click', async () => {
+    await loadApprovalQueue();
+    openApprovalModal();
+  });
+  document.getElementById('approvalCloseBtn').addEventListener('click', () => {
+    document.getElementById('approvalOverlay').classList.add('hidden');
+  });
+  document.getElementById('approvalOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'approvalOverlay') document.getElementById('approvalOverlay').classList.add('hidden');
+  });
 
   // ---- KAS/Col status (kas_kecil.no_faktur / invoice_payments.invoice_no) ----
   async function loadKasColStatus(){
@@ -1297,7 +1511,7 @@
       sb.rpc('update_packing_list_status', { p_pin: currentPin, p_id: id, p_status: newStatus, p_reason: reason || null })
     ));
     const failed = results.filter(r => r.error);
-    await Promise.all([loadInvoices(), loadPackingList(), loadTrackingItems()]);
+    await Promise.all([loadInvoices(), loadPackingList(), loadTrackingItems(), loadPendingCancelIds(), loadApprovalQueue()]);
     if (failed.length){
       alert('Gagal mengubah status untuk ' + failed.length + ' baris: ' + failed[0].error.message);
       return false;
@@ -1440,13 +1654,25 @@
     const total = rows.reduce((s, r) => s + (Number(r.kubikasi) || 0), 0);
     const areas = [...new Set(rows.map(r => r.area).filter(Boolean))];
 
-    document.getElementById('genSub').textContent = rows.length + ' invoice dipilih';
+    document.getElementById('genSub').textContent = rows.length + ' invoice dipilih — cek ulang daftar di bawah sebelum generate';
     document.getElementById('genTgl').value = todayISO();
     document.getElementById('genSopir').value = '';
     document.getElementById('genArea').value = areas.length === 1 ? areas[0] : '';
     document.getElementById('genTotal').value = fmtNumber(total);
     document.getElementById('genMsg').textContent = '';
     document.getElementById('genMsg').className = 'automsg';
+
+    const reviewTbody = document.getElementById('genReviewTbody');
+    reviewTbody.innerHTML = '';
+    rows.slice().sort((a, b) => String(a.nama_toko||'').localeCompare(String(b.nama_toko||''), 'id')).forEach(r => {
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        `<td>${escapeHtml(r.no_invoice)}</td>` +
+        `<td>${escapeHtml(displayToko(r.nama_toko, r.no_invoice))}</td>` +
+        `<td class="num">${fmtNumber(r.kubikasi)}</td>`;
+      reviewTbody.appendChild(tr);
+    });
+
     genOverlay.classList.remove('hidden');
   });
   document.getElementById('genCancelBtn').addEventListener('click', () => genOverlay.classList.add('hidden'));
