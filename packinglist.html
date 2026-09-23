@@ -81,6 +81,9 @@
   .toko-cell .cell-flex{display:flex;align-items:center;gap:6px;}
   .edit-toko-btn{background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 4px;line-height:1;}
   .edit-toko-btn:hover{color:var(--teal);}
+  .toko-inline-input{width:150px;background:#fff;border:1px solid #cfd4da;color:#111;padding:5px 8px;border-radius:6px;font-size:12.5px;}
+  .toko-inline-input:focus{outline:2px solid var(--teal);outline-offset:0;}
+  .approval-bulk{display:flex;align-items:center;gap:8px;margin:8px 0;flex-wrap:wrap;}
   .edit-toko-input{width:160px;background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:6px;font-size:12.5px;}
   .kub-input:focus, .txt-input:focus{outline:2px solid var(--blue);outline-offset:1px;}
   .status-select{background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:6px;font-size:12.5px;}
@@ -435,11 +438,15 @@
   <div class="modal-box modal-box-wide">
     <h3>Persetujuan Batal dari Packing List</h3>
     <div class="modal-sub" id="approvalSub">—</div>
+    <div class="approval-bulk">
+      <button class="btn btn-sm primary" id="approvalBulkApproveBtn" type="button" disabled>Setujui Terpilih</button>
+      <button class="btn btn-sm" id="approvalBulkRejectBtn" type="button" disabled>Tolak Terpilih</button>
+    </div>
     <div class="tablewrap">
       <div class="tablescroll" style="max-height:50vh;">
         <table>
           <thead>
-            <tr><th>No Invoice</th><th>Nama Toko</th><th>No PL</th><th>Area</th><th>Diminta Oleh</th><th>Waktu</th><th>Aksi</th></tr>
+            <tr><th class="check-th"><input type="checkbox" id="approvalSelectAll" title="Pilih semua"></th><th>No Invoice</th><th>Nama Toko</th><th>No PL</th><th>Area</th><th>Diminta Oleh</th><th>Waktu</th><th>Aksi</th></tr>
           </thead>
           <tbody id="approvalTbody"></tbody>
         </table>
@@ -636,9 +643,17 @@
   function isBdtCash(namaToko){
     return String(namaToko || '').toUpperCase().includes('BDT CASH');
   }
+  function isBdtCash2(namaToko){
+    return String(namaToko || '').trim().toUpperCase().startsWith('BDT CASH2');
+  }
+  function shortToko(namaToko){
+    if (isBdtCash2(namaToko)) return 'BDT CASH2';
+    return String(namaToko || '').replace(/\s*\(CST[^)]*\)/gi, '').trim();
+  }
   function displayToko(namaToko, noInvoice){
     const label = invoiceLabels[noInvoice];
-    return label ? namaToko + ' - ' + label : namaToko;
+    const base = shortToko(namaToko);
+    return label ? base + ' - ' + label : base;
   }
   async function loadInvoiceLabels(){
     const { data, error } = await sb.rpc('get_invoice_toko_labels');
@@ -756,6 +771,20 @@
   document.getElementById('reqCancelSearch').addEventListener('input', renderRequestCancelModal);
 
   // -- Approval modal (SPV / full access) --
+  let approvalSelected = new Set();
+  function updateApprovalBulk(){
+    const ids = new Set(pendingCancelRequests.map(r => r.id));
+    approvalSelected = new Set([...approvalSelected].filter(id => ids.has(id)));
+    const n = approvalSelected.size;
+    const a = document.getElementById('approvalBulkApproveBtn');
+    const t = document.getElementById('approvalBulkRejectBtn');
+    a.disabled = t.disabled = n === 0;
+    a.textContent = 'Setujui Terpilih' + (n ? ' (' + n + ')' : '');
+    t.textContent = 'Tolak Terpilih' + (n ? ' (' + n + ')' : '');
+    const all = document.getElementById('approvalSelectAll');
+    all.checked = pendingCancelRequests.length > 0 && n === pendingCancelRequests.length;
+    all.indeterminate = n > 0 && n < pendingCancelRequests.length;
+  }
   function renderApprovalModal(){
     const tbody = document.getElementById('approvalTbody');
     tbody.innerHTML = '';
@@ -763,8 +792,9 @@
       const tr = document.createElement('tr');
       const when = r.requested_at ? new Date(r.requested_at).toLocaleString('id-ID') : '-';
       tr.innerHTML =
+        `<td class="check-td"><input type="checkbox" class="approval-check" data-id="${r.id}" ${approvalSelected.has(r.id) ? 'checked' : ''}></td>` +
         `<td>${escapeHtml(r.no_invoice)}</td>` +
-        `<td>${escapeHtml(r.nama_toko)}</td>` +
+        `<td>${escapeHtml(displayToko(r.nama_toko, r.no_invoice))}</td>` +
         `<td>${escapeHtml(r.no_pl)}</td>` +
         `<td>${escapeHtml(r.area)}</td>` +
         `<td>${escapeHtml(r.requested_by_label)}</td>` +
@@ -783,7 +813,49 @@
     tbody.querySelectorAll('.reject-req-btn').forEach(btn => {
       btn.addEventListener('click', () => resolveCancelRequest(Number(btn.dataset.id), false));
     });
+    tbody.querySelectorAll('.approval-check').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const id = Number(cb.dataset.id);
+        if (cb.checked) approvalSelected.add(id); else approvalSelected.delete(id);
+        updateApprovalBulk();
+      });
+    });
+    updateApprovalBulk();
   }
+
+  document.getElementById('approvalSelectAll').addEventListener('change', (e) => {
+    approvalSelected = e.target.checked ? new Set(pendingCancelRequests.map(r => r.id)) : new Set();
+    renderApprovalModal();
+  });
+
+  async function resolveCancelRequestsBulk(approve){
+    const ids = [...approvalSelected];
+    if (!ids.length) return;
+    const msgEl = document.getElementById('approvalMsg');
+    msgEl.textContent = ''; msgEl.className = 'automsg';
+    if (!confirm((approve ? 'Setujui ' : 'Tolak ') + ids.length + ' request terpilih?')) return;
+    const aBtn = document.getElementById('approvalBulkApproveBtn');
+    const tBtn = document.getElementById('approvalBulkRejectBtn');
+    aBtn.disabled = tBtn.disabled = true;
+    msgEl.textContent = 'Memproses ' + ids.length + ' request...';
+    const failed = [];
+    for (const id of ids){
+      const { error } = await sb.rpc('resolve_pl_cancel_request', { p_pin: currentPin, p_request_id: id, p_approve: approve });
+      if (error) failed.push(error.message); else approvalSelected.delete(id);
+    }
+    await Promise.all([loadInvoices(), loadPackingList(), loadTrackingItems(), loadPendingCancelIds(), loadApprovalQueue()]);
+    renderApprovalModal();
+    const ok = ids.length - failed.length;
+    if (failed.length){
+      msgEl.textContent = ok + ' berhasil, ' + failed.length + ' gagal: ' + failed[0];
+      msgEl.className = 'automsg error';
+    } else {
+      msgEl.textContent = approve ? ok + ' invoice dikembalikan ke tab INVOICE.' : ok + ' request ditolak.';
+      msgEl.className = 'automsg success';
+    }
+  }
+  document.getElementById('approvalBulkApproveBtn').addEventListener('click', () => resolveCancelRequestsBulk(true));
+  document.getElementById('approvalBulkRejectBtn').addEventListener('click', () => resolveCancelRequestsBulk(false));
 
   async function resolveCancelRequest(requestId, approve){
     const msgEl = document.getElementById('approvalMsg');
@@ -799,6 +871,7 @@
 
   function openApprovalModal(){
     document.getElementById('approvalMsg').textContent = '';
+    approvalSelected = new Set();
     renderApprovalModal();
     document.getElementById('approvalOverlay').classList.remove('hidden');
   }
@@ -1036,7 +1109,9 @@
         `<td>${escapeHtml(r.no_invoice)}</td>` +
         `<td class="select-cell">${fmtDateShort(r.print_date)}</td>` +
         `<td class="num select-cell">${ageInDays(r.print_date) ?? '-'}</td>` +
-        `<td class="toko-cell" data-id="${r.id}"><span class="cell-flex"><span class="toko-text">${escapeHtml(displayToko(r.nama_toko, r.no_invoice))}</span>${isBdtCash(r.nama_toko) ? `<button type="button" class="edit-toko-btn" data-id="${r.id}" title="Tambah Nama Toko">\u270f\ufe0f</button>` : ''}</span></td>` +
+        `<td class="toko-cell" data-id="${r.id}"><span class="cell-flex">${isBdtCash(r.nama_toko)
+          ? `<span class="toko-text">${escapeHtml(shortToko(r.nama_toko))}</span><input type="text" class="toko-inline-input" data-id="${r.id}" placeholder="Tambah nama toko" value="${escapeHtml(invoiceLabels[r.no_invoice] || '')}">`
+          : `<span class="toko-text">${escapeHtml(displayToko(r.nama_toko, r.no_invoice))}</span>`}</span></td>` +
         `<td class="select-cell"><input type="text" class="kub-input" inputmode="decimal" data-id="${r.id}" data-field="kubikasi" value="${escapeHtml(r.kubikasi)}"></td>` +
         `<td class="area-cell select-cell" data-id="${r.id}"><span class="cell-flex"><span class="area-text">${escapeHtml(r.area)}</span><button type="button" class="edit-area-btn" data-id="${r.id}" title="Edit Area/Sub-Area">\u270f\ufe0f</button></span></td>` +
         `<td class="subarea-cell select-cell" data-id="${r.id}"><span class="cell-flex"><span class="area-text">${escapeHtml(r.sub_area)}</span></span></td>` +
@@ -1095,8 +1170,9 @@
     tbody.querySelectorAll('.edit-area-btn').forEach(btn => {
       btn.addEventListener('click', () => startEditArea(Number(btn.dataset.id)));
     });
-    tbody.querySelectorAll('.edit-toko-btn').forEach(btn => {
-      btn.addEventListener('click', () => startEditToko(Number(btn.dataset.id)));
+    tbody.querySelectorAll('.toko-inline-input').forEach(inp => {
+      inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') inp.blur(); });
+      inp.addEventListener('change', () => saveTokoInline(inp));
     });
     tbody.querySelectorAll('.hide-invoice-btn').forEach(btn => {
       btn.addEventListener('click', () => hideInvoice(Number(btn.dataset.id), btn.dataset.no));
@@ -1158,6 +1234,21 @@
     tokoTd.querySelector('.save-area-btn').addEventListener('click', () => saveTokoEdit(id));
     tokoTd.querySelector('.cancel-area-btn').addEventListener('click', () => renderInvoiceTable());
     tokoTd.querySelector('input').focus();
+  }
+
+  async function saveTokoInline(inp){
+    const id = Number(inp.dataset.id);
+    const row = invoices.find(r => r.id === id);
+    if (!row) return;
+    const newLabel = inp.value.trim();
+    inp.disabled = true;
+    const { error } = await sb.rpc('upsert_invoice_toko_label', {
+      p_pin: currentPin, p_no_invoice: row.no_invoice, p_label: newLabel
+    });
+    inp.disabled = false;
+    if (error){ alert('Gagal menyimpan Nama Toko: ' + error.message); inp.value = invoiceLabels[row.no_invoice] || ''; return; }
+    if (newLabel) invoiceLabels[row.no_invoice] = newLabel; else delete invoiceLabels[row.no_invoice];
+    inp.value = newLabel;
   }
 
   async function saveTokoEdit(id){
