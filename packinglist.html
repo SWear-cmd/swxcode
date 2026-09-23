@@ -1843,7 +1843,7 @@
         r.no_invoice || '',
         displayToko(r.nama_toko, r.no_invoice) || '',
         fmtNumber(r.kubikasi),
-        r.gudang || '',
+        String(r.gudang || '').trim().toUpperCase() === 'SENTANI' ? 'STN' : (r.gudang || ''),
         '', '', '', ''
       ]);
     });
@@ -1858,8 +1858,8 @@
       headStyles: { fillColor: [20, 26, 34], fontSize: 11 },
       columnStyles: {
         0: { cellWidth: 20 },              // No
-        1: { cellWidth: 140, fontSize: 14 }, // No Invoice
-        2: { cellWidth: 175, fontSize: 14 }, // Nama Toko
+        1: { cellWidth: 140 },              // No Invoice
+        2: { cellWidth: 175 },              // Nama Toko
         3: { cellWidth: 45 },              // Kubikasi
         4: { cellWidth: 35 },              // Gudang
         5: { cellWidth: 35 },              // KPL GDG
