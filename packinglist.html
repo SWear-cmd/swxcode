@@ -1614,7 +1614,12 @@
   }
 
   function renderPlDetailTable(noPl){
-    const rows = plItems.filter(r => r.no_pl === noPl);
+    // same order as the PDF: Gudang asc, then Nama Toko A-Z
+    const rows = plItems.filter(r => r.no_pl === noPl).sort((a, b) => {
+      const g = String(a.gudang || '').localeCompare(String(b.gudang || ''));
+      if (g !== 0) return g;
+      return String(a.nama_toko || '').localeCompare(String(b.nama_toko || ''), 'id');
+    });
 
     // drop selections for ids no longer in this PL (e.g. REKAP ULANG removed them)
     const idsNow = new Set(rows.map(r => r.id));
