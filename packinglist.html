@@ -309,6 +309,8 @@
     <div class="pl-hdr-box" id="plDetailHdrBox">
       <label for="plDetailSopir">Sopir</label>
       <select id="plDetailSopir"><option value="">- Pilih sopir -</option></select>
+      <label for="plDetailSopir2">Sopir 2</label>
+      <select id="plDetailSopir2"><option value="">- Tidak ada -</option></select>
       <label for="plDetailTgl">Tgl Antar</label>
       <input type="date" id="plDetailTgl">
       <button class="btn primary" id="plDetailHdrSaveBtn" type="button">Simpan</button>
@@ -463,6 +465,7 @@
           <thead>
             <tr>
               <th>No Invoice</th>
+              <th>Tgl</th>
               <th>Nama Toko</th>
               <th>Area</th>
               <th>Gudang</th>
@@ -933,6 +936,7 @@
       const tr = document.createElement('tr');
       tr.innerHTML =
         `<td>${escapeHtml(r.no_invoice)}</td>` +
+        `<td style="white-space:nowrap">${r.print_date ? fmtDateShort(r.print_date) : '-'}</td>` +
         `<td>${escapeHtml(displayToko(r.nama_toko, r.no_invoice))}</td>` +
         `<td>${escapeHtml(r.area)}</td>` +
         `<td>${escapeHtml(r.gudang)}</td>` +
@@ -1052,14 +1056,28 @@
     if (error){ console.warn('Gagal memuat list sopir: ' + error.message); sopirList = []; return; }
     sopirList = (data || []).map(r => r.nama).filter(Boolean);
   }
+  // 2 sopir stored in packing_lists.sopir as "SOPIR1 / SOPIR2"
+  const SOPIR_SEP = ' / ';
+  function splitSopir(v){
+    return String(v || '').split('/').map(x => x.trim()).filter(Boolean);
+  }
+  function joinSopir(a, b){
+    const list = [a, b].map(x => String(x || '').trim()).filter(Boolean);
+    return list.join(SOPIR_SEP);
+  }
   function fillSopirSelect(current){
-    const sel = document.getElementById('plDetailSopir');
-    const names = [...sopirList];
-    // keep an existing value that isn't in the payroll list (old data / non-active driver)
-    if (current && !names.includes(current)) names.unshift(current);
-    sel.innerHTML = '<option value="">- Pilih sopir -</option>' +
-      names.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
-    sel.value = current || '';
+    const [cur1 = '', cur2 = ''] = splitSopir(current);
+    const fill = (id, placeholder, cur) => {
+      const sel = document.getElementById(id);
+      const names = [...sopirList];
+      // keep an existing value that isn't in the payroll list (old data / non-active driver)
+      if (cur && !names.includes(cur)) names.unshift(cur);
+      sel.innerHTML = `<option value="">${placeholder}</option>` +
+        names.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+      sel.value = cur || '';
+    };
+    fill('plDetailSopir', '- Pilih sopir -', cur1);
+    fill('plDetailSopir2', '- Tidak ada -', cur2);
   }
 
   async function loadPackingList(){
@@ -1538,7 +1556,10 @@
     if (!noPl) return;
     const g = getPlGroups().find(x => x.no_pl === noPl) || plItems.find(r => r.no_pl === noPl) || {};
     const tgl = document.getElementById('plDetailTgl').value;
-    const sopir = document.getElementById('plDetailSopir').value.trim();
+    const sopir = joinSopir(
+      document.getElementById('plDetailSopir').value,
+      document.getElementById('plDetailSopir2').value
+    );
     const area = g.pl_area || '';
     const msgEl = document.getElementById('plDetailHdrMsg');
     if (!tgl){ msgEl.textContent = 'Tgl wajib diisi.'; msgEl.className = 'automsg error'; return; }
