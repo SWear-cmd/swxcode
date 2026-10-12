@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0E4D5C">
+<meta name="color-scheme" content="light">
+<title>Portal Sales</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --sea:#0E4D5C; --sea-2:#13677A; --sea-ink:#08323C;
+  --ochre:#E2A83A; --mist:#EEF3F2; --line:#D3DFDD;
+  --ink:#1C2B2E; --muted:#5E7174; --white:#fff; --red:#B3372B;
+  --pad:20px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  font-family:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  background:var(--mist); color:var(--ink); font-size:16px; line-height:1.5;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+:focus-visible{outline:3px solid var(--ochre);outline-offset:2px}
+.screen{display:none;min-height:100%;max-width:520px;margin:0 auto}
+.screen.on{display:flex;flex-direction:column}
+
+/* ---------- Login ---------- */
+#login{background:var(--sea);color:var(--white);justify-content:space-between;padding:48px var(--pad) 32px}
+.brand h1{font-size:2.6rem;font-weight:800;line-height:1.05;letter-spacing:-.02em}
+.brand p{margin-top:10px;color:#B9D3D6;font-size:1rem}
+.pinbox{display:flex;flex-direction:column;gap:14px}
+.pinbox label{font-weight:600;font-size:.95rem;color:#D8E8E9}
+#pin{
+  width:100%;height:64px;border-radius:14px;border:2px solid transparent;
+  background:var(--sea-ink);color:var(--white);font-size:1.6rem;letter-spacing:.3em;text-align:center;
+}
+#pin:focus{border-color:var(--ochre);outline:none}
+.btn-main{height:56px;border-radius:14px;background:var(--ochre);color:var(--sea-ink);font-weight:800;font-size:1.05rem}
+.btn-main:disabled{opacity:.6}
+.err{min-height:1.4em;color:#FFD1C8;font-weight:600;font-size:.95rem}
+
+/* ---------- Shared top bar ---------- */
+.bar{
+  position:sticky;top:env(safe-area-inset-top,0px);z-index:2;background:var(--white);
+  display:flex;align-items:center;gap:12px;min-height:72px;
+  padding:12px var(--pad);border-bottom:1px solid var(--line);
+}
+.bar h2{font-size:1.3rem;font-weight:800;color:var(--sea);flex:1;line-height:1.2}
+.btn-x{
+  width:48px;height:48px;border-radius:50%;background:var(--sea);color:var(--white);
+  display:grid;place-items:center;flex-shrink:0;
+}
+.btn-x svg{width:22px;height:22px}
+.btn-back{
+  display:flex;align-items:center;gap:6px;height:44px;padding:0 14px 0 10px;border-radius:12px;
+  background:var(--mist);color:var(--sea);font-weight:700;flex-shrink:0;
+}
+.btn-back svg{width:22px;height:22px}
+
+/* ---------- Announcement ---------- */
+#announce,#admin,.page{background:var(--white)}
+.ann-list{padding:8px var(--pad) 40px;flex:1}
+.ann{padding:20px 0;border-bottom:1px solid var(--line)}
+.ann:last-child{border-bottom:0}
+.ann h3{font-size:1.15rem;font-weight:700;line-height:1.3}
+.ann time{display:block;margin-top:2px;color:var(--muted);font-size:.85rem}
+.ann img{display:block;width:100%;height:auto;margin-top:12px;border-radius:14px;border:1px solid var(--line);cursor:zoom-in}
+.ann .body{margin-top:10px;white-space:pre-wrap;word-wrap:break-word}
+.empty{padding:48px 0;color:var(--muted);text-align:center}
+
+/* ---------- Home ---------- */
+#home{padding:28px var(--pad) 24px}
+.hello{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.hello h2{font-size:1.6rem;font-weight:800;line-height:1.15;color:var(--sea)}
+.hello p{color:var(--muted);font-size:.95rem;margin-top:4px}
+.btn-ghost{padding:10px 14px;border-radius:10px;border:1.5px solid var(--line);font-weight:600;font-size:.9rem;color:var(--sea);background:var(--white)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:28px}
+.tile{
+  aspect-ratio:1/1;border-radius:22px;background:var(--white);border:1.5px solid var(--line);
+  display:flex;flex-direction:column;justify-content:space-between;align-items:flex-start;
+  padding:18px;text-align:left;transition:transform .12s ease;
+}
+.tile:active{transform:scale(.97)}
+.tile .ic{width:56px;height:56px;border-radius:16px;display:grid;place-items:center;background:var(--sea);color:var(--white)}
+.tile .ic svg{width:30px;height:30px}
+.tile span{font-weight:800;font-size:1.2rem;line-height:1.2}
+.tile:nth-child(1){background:var(--sea);border-color:var(--sea);color:var(--white)}
+.tile:nth-child(1) .ic{background:var(--ochre);color:var(--sea-ink)}
+.home-foot{margin-top:auto;padding-top:28px;display:flex;flex-direction:column;gap:10px}
+.link-btn{color:var(--sea);font-weight:600;text-decoration:underline;padding:8px 0;align-self:flex-start}
+
+/* ---------- Menu pages ---------- */
+.page-body{padding:20px var(--pad) 40px;flex:1}
+
+/* ---------- Sales matrix ---------- */
+.sa-title{margin-top:16px;font-weight:800;font-size:1.1rem;color:var(--sea)}
+.mx-wrap{overflow-x:auto;margin:10px 0 22px;padding:0}
+.mx{border-collapse:separate;border-spacing:0;font-size:.85rem;min-width:100%}
+.mx th,.mx td{padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap;text-align:right;vertical-align:top}
+.mx th{font-weight:800;font-size:.8rem;background:var(--white)}
+.mx thead th{border-bottom:1.5px solid var(--sea)}
+.mx .stick{position:sticky;left:0;z-index:1;background:var(--white);text-align:left;border-right:1px solid var(--line);font-weight:700}
+.mx thead .stick{color:var(--sea);font-size:.95rem}
+.mx:not(.mx-oa){min-width:0;table-layout:fixed;width:auto}
+.mx:not(.mx-oa) th:not(.stick),.mx:not(.mx-oa) td:not(.stick){box-sizing:border-box;width:60px;min-width:60px;max-width:60px;padding-left:4px;padding-right:6px;overflow:hidden;text-overflow:ellipsis}
+.mx:not(.mx-oa) thead th:not(.stick){white-space:normal;text-overflow:clip;overflow:visible;overflow-wrap:anywhere;line-height:1.25;vertical-align:bottom}
+.mx:not(.mx-oa) .stick{box-sizing:border-box;width:112px;min-width:112px;max-width:112px;overflow:hidden;text-overflow:ellipsis}
+.mx td b{display:block;font-variant-numeric:tabular-nums}
+.mx td small{color:var(--muted);font-size:.78rem}
+.mx td.nil{color:var(--muted)}
+.mx td[data-dv]{cursor:pointer}
+.mx td[data-dv]:active{background:#E3EEF0}
+.sheet .tbl td.tg{white-space:nowrap;color:var(--muted)}
+.mx tr.other .stick{color:var(--muted);font-style:italic}
+details.mg{margin-top:8px;border-top:1.5px solid var(--line)}
+details.mg summary{font-weight:800;color:var(--sea);padding:14px 0;cursor:pointer}
+details.mg .sm-form{border-bottom:0;padding-bottom:8px}
+
+/* ---------- OA page ---------- */
+.oa-ctl{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.oa-ctl input[type=search]{grid-column:1 / -1;height:52px;border-radius:12px;border:1.5px solid var(--line);background:var(--mist);padding:0 14px}
+.oa-ctl .chk{grid-column:1 / -1}
+.oa-info{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px;color:var(--muted);font-size:.9rem}
+.pager{display:flex;align-items:center;gap:6px}
+.pager button{height:36px;min-width:40px;padding:0 10px;border-radius:10px;border:1.5px solid var(--line);font-weight:700;color:var(--sea);background:var(--white)}
+.pager button:disabled{opacity:.4}
+.mx th small{display:block;font-weight:600;color:var(--muted);font-size:.72rem}
+.mx-oa .stick,.mx-oa .arh{width:1%}
+.mx-oa .cn{max-width:132px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mx td.ar{text-align:left;color:var(--muted);font-size:.8rem}
+.mx td.on{color:#1D6B52;font-weight:700}
+
+/* ---------- Sales page ---------- */
+.sm-form{display:flex;flex-direction:column;gap:12px;padding-bottom:20px;margin-bottom:8px;border-bottom:1.5px solid var(--line)}
+.sm-form[hidden]{display:none}
+select{height:52px;border-radius:12px;border:1.5px solid var(--line);background:var(--mist);padding:0 12px;font-weight:600;width:100%}
+.sm-group{margin-top:16px}
+.sm-group h3{font-size:1rem;font-weight:800;color:var(--sea);padding-bottom:6px;border-bottom:1.5px solid var(--sea)}
+.sm-item{display:flex;align-items:center;justify-content:space-between;width:100%;text-align:left;padding:14px 2px;border-bottom:1px solid var(--line);font-weight:600}
+.sm-item small{color:var(--muted);font-weight:500}
+
+/* ---------- EC harian ---------- */
+.ec-warn{display:inline-block;color:#fff;background:#D32F2F;border-radius:50%;width:15px;height:15px;line-height:15px;text-align:center;font-size:.7rem;font-weight:800;margin-right:5px;vertical-align:1px}
+.ctl{display:flex;gap:10px}
+.ctl select{flex:1}
+.ec-date{margin-top:16px;font-weight:800;font-size:1.1rem;color:var(--sea)}
+.sum{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0 16px}
+.sum div{background:var(--mist);border-radius:12px;padding:10px 12px}
+.sum div:first-child{grid-column:1 / -1}
+.sum small{display:block;color:var(--muted);font-size:.8rem;font-weight:600}
+.sum b{font-size:1.15rem;font-variant-numeric:tabular-nums}
+.tbl-wrap{overflow-x:auto;margin:0 calc(var(--pad) * -1);padding:0 var(--pad)}
+.tbl{width:100%;border-collapse:collapse;font-size:.9rem}
+.tbl th{text-align:left;font-size:.8rem;color:var(--muted);font-weight:700;padding:8px 6px;border-bottom:1.5px solid var(--line);white-space:nowrap}
+.tbl td{padding:10px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+.tbl .num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.tbl td.nm{font-weight:700}
+.tbl td.dv{font-size:.85rem;min-width:110px}
+.tbl tr.grp td{background:var(--mist);font-weight:800;color:var(--sea)}
+.tbl tr.zero td{color:var(--muted)}
+.tbl tbody tr[data-sm]{cursor:pointer}
+.tbl tbody tr[data-sm]:active td{background:#E3EEF0}
+
+/* ---------- Detail sheet ---------- */
+.sheet-bg{position:fixed;inset:0;z-index:8;background:rgba(8,50,60,.55);display:none;align-items:flex-end;justify-content:center}
+.sheet-bg.on{display:flex}
+.sheet{
+  background:var(--white);width:100%;max-width:520px;max-height:88vh;border-radius:20px 20px 0 0;
+  display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom,0px);
+}
+.sheet-head{display:flex;align-items:center;gap:12px;padding:16px var(--pad);border-bottom:1px solid var(--line)}
+.sheet-head div{flex:1;min-width:0}
+.sheet-head h3{font-size:1.2rem;font-weight:800;color:var(--sea);line-height:1.2}
+.sheet-head small{color:var(--muted);font-size:.85rem}
+.sheet-body{overflow:auto;padding:8px var(--pad) 20px}
+.sheet .tbl td{font-size:.85rem}
+.sheet .tbl td.cu{min-width:140px;font-weight:600}
+.sheet .tbl td.inv{white-space:nowrap}
+.sheet .tbl td.sl{white-space:nowrap;color:var(--muted)}
+.sheet .tbl tfoot td{font-weight:800;border-bottom:0;border-top:1.5px solid var(--line)}
+
+/* ---------- Admin ---------- */
+.adm-body{padding:16px var(--pad) 40px;display:flex;flex-direction:column;gap:12px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field > label{font-weight:600;font-size:.9rem}
+.field input[type=text],.field textarea{
+  width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px;background:var(--mist);
+}
+.field textarea{min-height:140px;resize:vertical}
+.img-pick{
+  display:flex;align-items:center;justify-content:center;gap:8px;height:52px;border-radius:12px;
+  border:1.5px dashed var(--sea-2);color:var(--sea);font-weight:700;cursor:pointer;
+}
+.img-pick svg{width:22px;height:22px}
+.img-prev{position:relative;display:none}
+.img-prev.on{display:block}
+.img-prev img{display:block;width:100%;border-radius:12px;border:1px solid var(--line)}
+.img-prev button{
+  position:absolute;top:8px;right:8px;height:36px;padding:0 12px;border-radius:10px;
+  background:rgba(0,0,0,.65);color:var(--white);font-weight:700;font-size:.85rem;
+}
+.img-note{color:var(--muted);font-size:.85rem}
+.chk{display:flex;align-items:center;gap:10px;font-weight:600}
+.chk input{width:22px;height:22px;accent-color:var(--sea)}
+.row{display:flex;gap:10px}
+.row button{flex:1}
+.btn-sec{height:52px;border-radius:12px;border:1.5px solid var(--line);font-weight:700;color:var(--ink)}
+.btn-del{height:52px;border-radius:12px;background:#FBE9E6;color:var(--red);font-weight:700}
+.adm-item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line);text-align:left;width:100%}
+.adm-item b{display:block;font-weight:700}
+.adm-item small{color:var(--muted)}
+.badges{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.badge{font-size:.75rem;font-weight:700;padding:4px 10px;border-radius:99px;white-space:nowrap}
+.badge.on{background:#DDF0EA;color:#1D6B52}.badge.off{background:#ECEEEE;color:var(--muted)}
+.badge.img{background:#E3EEF7;color:#2A5A80}
+.sub{font-size:1rem;font-weight:800;color:var(--sea);margin-top:12px}
+
+/* ---------- Lightbox & toast ---------- */
+.lightbox{
+  position:fixed;inset:0;z-index:10;background:rgba(0,0,0,.9);display:none;
+  align-items:center;justify-content:center;padding:env(safe-area-inset-top,0px) 12px env(safe-area-inset-bottom,0px);
+}
+.lightbox.on{display:flex}
+.lightbox img{max-width:100%;max-height:100%;object-fit:contain}
+.lightbox .btn-x{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:12px;background:rgba(255,255,255,.15)}
+.toast{
+  position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
+  background:var(--ink);color:var(--white);padding:12px 18px;border-radius:12px;font-weight:600;
+  font-size:.95rem;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;text-align:center;z-index:11;
+}
+.toast.show{opacity:1}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<section id="login" class="screen on">
+  <div class="brand">
+    <h1>Portal<br>Sales</h1>
+    <p>Masukkan PIN untuk mulai.</p>
+  </div>
+  <form class="pinbox" id="loginForm" autocomplete="off">
+    <label for="pin">PIN</label>
+    <input id="pin" type="password" maxlength="64" autocapitalize="off" autocorrect="off" spellcheck="false" required>
+    <div class="err" id="loginErr"></div>
+    <button class="btn-main" id="loginBtn" type="submit">Masuk</button>
+  </form>
+</section>
+
+<!-- ANNOUNCEMENT -->
+<section id="announce" class="screen">
+  <div class="bar">
+    <h2>Pengumuman</h2>
+    <button class="btn-x" id="closeAnn" aria-label="Tutup pengumuman">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <div class="ann-list" id="annList"></div>
+</section>
+
+<!-- HOME / MAIN MENU -->
+<section id="home" class="screen">
+  <div class="hello">
+    <div>
+      <h2>Menu utama</h2>
+      <p id="whoami"></p>
+    </div>
+    <button class="btn-ghost" id="logoutBtn">Keluar</button>
+  </div>
+  <div class="grid" id="menuGrid"></div>
+  <div class="home-foot">
+    <button class="link-btn" id="reopenAnn">Lihat pengumuman lagi</button>
+    <button class="link-btn" id="adminBtn" hidden>Kelola pengumuman</button>
+  </div>
+</section>
+
+<!-- MENU PAGES (generated from MENU) -->
+<div id="pages"></div>
+
+<!-- ADMIN -->
+<section id="admin" class="screen">
+  <div class="bar">
+    <button class="btn-back" data-back aria-label="Kembali ke menu utama">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>Menu
+    </button>
+    <h2 id="admTitle">Kelola pengumuman</h2>
+  </div>
+  <div class="adm-body">
+    <input type="hidden" id="fId">
+    <div class="field"><label for="fTitle">Judul</label><input type="text" id="fTitle" maxlength="150"></div>
+    <div class="field"><label for="fBody">Isi</label><textarea id="fBody"></textarea></div>
+    <div class="field">
+      <label>Gambar</label>
+      <label class="img-pick" id="imgPick">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>
+        <span id="imgPickText">Pilih gambar</span>
+        <input type="file" id="fImage" accept="image/*" hidden>
+      </label>
+      <div class="img-prev" id="imgPrev">
+        <img id="imgPrevImg" alt="Pratinjau gambar">
+        <button type="button" id="imgRemove">Hapus gambar</button>
+      </div>
+      <div class="img-note">Gambar otomatis diperkecil sebelum disimpan.</div>
+    </div>
+    <label class="chk"><input type="checkbox" id="fActive" checked> Tampilkan saat login</label>
+    <div class="row">
+      <button class="btn-main" id="saveBtn">Simpan</button>
+      <button class="btn-sec" id="newBtn">Baru</button>
+    </div>
+    <button class="btn-del" id="delBtn" hidden>Hapus pengumuman ini</button>
+    <div class="sub">Semua pengumuman</div>
+    <div id="admList"></div>
+  </div>
+</section>
+
+<div class="sheet-bg" id="detBg">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="detTitle">
+    <div class="sheet-head">
+      <div><h3 id="detTitle"></h3><small id="detSub"></small></div>
+      <button class="btn-x" id="detClose" aria-label="Tutup rincian">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="sheet-body" id="detBody"></div>
+  </div>
+</div>
+<div class="lightbox" id="lightbox">
+  <img id="lightboxImg" alt="">
+  <button class="btn-x" id="lightboxClose" aria-label="Tutup gambar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+  </button>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= CONFIG ================= */
+const SUPABASE_URL = 'https://swxgkuaoctrcfbgncwaz.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_0e8sOfljWkkin-hwhNweEw_CWqt1Az-';
+const FULL_ACCESS_LABEL = 'Full Access';
+function allowedLabel(l){            // server tetap cek grup SPV yang valid
+  const n = normLabel(l);
+  return n === 'FULL ACCESS' || n === 'HEAD SALES' || n.startsWith('SPV ');
+}
+const normLabel = s => String(s || '').trim().toUpperCase().replace(/\s+/g, ' ');
+
+const IMG_MAX_SIDE = 1280;   // px
+const IMG_QUALITY  = 0.8;    // JPEG quality
+
+const MENU = [
+  { key:'sales',  name:'Sales',
+    icon:'<path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 8H6"/><circle cx="10" cy="20" r="1.3"/><circle cx="17" cy="20" r="1.3"/>' },
+  { key:'oa',     name:'OA',
+    icon:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>' },
+  { key:'ec',     name:'EC harian',
+    icon:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M9 15.5l2 2 4-4"/>' },
+  { key:'notajt', name:'Nota JT',
+    icon:'<path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M12 8v4l2.5 1.5"/>' },
+];
+
+/* ================= STATE ================= */
+let _sb = null;
+let PIN = '';
+let LABEL = '';
+let annLoaded = null;
+
+function sb(){
+  if (_sb) return _sb;
+  if (!window.supabase) throw new Error('Koneksi gagal dimuat. Periksa internet lalu muat ulang.');
+  _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  return _sb;
+}
+
+function deviceId(){
+  try{
+    let id = localStorage.getItem('device_id');
+    if (!id){
+      id = (crypto.randomUUID ? crypto.randomUUID() : 'dev-' + Date.now() + '-' + Math.random().toString(36).slice(2));
+      localStorage.setItem('device_id', id);
+    }
+    return id;
+  }catch(e){ return 'nostorage-' + navigator.userAgent.length; }
+}
+
+async function rpc(fn, args = {}){
+  const { data, error } = await sb().rpc(fn, { p_pin: PIN, ...args });
+  if (error){
+    if (/pin|akses ditolak/i.test(error.message)) { toast('Sesi habis. Masuk lagi.'); logout(); }
+    throw error;
+  }
+  return data;
+}
+
+/* ================= UI HELPERS ================= */
+const $ = id => document.getElementById(id);
+const BACK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>';
+
+function show(id){
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === id));
+  window.scrollTo(0,0);
+}
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function safeImg(src){ return /^data:image\/(jpeg|png|webp|gif);base64,/i.test(src || '') ? src : ''; }
+function fmtDate(d){
+  try{ return new Date(d).toLocaleString('id-ID',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
+  catch(e){ return ''; }
+}
+let tT;
+function toast(msg){
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(tT); tT = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+/* Phone back button returns to main menu from any inner page */
+let inSubPage = false;
+function enterSubPage(id){
+  show(id);
+  if (!inSubPage){ history.pushState({sub:true}, ''); inSubPage = true; }
+}
+function backToMenu(){
+  if (inSubPage){ history.back(); } else { openHome(); }
+}
+window.addEventListener('popstate', () => {
+  inSubPage = false;
+  $('detBg').classList.remove('on'); document.body.style.overflow = '';
+  if (PIN) openHome(); else show('login');
+});
+document.addEventListener('click', e => { if (e.target.closest('[data-back]')) backToMenu(); });
+
+/* ================= LOGIN ================= */
+$('loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const pin = $('pin').value.trim();
+  $('loginErr').textContent = '';
+  if (!pin) return;
+  const btn = $('loginBtn'); btn.disabled = true; btn.textContent = 'Memeriksa…';
+  try{
+    const { data, error } = await sb().rpc('verify_access_pin', { p_pin: pin, p_device_id: deviceId() });
+    if (error) throw error;
+    const res = Array.isArray(data) ? data[0] : data;
+    if (!res || !res.success){
+      $('loginErr').textContent = (res && res.error) || 'PIN salah.';
+      return;
+    }
+    if (!allowedLabel(res.label)){
+      $('loginErr').textContent = 'Akses ditolak: hanya Full Access, Head Sales, atau SPV.';
+      return;
+    }
+    PIN = pin; LABEL = res.label || '';
+    $('pin').value = '';
+    await openAnnouncements(true);
+  }catch(err){
+    $('loginErr').textContent = err.message || 'Gagal masuk.';
+  }finally{
+    btn.disabled = false; btn.textContent = 'Masuk';
+  }
+});
+
+function logout(){
+  PIN = ''; LABEL = ''; annLoaded = null; CP_GROUPS = null; OA_CUST = null;
+  if (inSubPage){ inSubPage = false; history.back(); }
+  show('login');
+}
+$('logoutBtn').onclick = logout;
+
+/* ================= ANNOUNCEMENTS ================= */
+async function openAnnouncements(fresh){
+  const list = $('annList');
+  show('announce');
+  if (fresh || !annLoaded){
+    list.innerHTML = '<div class="empty">Memuat…</div>';
+    try{ annLoaded = await rpc('get_active_announcements') || []; }
+    catch(err){ list.innerHTML = '<div class="empty">Gagal memuat pengumuman. ' + esc(err.message) + '</div>'; return; }
+  }
+  list.innerHTML = annLoaded.length
+    ? annLoaded.map(a => {
+        const img = safeImg(a.image);
+        return `
+        <article class="ann">
+          <h3>${esc(a.title)}</h3>
+          <time>${fmtDate(a.created_at)}</time>
+          ${img ? `<img src="${img}" alt="Gambar pengumuman" data-zoom>` : ''}
+          ${a.body ? `<div class="body">${esc(a.body)}</div>` : ''}
+        </article>`;
+      }).join('')
+    : '<div class="empty">Tidak ada pengumuman saat ini.</div>';
+  $('closeAnn').focus();
+}
+$('closeAnn').onclick = () => openHome();
+$('reopenAnn').onclick = () => openAnnouncements(false);
+
+/* Lightbox */
+$('annList').addEventListener('click', e => {
+  const img = e.target.closest('img[data-zoom]'); if (!img) return;
+  $('lightboxImg').src = img.src; $('lightbox').classList.add('on');
+});
+$('lightboxClose').onclick = () => $('lightbox').classList.remove('on');
+$('lightbox').addEventListener('click', e => { if (e.target.id === 'lightbox') $('lightbox').classList.remove('on'); });
+
+/* ================= HOME ================= */
+function openHome(){
+  $('whoami').textContent = LABEL ? 'Masuk sebagai ' + LABEL : '';
+  $('adminBtn').hidden = normLabel(LABEL) !== normLabel(FULL_ACCESS_LABEL);
+  show('home');
+}
+
+$('menuGrid').innerHTML = MENU.map(m => `
+  <button class="tile" data-key="${m.key}">
+    <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${m.icon}</svg></div>
+    <span>${esc(m.name)}</span>
+  </button>`).join('');
+
+$('pages').innerHTML = MENU.map(m => `
+  <section id="page-${m.key}" class="screen page">
+    <div class="bar">
+      <button class="btn-back" data-back aria-label="Kembali ke menu utama">${BACK_SVG}Menu</button>
+      <h2>${esc(m.name)}</h2>
+    </div>
+    <div class="page-body" id="body-${m.key}">
+      <div class="empty">Halaman ${esc(m.name)} belum ada isinya.</div>
+    </div>
+  </section>`).join('');
+
+$('menuGrid').addEventListener('click', e => {
+  const b = e.target.closest('.tile'); if (!b) return;
+  openPage(b.dataset.key);
+});
+
+/* ================= PAGE HELPERS ================= */
+const isFull = () => normLabel(LABEL) === normLabel(FULL_ACCESS_LABEL);      // boleh edit
+const seesAll = () => isFull() || normLabel(LABEL) === 'HEAD SALES';         // lihat semua CP
+const fmtJt  = n => (Number(n || 0) / 1000000).toFixed(1);
+const fmtRp  = n => Number(n || 0).toLocaleString('id-ID', { maximumFractionDigits: 0 });
+let CP_GROUPS = null;                 // [{code, name, urut}]
+const cpCodes = () => (CP_GROUPS || []).map(g => g.code);
+const cpName  = code => ((CP_GROUPS || []).find(g => g.code === code) || {}).name || code;
+async function ensureGroups(force){
+  if (!CP_GROUPS || force) CP_GROUPS = await rpc('get_cp_groups') || [];
+  return CP_GROUPS;
+}
+function fillCpSelects(){
+  const opts = (CP_GROUPS || []).map(g => `<option value="${esc(g.code)}">${esc(g.name)}</option>`).join('');
+  ['smCp','dvCp'].forEach(id => { const el = $(id); if (el){ const v = el.value; el.innerHTML = opts; if (v && cpCodes().includes(v)) el.value = v; } });
+}
+const BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+
+/* Non-Full-Access: bulan ini + 1 bulan sebelumnya saja (server juga cek) */
+function allowedMonths(){
+  const cur = new Date().getMonth() + 1;
+  const prev = cur === 1 ? 12 : cur - 1;
+  return isFull() ? BULAN.map((_,i) => i + 1) : [prev, cur];
+}
+function fillMonthSelect(sel){
+  const months = allowedMonths();
+  const cur = new Date().getMonth() + 1;
+  const keep = +sel.value;
+  sel.innerHTML = months.map(m => `<option value="${m}">${BULAN[m-1]}</option>`).join('');
+  sel.value = months.includes(keep) ? keep : cur;
+}
+
+/* ================= SALES PAGE ================= */
+let smRows = [], dvRows = [];
+
+function smReset(){
+  $('smId').value = ''; $('smName').value = ''; $('smCp').value = cpCodes()[0] || '';
+  $('smDel').hidden = true; $('smSave').textContent = 'Tambah salesman';
+}
+function dvReset(){
+  $('dvId').value = ''; $('dvName').value = ''; $('dvCp').value = cpCodes()[0] || ''; $('dvUrut').value = '';
+  $('dvDel').hidden = true; $('dvSave').textContent = 'Tambah divisi';
+}
+
+function grReset(){
+  $('grCode').value = ''; $('grName').value = ''; $('grUrut').value = '';
+  $('grDel').hidden = true; $('grSave').textContent = 'Tambah grup';
+}
+function renderManageLists(){
+  if (!isFull()) return;
+  $('grList').innerHTML = (CP_GROUPS || []).length
+    ? CP_GROUPS.map((g,i) => `<button class="sm-item" data-kind="gr" data-i="${i}">${esc(g.name)}<small>Edit</small></button>`).join('')
+    : '<div class="empty">Belum ada grup.</div>';
+  const group = (rows, kind) => cpCodes().map(cp => {
+    const g = rows.map((r,i) => ({...r, i})).filter(r => r.cp === cp);
+    if (!g.length) return '';
+    return `<div class="sm-group"><h3>${esc(cpName(cp))} (${g.length})</h3>` +
+      g.map(r => `<button class="sm-item" data-kind="${kind}" data-i="${r.i}">${esc(r.name)}<small>Edit</small></button>`).join('') + '</div>';
+  }).join('');
+  $('smList').innerHTML = smRows.length ? group(smRows, 'sm') : '<div class="empty">Belum ada salesman.</div>';
+  $('dvList').innerHTML = dvRows.length ? group(dvRows, 'dv') : '<div class="empty">Belum ada divisi.</div>';
+}
+
+async function salesLoad(){
+  const m = +$('saBulan').value, y = ecYearFor(m);
+  $('saTitle').textContent = BULAN[m-1] + ' ' + y + ' (juta)';
+  const box = $('saMatrix');
+  box.innerHTML = '<div class="empty">Memuat…</div>';
+  let data;
+  try{
+    let grp;
+    [grp, smRows, dvRows, data] = await Promise.all([
+      rpc('get_cp_groups'),
+      rpc('get_portal_salesmen'),
+      rpc('get_portal_divisi'),
+      rpc('get_sales_matrix', { p_year: y, p_month: m })
+    ]);
+    CP_GROUPS = grp || []; smRows = smRows || []; dvRows = dvRows || []; data = data || [];
+    fillCpSelects();
+  }catch(err){ box.innerHTML = '<div class="empty">' + esc(err.message) + '</div>'; return; }
+
+  const cell = {};
+  data.forEach(r => { cell[r.cp + '|' + r.salesman + '|' + r.divisi] = r; });
+
+  const html = cpCodes().map(cp => {
+    const sms = smRows.filter(r => r.cp === cp).map(r => r.name);
+    if (!sms.length) return '';
+    const dvs = dvRows.filter(r => r.cp === cp).map(r => r.name);
+    const hasOther = data.some(r => r.cp === cp && r.divisi === 'LAINNYA');
+    const rows = hasOther ? [...dvs, 'LAINNYA'] : dvs;
+    if (!rows.length) return `<div class="mx-wrap"><div class="empty">Belum ada divisi untuk ${esc(cpName(cp))}.</div></div>`;
+    return `
+      <div class="mx-wrap">
+        <table class="mx">
+          <thead><tr><th class="stick">${esc(cpName(cp))}</th>${sms.map(n => `<th>${esc(n)}</th>`).join('')}</tr></thead>
+          <tbody>${rows.map(dv => `
+            <tr class="${dv === 'LAINNYA' ? 'other' : ''}">
+              <td class="stick">${dv === 'LAINNYA' ? 'Lainnya' : esc(dv)}</td>
+              ${sms.map(n => {
+                const c = cell[cp + '|' + n + '|' + dv];
+                return c && Number(c.total_sales)
+                  ? `<td data-cp="${esc(cp)}" data-sm="${esc(n)}" data-dv="${esc(dv)}"><b>${fmtJt(c.total_sales)}</b><small>${Number(c.customers)} cust</small></td>`
+                  : '<td class="nil">-</td>';
+              }).join('')}
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }).join('');
+  box.innerHTML = html || '<div class="empty">Belum ada salesman terdaftar.</div>';
+  renderManageLists();
+}
+
+async function loadSales(el){
+  if (!el.dataset.built){
+    el.innerHTML = `
+      <div class="ctl">
+        <select id="saBulan" aria-label="Bulan">${BULAN.map((b,i) => `<option value="${i+1}">${b}</option>`).join('')}</select>
+      </div>
+      <div class="sa-title" id="saTitle"></div>
+      <div id="saMatrix"></div>
+
+      <div id="saManage" hidden>
+        <details class="mg">
+          <summary>Kelola grup CP</summary>
+          <div class="sm-form">
+            <input type="hidden" id="grCode">
+            <div class="field"><label for="grName">Nama grup</label>
+              <input type="text" id="grName" maxlength="40" autocapitalize="characters" autocomplete="off" placeholder="contoh: CP 3"></div>
+            <div class="field"><label for="grUrut">Urutan (opsional)</label>
+              <input type="text" id="grUrut" inputmode="numeric" maxlength="4" autocomplete="off"></div>
+            <div class="img-note">Label PIN SPV untuk grup ini: <b id="grLabel">SPV …</b></div>
+            <div class="row"><button class="btn-main" id="grSave">Tambah grup</button><button class="btn-sec" id="grNew">Batal</button></div>
+            <button class="btn-del" id="grDel" hidden>Hapus grup ini</button>
+          </div>
+          <div id="grList"></div>
+        </details>
+
+        <details class="mg">
+          <summary>Kelola divisi</summary>
+          <div class="sm-form">
+            <input type="hidden" id="dvId">
+            <div class="field"><label for="dvName">Nama divisi</label>
+              <input type="text" id="dvName" maxlength="60" autocapitalize="characters" autocomplete="off" placeholder="contoh: BERAS"></div>
+            <div class="field"><label for="dvCp">CP</label>
+              <select id="dvCp"></select></div>
+            <div class="field"><label for="dvUrut">Urutan (opsional)</label>
+              <input type="text" id="dvUrut" inputmode="numeric" maxlength="4" autocomplete="off"></div>
+            <div class="row"><button class="btn-main" id="dvSave">Tambah divisi</button><button class="btn-sec" id="dvNew">Batal</button></div>
+            <button class="btn-del" id="dvDel" hidden>Hapus divisi ini</button>
+          </div>
+          <div id="dvList"></div>
+        </details>
+
+        <details class="mg">
+          <summary>Kelola salesman</summary>
+          <div class="sm-form">
+            <input type="hidden" id="smId">
+            <div class="field"><label for="smName">Nama salesman</label>
+              <input type="text" id="smName" maxlength="60" autocapitalize="characters" autocomplete="off"></div>
+            <div class="field"><label for="smCp">CP</label>
+              <select id="smCp"></select></div>
+            <div class="row"><button class="btn-main" id="smSave">Tambah salesman</button><button class="btn-sec" id="smNew">Batal</button></div>
+            <button class="btn-del" id="smDel" hidden>Hapus salesman ini</button>
+          </div>
+          <div id="smList"></div>
+        </details>
+      </div>`;
+    el.dataset.built = '1';
+
+    $('saBulan').value = new Date().getMonth() + 1;
+    $('saBulan').onchange = salesLoad;
+    $('saMatrix').addEventListener('click', e => {
+      const td = e.target.closest('td[data-dv]'); if (!td) return;
+      openMxDetail(td.dataset.cp, td.dataset.sm, td.dataset.dv);
+    });
+    $('smNew').onclick = smReset;
+    $('dvNew').onclick = dvReset;
+
+    el.addEventListener('click', e => {
+      const b = e.target.closest('button.sm-item'); if (!b) return;
+      if (b.dataset.kind === 'gr'){
+        const g = CP_GROUPS[+b.dataset.i];
+        $('grCode').value = g.code; $('grName').value = g.name; $('grUrut').value = g.urut || '';
+        $('grDel').hidden = false; $('grSave').textContent = 'Simpan perubahan';
+        $('grName').dispatchEvent(new Event('input')); $('grName').focus();
+      } else if (b.dataset.kind === 'sm'){
+        const r = smRows[+b.dataset.i];
+        $('smId').value = r.id; $('smName').value = r.name; $('smCp').value = r.cp;
+        $('smDel').hidden = false; $('smSave').textContent = 'Simpan perubahan';
+        $('smName').focus();
+      } else {
+        const r = dvRows[+b.dataset.i];
+        $('dvId').value = r.id; $('dvName').value = r.name; $('dvCp').value = r.cp; $('dvUrut').value = r.urut || '';
+        $('dvDel').hidden = false; $('dvSave').textContent = 'Simpan perubahan';
+        $('dvName').focus();
+      }
+    });
+
+    $('smSave').onclick = async () => {
+      const name = $('smName').value.trim();
+      if (!name){ toast('Nama salesman wajib diisi.'); $('smName').focus(); return; }
+      const btn = $('smSave'); btn.disabled = true;
+      try{
+        await rpc('save_portal_salesman', {
+          p_id: $('smId').value ? Number($('smId').value) : null, p_name: name, p_cp: $('smCp').value
+        });
+        toast('Salesman disimpan.'); smReset(); salesLoad();
+      }catch(err){ toast(err.message); }
+      finally{ btn.disabled = false; }
+    };
+    $('smDel').onclick = async () => {
+      const id = $('smId').value; if (!id) return;
+      if (!confirm('Hapus salesman ' + $('smName').value + '?')) return;
+      try{ await rpc('delete_portal_salesman', { p_id: Number(id) }); toast('Salesman dihapus.'); smReset(); salesLoad(); }
+      catch(err){ toast(err.message); }
+    };
+
+    $('grNew').onclick = () => { grReset(); $('grLabel').textContent = 'SPV …'; };
+    $('grName').addEventListener('input', () => {
+      const n = normLabel($('grName').value);
+      $('grLabel').textContent = n ? 'SPV ' + n : 'SPV …';
+    });
+    $('grSave').onclick = async () => {
+      const name = $('grName').value.trim();
+      if (!name){ toast('Nama grup wajib diisi.'); $('grName').focus(); return; }
+      const urut = $('grUrut').value.trim();
+      if (urut && !/^\d+$/.test(urut)){ toast('Urutan harus angka.'); $('grUrut').focus(); return; }
+      const btn = $('grSave'); btn.disabled = true;
+      try{
+        await rpc('save_cp_group', { p_code: $('grCode').value || null, p_name: name, p_urut: urut ? Number(urut) : 0 });
+        toast('Grup disimpan.'); grReset(); $('grLabel').textContent = 'SPV …'; salesLoad();
+      }catch(err){ toast(err.message); }
+      finally{ btn.disabled = false; }
+    };
+    $('grDel').onclick = async () => {
+      const code = $('grCode').value; if (!code) return;
+      if (!confirm('Hapus grup ' + $('grName').value + '?')) return;
+      try{ await rpc('delete_cp_group', { p_code: code }); toast('Grup dihapus.'); grReset(); salesLoad(); }
+      catch(err){ toast(err.message); }
+    };
+
+    $('dvSave').onclick = async () => {
+      const name = $('dvName').value.trim();
+      if (!name){ toast('Nama divisi wajib diisi.'); $('dvName').focus(); return; }
+      const urut = $('dvUrut').value.trim();
+      if (urut && !/^\d+$/.test(urut)){ toast('Urutan harus angka.'); $('dvUrut').focus(); return; }
+      const btn = $('dvSave'); btn.disabled = true;
+      try{
+        await rpc('save_portal_divisi', {
+          p_id: $('dvId').value ? Number($('dvId').value) : null,
+          p_name: name, p_cp: $('dvCp').value, p_urut: urut ? Number(urut) : 0
+        });
+        toast('Divisi disimpan.'); dvReset(); salesLoad();
+      }catch(err){ toast(err.message); }
+      finally{ btn.disabled = false; }
+    };
+    $('dvDel').onclick = async () => {
+      const id = $('dvId').value; if (!id) return;
+      if (!confirm('Hapus divisi ' + $('dvName').value + '?')) return;
+      try{ await rpc('delete_portal_divisi', { p_id: Number(id) }); toast('Divisi dihapus.'); dvReset(); salesLoad(); }
+      catch(err){ toast(err.message); }
+    };
+  }
+  $('saManage').hidden = !isFull();
+  fillMonthSelect($('saBulan'));
+  grReset(); smReset(); dvReset();
+  await salesLoad();
+  smReset(); dvReset();
+}
+
+/* ================= OA PAGE ================= */
+let OA_CUST = null;            // [{customer, area, sub_area, key}]
+let oaCells = {}, oaDivs = [], oaPage = 1;
+const OA_PAGE_SIZE = 100;
+const custKey = c => String(c || '').replace(/\s*\([^)]*\)\s*$/, '').trim().toUpperCase().replace(/\s+/g, ' ');
+const custShow = c => String(c || '').replace(/\s*\([^)]*\)\s*$/, '');
+
+async function rpcAll(fn, args = {}){
+  const size = 1000; let out = [], from = 0;
+  for (;;){
+    const { data, error } = await sb().rpc(fn, { p_pin: PIN, ...args }).range(from, from + size - 1);
+    if (error) throw error;
+    out = out.concat(data || []);
+    if (!data || data.length < size) break;
+    from += size;
+  }
+  return out;
+}
+
+function oaFiltered(){
+  const q = custKey($('oaSearch').value), active = $('oaActive').checked;
+  return OA_CUST.filter(c =>
+    (!q || c.key.includes(q)) &&
+    (!active || oaDivs.some(d => oaCells[c.key + '|' + d]))
+  );
+}
+
+function oaRender(){
+  const box = $('oaResult');
+  if (!oaDivs.length){ box.innerHTML = '<div class="empty">Belum ada divisi untuk grup ini.</div>'; return; }
+  const rows = oaFiltered();
+  const pages = Math.max(1, Math.ceil(rows.length / OA_PAGE_SIZE));
+  if (oaPage > pages) oaPage = pages;
+  const slice = rows.slice((oaPage - 1) * OA_PAGE_SIZE, oaPage * OA_PAGE_SIZE);
+  const oaCount = d => rows.reduce((a,c) => a + (oaCells[c.key + '|' + d] ? 1 : 0), 0);
+
+  box.innerHTML = `
+    <div class="oa-info">
+      <span>${rows.length} customer</span>
+      <div class="pager">
+        <button id="oaPrev" ${oaPage <= 1 ? 'disabled' : ''} aria-label="Halaman sebelumnya">&lsaquo;</button>
+        <span>${oaPage}/${pages}</span>
+        <button id="oaNext" ${oaPage >= pages ? 'disabled' : ''} aria-label="Halaman berikutnya">&rsaquo;</button>
+      </div>
+    </div>
+    <div class="mx-wrap">
+      <table class="mx mx-oa">
+        <thead><tr>
+          <th class="stick">Customer</th><th class="arh" style="text-align:left">Area</th>
+          ${oaDivs.map(d => `<th>${esc(d)}<small>OA ${oaCount(d)}</small></th>`).join('')}
+        </tr></thead>
+        <tbody>${slice.map(c => `
+          <tr>
+            <td class="stick" title="${esc(custShow(c.customer))}"><div class="cn">${esc(custShow(c.customer))}</div></td>
+            <td class="ar">${esc(c.area)}</td>
+            ${oaDivs.map(d => {
+              const v = oaCells[c.key + '|' + d];
+              return v ? `<td class="on">${fmtJt(v)}</td>` : '<td class="nil">-</td>';
+            }).join('')}
+          </tr>`).join('') || `<tr><td class="stick">Tidak ada customer.</td><td></td>${oaDivs.map(() => '<td></td>').join('')}</tr>`}
+        </tbody>
+      </table>
+    </div>`;
+  $('oaPrev').onclick = () => { oaPage--; oaRender(); };
+  $('oaNext').onclick = () => { oaPage++; oaRender(); };
+}
+
+async function oaLoad(){
+  const m = +$('oaBulan').value, y = ecYearFor(m), cp = $('oaGroup').value;
+  $('oaTitle').textContent = `${cpName(cp)} — ${BULAN[m-1]} ${y} (juta)`;
+  const box = $('oaResult');
+  box.innerHTML = '<div class="empty">Memuat…</div>';
+  try{
+    const [divs, cells] = await Promise.all([
+      rpc('get_portal_divisi'),
+      rpcAll('get_oa_matrix', { p_year: y, p_month: m, p_cp: cp })
+    ]);
+    oaDivs = (divs || []).filter(d => d.cp === cp).map(d => d.name);
+    oaCells = {};
+    cells.forEach(r => { oaCells[custKey(r.customer) + '|' + r.divisi] = Number(r.total_sales || 0); });
+  }catch(err){ box.innerHTML = '<div class="empty">' + esc(err.message) + '</div>'; return; }
+  oaPage = 1;
+  oaRender();
+}
+
+async function loadOa(el){
+  if (!el.dataset.built){
+    el.innerHTML = `
+      <div class="oa-ctl">
+        <select id="oaBulan" aria-label="Bulan"></select>
+        <select id="oaGroup" aria-label="Grup"></select>
+        <input type="search" id="oaSearch" placeholder="Cari customer" autocomplete="off">
+        <label class="chk"><input type="checkbox" id="oaActive"> Hanya customer yang belanja</label>
+      </div>
+      <div class="sa-title" id="oaTitle"></div>
+      <div id="oaResult"></div>`;
+    el.dataset.built = '1';
+    $('oaBulan').onchange = oaLoad;
+    $('oaGroup').onchange = oaLoad;
+    $('oaActive').onchange = () => { oaPage = 1; oaRender(); };
+    let t; $('oaSearch').oninput = () => { clearTimeout(t); t = setTimeout(() => { oaPage = 1; oaRender(); }, 250); };
+  }
+  $('oaResult').innerHTML = '<div class="empty">Memuat…</div>';
+  try{
+    await ensureGroups(true);
+    if (!OA_CUST){
+      const rows = await rpcAll('get_oa_customers');
+      const seen = new Map();                 // nama sama = 1 baris
+      rows.forEach(r => {
+        const key = custKey(r.customer);
+        if (!key) return;
+        const prev = seen.get(key);
+        if (!prev) seen.set(key, { customer: key, area: r.area, sub_area: r.sub_area, key });
+        else if (r.area && !String(prev.area).split(', ').includes(r.area)) prev.area += ', ' + r.area;
+      });
+      OA_CUST = [...seen.values()];
+    }
+  }catch(err){ $('oaResult').innerHTML = '<div class="empty">' + esc(err.message) + '</div>'; return; }
+
+  const gSel = $('oaGroup'), keepG = gSel.value;
+  gSel.innerHTML = CP_GROUPS.map(g => `<option value="${esc(g.code)}">${esc(g.name)}</option>`).join('');
+  if (cpCodes().includes(keepG)) gSel.value = keepG;
+  gSel.hidden = CP_GROUPS.length < 2;
+
+  fillMonthSelect($('oaBulan'));
+  if (!CP_GROUPS.length){ $('oaResult').innerHTML = '<div class="empty">Tidak ada grup.</div>'; return; }
+  await oaLoad();
+}
+
+/* ================= EC HARIAN PAGE ================= */
+function ecYearFor(month){            // bulan di depan bulan ini = tahun lalu
+  const now = new Date();
+  return month > now.getMonth() + 1 ? now.getFullYear() - 1 : now.getFullYear();
+}
+function ecFillDays(keep){
+  const m = +$('ecBulan').value, y = ecYearFor(m);
+  const max = new Date(y, m, 0).getDate();
+  const d = Math.min(keep || +$('ecTgl').value || 1, max);
+  $('ecTgl').innerHTML = Array.from({ length:max }, (_,i) =>
+    `<option value="${i+1}"${i+1 === d ? ' selected' : ''}>${i+1}</option>`).join('');
+}
+let ecIso = '', ecDateText = '';
+async function ecLoad(){
+  const m = +$('ecBulan').value, d = +$('ecTgl').value, y = ecYearFor(m);
+  const iso = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  ecIso = iso;
+  ecDateText = new Date(y, m-1, d).toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' });
+  $('ecDate').textContent = new Date(y, m-1, d).toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  const box = $('ecResult');
+  box.innerHTML = '<div class="empty">Memuat…</div>';
+  let rows;
+  try{ await ensureGroups(); rows = await rpc('get_ec_harian', { p_date: iso }) || []; }
+  catch(err){ box.innerHTML = '<div class="empty">' + esc(err.message) + '</div>'; return; }
+  if (!rows.length){ box.innerHTML = '<div class="empty">Belum ada salesman terdaftar di halaman Sales.</div>'; return; }
+
+  const tSales = rows.reduce((a,r) => a + Number(r.total_sales || 0), 0);
+  const tEc    = rows.reduce((a,r) => a + Number(r.ec || 0), 0);
+  const tFak   = rows.reduce((a,r) => a + Number(r.jumlah_faktur || 0), 0);
+  const full = seesAll() || cpCodes().length > 1;
+
+  const rowHtml = r => `
+    <tr class="${Number(r.jumlah_faktur) ? '' : 'zero'}" data-sm="${esc(r.salesman)}" data-cp="${esc(r.cp)}">
+      <td class="nm">${esc(r.salesman)}</td>
+      <td class="num">${fmtRp(r.total_sales)}</td>
+      <td class="num">${Number(r.ec || 0) < 10 ? '<span class="ec-warn" title="EC di bawah 10">!</span>' : ''}${Number(r.ec || 0)}</td>
+      <td class="dv">${esc(r.divisi || '-')}</td>
+    </tr>`;
+  const body = full
+    ? cpCodes().map(cp => {
+        const g = rows.filter(r => r.cp === cp); if (!g.length) return '';
+        const gs = g.reduce((a,r) => a + Number(r.total_sales || 0), 0);
+        const ge = g.reduce((a,r) => a + Number(r.ec || 0), 0);
+        return `<tr class="grp"><td>${esc(cpName(cp))}</td><td class="num">${fmtRp(gs)}</td><td class="num">${ge}</td><td></td></tr>` + g.map(rowHtml).join('');
+      }).join('')
+    : rows.map(rowHtml).join('');
+
+  box.innerHTML = `
+    <div class="sum">
+      <div><small>Total sales</small><b>Rp ${fmtRp(tSales)}</b></div>
+      <div><small>Total EC</small><b>${tEc}</b></div>
+      <div><small>Jumlah faktur</small><b>${tFak}</b></div>
+    </div>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Salesman</th><th class="num">Sales</th><th class="num">EC</th><th>Divisi</th></tr></thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>`;
+}
+async function loadEc(el){
+  if (!el.dataset.built){
+    el.innerHTML = `
+      <div class="ctl">
+        <select id="ecTgl" aria-label="Tanggal"></select>
+        <select id="ecBulan" aria-label="Bulan">${BULAN.map((b,i) => `<option value="${i+1}">${b}</option>`).join('')}</select>
+      </div>
+      <div class="ec-date" id="ecDate"></div>
+      <div id="ecResult"></div>`;
+    el.dataset.built = '1';
+    const now = new Date();
+    $('ecBulan').value = now.getMonth() + 1;
+    ecFillDays(now.getDate());
+    $('ecTgl').onchange = ecLoad;
+    $('ecResult').addEventListener('click', e => {
+      const tr = e.target.closest('tr[data-sm]'); if (tr) openEcDetail(tr.dataset.sm, tr.dataset.cp);
+    });
+    $('ecBulan').onchange = () => { ecFillDays(); ecLoad(); };
+  }
+  fillMonthSelect($('ecBulan'));
+  ecFillDays();
+  await ecLoad();
+}
+
+/* ---------- EC detail popup ---------- */
+async function openEcDetail(name, cp){
+  $('detTitle').textContent = name;
+  $('detSub').textContent = ecDateText;
+  $('detBody').innerHTML = '<div class="empty">Memuat…</div>';
+  $('detBg').classList.add('on');
+  document.body.style.overflow = 'hidden';
+  let rows;
+  try{ rows = await rpc('get_ec_harian_detail', { p_date: ecIso, p_salesman: name, p_cp: cp }) || []; }
+  catch(err){ $('detBody').innerHTML = '<div class="empty">' + esc(err.message) + '</div>'; return; }
+  if (!rows.length){ $('detBody').innerHTML = '<div class="empty">Tidak ada invoice pada tanggal ini.</div>'; return; }
+  const total = rows.reduce((a,r) => a + Number(r.amount || 0), 0);
+  $('detSub').textContent = ecDateText + ' — ' + rows.length + ' invoice';
+  $('detBody').innerHTML = `
+    <table class="tbl">
+      <thead><tr><th>Customer</th><th>No Invoice</th><th class="num">Amount</th><th>Salesman</th></tr></thead>
+      <tbody>${rows.map(r => `
+        <tr>
+          <td class="cu">${esc(String(r.customer || '').replace(/\s*\([^)]*\)\s*$/, ''))}</td>
+          <td class="inv">${esc(r.invoice_no)}</td>
+          <td class="num">${fmtRp(r.amount)}</td>
+          <td class="sl">${esc(r.salesman)}</td>
+        </tr>`).join('')}</tbody>
+      <tfoot><tr><td colspan="2">Total</td><td class="num">${fmtRp(total)}</td><td></td></tr></tfoot>
+    </table>`;
+}
+async function openMxDetail(cp, name, dv){
+  const m = +$('saBulan').value, y = ecYearFor(m);
+  const sub = `${dv === 'LAINNYA' ? 'Lainnya' : dv} — ${cpName(cp)} — ${BULAN[m-1]} ${y}`;
+  $('detTitle').textContent = name;
+  $('detSub').textContent = sub;
+  $('detBody').innerHTML = '<div class="empty">Memuat…</div>';
+  $('detBg').classList.add('on');
+  document.body.style.overflow = 'hidden';
+  let rows;
+  try{
+    rows = await rpc('get_sales_matrix_detail', {
+      p_year: y, p_month: m, p_cp: cp, p_salesman: name, p_divisi: dv
+    }) || [];
+  }catch(err){ $('detBody').innerHTML = '<div class="empty">' + esc(err.message) + '</div>'; return; }
+  if (!rows.length){ $('detBody').innerHTML = '<div class="empty">Tidak ada invoice.</div>'; return; }
+  const total = rows.reduce((a,r) => a + Number(r.amount || 0), 0);
+  const cust = new Set(rows.map(r => r.customer)).size;
+  $('detSub').textContent = `${sub} — ${rows.length} invoice, ${cust} cust`;
+  const tgl = d => { const p = String(d || '').split('-'); return p.length === 3 ? `${+p[2]}/${+p[1]}` : esc(d); };
+  $('detBody').innerHTML = `
+    <table class="tbl">
+      <thead><tr><th>Tgl</th><th>Customer</th><th>No Invoice</th><th class="num">Amount</th><th>Salesman</th></tr></thead>
+      <tbody>${rows.map(r => `
+        <tr>
+          <td class="tg">${tgl(r.print_date)}</td>
+          <td class="cu">${esc(String(r.customer || '').replace(/\s*\([^)]*\)\s*$/, ''))}</td>
+          <td class="inv">${esc(r.invoice_no)}</td>
+          <td class="num">${fmtRp(r.amount)}</td>
+          <td class="sl">${esc(r.salesman)}</td>
+        </tr>`).join('')}</tbody>
+      <tfoot><tr><td colspan="3">Total</td><td class="num">${fmtRp(total)}</td><td></td></tr></tfoot>
+    </table>`;
+}
+function closeEcDetail(){
+  $('detBg').classList.remove('on');
+  document.body.style.overflow = '';
+}
+$('detClose').onclick = closeEcDetail;
+$('detBg').addEventListener('click', e => { if (e.target.id === 'detBg') closeEcDetail(); });
+
+/* Each page's loader. Body container: #body-<key> */
+const PAGE_LOADERS = {
+  sales:  loadSales,
+  oa:     loadOa,
+  ec:     loadEc,
+  notajt: async (el) => {},
+};
+async function openPage(key){
+  enterSubPage('page-' + key);
+  const fn = PAGE_LOADERS[key];
+  if (fn){ try{ await fn($('body-' + key)); }catch(err){ toast(err.message); } }
+}
+
+/* ================= ADMIN ================= */
+let admRows = [];
+let curImage = '';
+
+$('adminBtn').onclick = () => { resetForm(); enterSubPage('admin'); loadAdmin(); };
+$('newBtn').onclick = resetForm;
+
+function setImage(src){
+  curImage = src || '';
+  $('imgPrevImg').src = curImage || '';
+  $('imgPrev').classList.toggle('on', !!curImage);
+  $('imgPickText').textContent = curImage ? 'Ganti gambar' : 'Pilih gambar';
+}
+function resetForm(){
+  $('fId').value = ''; $('fTitle').value = ''; $('fBody').value = '';
+  $('fActive').checked = true; $('delBtn').hidden = true; $('fImage').value = '';
+  setImage('');
+  $('admTitle').textContent = 'Kelola pengumuman';
+}
+
+function compressImage(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Gagal membaca gambar.'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('File bukan gambar yang valid.'));
+      img.onload = () => {
+        let { width:w, height:h } = img;
+        const scale = Math.min(1, IMG_MAX_SIDE / Math.max(w, h));
+        w = Math.round(w * scale); h = Math.round(h * scale);
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(c.toDataURL('image/jpeg', IMG_QUALITY));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+$('fImage').addEventListener('change', async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try{
+    $('imgPickText').textContent = 'Memproses…';
+    setImage(await compressImage(f));
+  }catch(err){ toast(err.message); setImage(curImage); }
+  finally{ e.target.value = ''; }
+});
+$('imgRemove').onclick = () => setImage('');
+
+async function loadAdmin(){
+  const box = $('admList');
+  box.innerHTML = '<div class="empty">Memuat…</div>';
+  try{ admRows = await rpc('get_all_announcements') || []; }
+  catch(err){ box.innerHTML = '<div class="empty">' + esc(err.message) + '</div>'; return; }
+  box.innerHTML = admRows.length
+    ? admRows.map((a,i) => `
+        <button class="adm-item" data-i="${i}">
+          <div><b>${esc(a.title)}</b><small>${fmtDate(a.updated_at)}</small></div>
+          <div class="badges">
+            <span class="badge ${a.active?'on':'off'}">${a.active?'Tampil':'Disembunyikan'}</span>
+            ${a.image ? '<span class="badge img">Gambar</span>' : ''}
+          </div>
+        </button>`).join('')
+    : '<div class="empty">Belum ada pengumuman. Tulis yang pertama di atas.</div>';
+}
+$('admList').addEventListener('click', e => {
+  const b = e.target.closest('.adm-item'); if (!b) return;
+  const a = admRows[+b.dataset.i];
+  $('fId').value = a.id; $('fTitle').value = a.title; $('fBody').value = a.body;
+  $('fActive').checked = a.active; $('delBtn').hidden = false;
+  setImage(safeImg(a.image));
+  $('admTitle').textContent = 'Edit pengumuman';
+  window.scrollTo({top:0,behavior:'smooth'});
+});
+
+$('saveBtn').onclick = async () => {
+  const title = $('fTitle').value.trim();
+  if (!title){ toast('Judul wajib diisi.'); $('fTitle').focus(); return; }
+  const btn = $('saveBtn'); btn.disabled = true; btn.textContent = 'Menyimpan…';
+  try{
+    await rpc('save_announcement', {
+      p_id: $('fId').value ? Number($('fId').value) : null,
+      p_title: title,
+      p_body: $('fBody').value,
+      p_active: $('fActive').checked,
+      p_image: curImage || null
+    });
+    toast('Pengumuman disimpan.');
+    annLoaded = null;
+    resetForm(); loadAdmin();
+  }catch(err){ toast(err.message); }
+  finally{ btn.disabled = false; btn.textContent = 'Simpan'; }
+};
+
+$('delBtn').onclick = async () => {
+  const id = $('fId').value; if (!id) return;
+  if (!confirm('Hapus pengumuman ini?')) return;
+  try{
+    await rpc('delete_announcement', { p_id: Number(id) });
+    toast('Pengumuman dihapus.');
+    annLoaded = null;
+    resetForm(); loadAdmin();
+  }catch(err){ toast(err.message); }
+};
+</script>
+</body>
+</html>
