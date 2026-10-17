@@ -276,6 +276,7 @@
               <th>Branch</th>
               <th>Status</th>
               <th>Exported</th>
+              <th>Tgl Export</th>
             </tr>
           </thead>
           <tbody id="trackTbody"></tbody>
@@ -311,6 +312,12 @@
       <select id="plDetailSopir"><option value="">- Pilih sopir -</option></select>
       <label for="plDetailSopir2">Sopir 2</label>
       <select id="plDetailSopir2"><option value="">- Tidak ada -</option></select>
+      <label for="plDetailSopir3">Sopir 3</label>
+      <select id="plDetailSopir3"><option value="">- Tidak ada -</option></select>
+      <label for="plDetailSopir4">Sopir 4</label>
+      <select id="plDetailSopir4"><option value="">- Tidak ada -</option></select>
+      <label for="plDetailSopir5">Sopir 5</label>
+      <select id="plDetailSopir5"><option value="">- Tidak ada -</option></select>
       <label for="plDetailTgl">Tgl Antar</label>
       <input type="date" id="plDetailTgl">
       <button class="btn primary" id="plDetailHdrSaveBtn" type="button">Simpan</button>
@@ -1056,17 +1063,19 @@
     if (error){ console.warn('Gagal memuat list sopir: ' + error.message); sopirList = []; return; }
     sopirList = (data || []).map(r => r.nama).filter(Boolean);
   }
-  // 2 sopir stored in packing_lists.sopir as "SOPIR1 / SOPIR2"
+  // up to 5 sopir stored in packing_lists.sopir as "SOPIR1 / SOPIR2 / ..."
   const SOPIR_SEP = ' / ';
+  const SOPIR_IDS = ['plDetailSopir', 'plDetailSopir2', 'plDetailSopir3', 'plDetailSopir4', 'plDetailSopir5'];
   function splitSopir(v){
     return String(v || '').split('/').map(x => x.trim()).filter(Boolean);
   }
-  function joinSopir(a, b){
-    const list = [a, b].map(x => String(x || '').trim()).filter(Boolean);
+  function joinSopir(arr){
+    const list = arr.map(x => String(x || '').trim()).filter(Boolean);
+    // duplicates allowed: same sopir twice = 2 rit
     return list.join(SOPIR_SEP);
   }
   function fillSopirSelect(current){
-    const [cur1 = '', cur2 = ''] = splitSopir(current);
+    const curs = splitSopir(current);
     const fill = (id, placeholder, cur) => {
       const sel = document.getElementById(id);
       const names = [...sopirList];
@@ -1076,8 +1085,7 @@
         names.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
       sel.value = cur || '';
     };
-    fill('plDetailSopir', '- Pilih sopir -', cur1);
-    fill('plDetailSopir2', '- Tidak ada -', cur2);
+    SOPIR_IDS.forEach((id, i) => fill(id, i === 0 ? '- Pilih sopir -' : '- Tidak ada -', curs[i] || ''));
   }
 
   async function loadPackingList(){
@@ -1464,9 +1472,15 @@
 
   // ---- Tracking tab ----
   async function loadTrackingItems(){
-    const { data, error } = await rpcAll('get_tracking_items', { p_pin: currentPin });
+    const [res, exp] = await Promise.all([
+      rpcAll('get_tracking_items', { p_pin: currentPin }),
+      rpcAll('get_invoice_exported_at', { p_pin: currentPin })
+    ]);
+    const { data, error } = res;
     if (error){ alert('Gagal memuat tracking: ' + error.message); return; }
-    trackItems = data || [];
+    const expMap = new Map();
+    if (!exp.error) (exp.data || []).forEach(e => expMap.set(e.id, e.exported_at));
+    trackItems = (data || []).map(r => ({ ...r, exported_at: expMap.get(r.id) || null }));
     renderTrackingTable();
   }
 
@@ -1494,7 +1508,7 @@
       const g = groupRows[0];
       const groupTr = document.createElement('tr');
       groupTr.className = 'pl-group-row';
-      groupTr.innerHTML = `<td colspan="6"><b>${escapeHtml(noPl)}</b> &middot; ${escapeHtml(g.sopir || '-')} &middot; ${escapeHtml(g.pl_area || '-')} &middot; ${g.tgl || '-'}</td>`;
+      groupTr.innerHTML = `<td colspan="7"><b>${escapeHtml(noPl)}</b> &middot; ${escapeHtml(g.sopir || '-')} &middot; ${escapeHtml(g.pl_area || '-')} &middot; ${g.tgl || '-'}</td>`;
       tbody.appendChild(groupTr);
 
       groupRows.forEach(r => {
@@ -1505,7 +1519,8 @@
           `<td class="num">${fmtNumber(r.kubikasi)}</td>` +
           `<td>${escapeHtml(r.branch)}</td>` +
           `<td>${escapeHtml(r.status)}</td>` +
-          `<td>${r.exported ? '\u2714' : '-'}</td>`;
+          `<td>${r.exported ? '\u2714' : '-'}</td>` +
+          `<td style="white-space:nowrap">${r.exported_at ? fmtDateShort(r.exported_at) : '-'}</td>`;
         tbody.appendChild(tr);
       });
     });
@@ -1556,10 +1571,7 @@
     if (!noPl) return;
     const g = getPlGroups().find(x => x.no_pl === noPl) || plItems.find(r => r.no_pl === noPl) || {};
     const tgl = document.getElementById('plDetailTgl').value;
-    const sopir = joinSopir(
-      document.getElementById('plDetailSopir').value,
-      document.getElementById('plDetailSopir2').value
-    );
+    const sopir = joinSopir(SOPIR_IDS.map(id => document.getElementById(id).value));
     const area = g.pl_area || '';
     const msgEl = document.getElementById('plDetailHdrMsg');
     if (!tgl){ msgEl.textContent = 'Tgl wajib diisi.'; msgEl.className = 'automsg error'; return; }
@@ -1858,7 +1870,15 @@
     const row1Y = 56, row2Y = 76, row3Y = 96;
     doc.text('No PL: ' + noPl, leftX, row1Y);
     doc.text('TGL: ' + (header.tgl || '-'), rightX, row1Y);
-    doc.text('SOPIR: ' + (header.sopir || '-'), leftX, row2Y);
+    {
+      // shrink font so up to 5 sopir names don't overlap the AREA column
+      const sopirTxt = 'SOPIR: ' + (header.sopir || '-');
+      let fs = 15;
+      while (fs > 7 && doc.getStringUnitWidth(sopirTxt) * fs > rightX - leftX - 10) fs--;
+      doc.setFontSize(fs);
+      doc.text(sopirTxt, leftX, row2Y);
+      doc.setFontSize(15);
+    }
     doc.text('AREA: ' + (header.area || '-'), rightX, row2Y);
     doc.text('TOTAL KUBIKASI: ' + fmtNumber(header.total), leftX, row3Y);
 
