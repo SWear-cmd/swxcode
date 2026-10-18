@@ -521,8 +521,8 @@ async function goHome(push = true){
         S.doc = d;
         if(d.status === 'OPEN') openTeam(true);
         else if(d.status === 'VALID'){
-          if(isFullAccess()) openCompare(true);
-          else toast('Hasil Tim A dan B cocok. Menunggu Full Access memfinalkan.');
+          if(canFinalize()) openCompare(true);
+          else toast('Hasil Tim A dan B cocok. Menunggu Full Access / SPVADMIN memfinalkan.');
         }
         else openReport(true);
       };
@@ -537,6 +537,7 @@ async function goHome(push = true){
 }
 $('btnNew').addEventListener('click', openDivisi);
 
+function canFinalize(){ return ['FULL ACCESS','SPVADMIN'].includes(String(S.label || '').trim().toUpperCase()); }
 function isFullAccess(){ return String(S.label || '').trim().toLowerCase() === 'full access'; }
 async function deleteDoc(d){
   if(!d) return;
@@ -609,8 +610,8 @@ async function loadSummary(){
       <div>Baru 1 tim<b class="num">${r.pending}</b></div>
     </div>`;
     if(h.status === 'VALID' || h.status === 'FINAL'){
-      html += `<div class="banner ok">Semua barang sesuai. ${h.status === 'FINAL' ? 'Stok fisik sudah final.' : 'Menunggu Full Access memfinalkan.'}</div>`;
-      if(h.status === 'VALID' && isFullAccess()) html += `<button class="btn" id="btnGoFinal" style="margin-top:12px">Finalkan stok fisik</button>`;
+      html += `<div class="banner ok">Semua barang sesuai. ${h.status === 'FINAL' ? 'Stok fisik sudah final.' : 'Menunggu Full Access / SPVADMIN memfinalkan.'}</div>`;
+      if(h.status === 'VALID' && canFinalize()) html += `<button class="btn" id="btnGoFinal" style="margin-top:12px">Finalkan stok fisik</button>`;
     }else{
       if(h.round > 1) html += `<div class="banner">Putaran ${h.round}: ${rc.length} barang wajib dihitung ulang. Barang lain sudah valid dan terkunci.</div>`;
       if(items.length){
@@ -745,7 +746,7 @@ $('btnFinish').addEventListener('click', async () => {
       toast(`Tim ${S.tim} selesai. Menunggu Tim ${otherTim()}.`);
       openProducts(false, true);
     }else if(r.status === 'VALID'){
-      alert('Hasil Tim A dan Tim B cocok semua. Menunggu Full Access untuk memfinalkan stok fisik.');
+      alert('Hasil Tim A dan Tim B cocok semua. Menunggu Full Access / SPVADMIN untuk memfinalkan stok fisik.');
       history.replaceState({ s: 'home' }, ''); S.screen = 'home';
       goHome(false);
     }else{
