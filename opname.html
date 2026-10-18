@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1C2630">
+<title>Stock Opname</title>
+<style>
+:root{
+  --bg:#EEF1F3; --surface:#FFFFFF; --ink:#1C2630; --muted:#5E6B76; --line:#D3D9DE;
+  --kraft:#9C6A33; --kraft-ink:#FFFFFF; --kraft-soft:#F3E7D8;
+  --ok:#2F7D4F; --ok-soft:#E1F1E7; --danger:#B4342D; --done:#F2C230; --done-ink:#1C2630;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#12171C; --surface:#1B232A; --ink:#E6EBEF; --muted:#93A1AC; --line:#2C3640;
+    --kraft:#D19A5B; --kraft-ink:#1C1307; --kraft-soft:#3A2C1C;
+    --ok:#6FC191; --ok-soft:#1D3327; --danger:#E5726B; --done:#F2C230; --done-ink:#1C2630;
+    color-scheme: dark;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{
+  background:var(--bg); color:var(--ink);
+  font:15px/1.45 -apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  -webkit-tap-highlight-color:transparent;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+.num{font-variant-numeric:tabular-nums}
+.hidden{display:none!important}
+
+/* header */
+.bar{
+  position:sticky; top:0; z-index:20; background:var(--ink); color:var(--bg);
+  padding:calc(env(safe-area-inset-top,0px) + 10px) 12px 10px;
+  display:flex; align-items:center; gap:10px; min-height:56px;
+}
+.bar .ttl{flex:1; min-width:0}
+.bar .ttl b{display:block; font-size:16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.bar .ttl small{display:block; opacity:.7; font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.iconbtn{background:transparent; border:0; color:inherit; width:38px; height:38px; border-radius:8px; font-size:22px; line-height:1; cursor:pointer}
+.iconbtn:active{background:rgba(255,255,255,.12)}
+.btn-done{background:var(--done); color:var(--done-ink); border:0; border-radius:8px; padding:9px 14px; font-weight:700; cursor:pointer}
+
+.wrap{max-width:640px; margin:0 auto; padding:14px 12px 28px}
+
+/* generic */
+.btn{display:block; width:100%; border:0; border-radius:10px; padding:14px; font-weight:700; font-size:16px; cursor:pointer; background:var(--kraft); color:var(--kraft-ink)}
+.btn:disabled{opacity:.55}
+.btn.ghost{background:transparent; color:var(--ink); border:1.5px solid var(--line)}
+.btn.small{display:inline-block; width:auto; padding:8px 12px; font-size:14px; border-radius:8px}
+.btn.danger{background:transparent; color:var(--danger); border:1.5px solid var(--danger)}
+:focus-visible{outline:2px solid var(--kraft); outline-offset:2px}
+.sec{font-size:13px; color:var(--muted); margin:18px 2px 8px; font-weight:600}
+.empty{color:var(--muted); text-align:center; padding:28px 10px}
+.err{color:var(--danger); font-size:14px; min-height:20px; margin-top:8px}
+
+/* login */
+.login{min-height:100%; display:flex; flex-direction:column; justify-content:center; padding:24px; max-width:380px; margin:0 auto}
+.login h1{font-size:26px; margin:0 0 4px; letter-spacing:-.01em}
+.login p{color:var(--muted); margin:0 0 26px}
+.pin{width:100%; font-size:28px; letter-spacing:.4em; text-align:center; padding:14px; border-radius:10px; border:1.5px solid var(--line); background:var(--surface); margin-bottom:12px}
+
+/* list rows */
+.list{background:var(--surface); border-radius:12px; overflow:hidden; border:1px solid var(--line)}
+.row{display:flex; align-items:center; gap:12px; padding:13px 14px; border-top:1px solid var(--line); cursor:pointer; background:transparent; width:100%; text-align:left; border-left:0; border-right:0; border-bottom:0}
+.row:first-child{border-top:0}
+.row:active{background:var(--kraft-soft)}
+.row .main{flex:1; min-width:0}
+.row .name{font-weight:600; overflow-wrap:anywhere}
+.row .sub{font-size:13px; color:var(--muted)}
+.delbtn{border:1.5px solid var(--line); background:transparent; color:var(--danger); width:38px; height:34px; border-radius:8px; cursor:pointer; font-size:16px; flex-shrink:0}
+.delbtn:active{background:var(--danger); color:#fff}
+.pill{font-size:12.5px; font-weight:700; border-radius:20px; padding:3px 9px; white-space:nowrap}
+.pill.open{background:var(--kraft-soft); color:var(--kraft)}
+.pill.done{background:var(--ok-soft); color:var(--ok)}
+.tick{min-width:34px; height:28px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; background:var(--ok-soft); color:var(--ok)}
+.tick.zero{background:transparent; color:var(--muted); border:1.5px dashed var(--line)}
+.row.selisih{background:var(--danger); color:#fff}
+.row.selisih .sub, .row.selisih .sys{color:rgba(255,255,255,.85)}
+.row.selisih .sys b{color:#fff}
+.row.selisih .tick{background:#fff; color:var(--danger)}
+.stag{display:inline-block; font-size:11.5px; font-weight:800; background:#fff; color:var(--danger); border-radius:5px; padding:1px 6px; margin-left:6px; vertical-align:1px}
+.sys{text-align:right; font-size:13px; color:var(--muted); white-space:nowrap}
+.sys b{display:block; color:var(--ink); font-size:14.5px}
+
+/* search + filter */
+.tools{position:sticky; top:calc(env(safe-area-inset-top,0px) + 56px); z-index:10; background:var(--bg); padding:10px 0 8px}
+.search{width:100%; padding:12px 14px; border-radius:10px; border:1.5px solid var(--line); background:var(--surface)}
+.chips{display:flex; gap:8px; margin-top:8px}
+.chip{flex:1; border:1.5px solid var(--line); background:var(--surface); border-radius:8px; padding:8px 4px; font-size:13.5px; cursor:pointer}
+.chip.on{background:var(--ink); color:var(--bg); border-color:var(--ink)}
+
+/* input page */
+.prod{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px}
+.prod .name{font-size:18px; font-weight:700; line-height:1.3}
+.prod .code{color:var(--muted); font-size:13px}
+.prod .sysline{margin-top:10px; padding-top:10px; border-top:1px dashed var(--line); font-size:14px; display:flex; justify-content:space-between; gap:8px}
+.batch{background:var(--surface); border:1px solid var(--line); border-left:4px solid var(--ok); border-radius:10px; padding:10px 12px; margin-bottom:8px}
+.batch.editing{border-left-color:var(--kraft); background:var(--kraft-soft)}
+.batch .top{display:flex; justify-content:space-between; align-items:center; gap:8px}
+.batch .exp{font-weight:700}
+.batch .q{display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:6px; font-size:13px; color:var(--muted)}
+.batch .q b{display:block; font-size:16px; color:var(--ink)}
+.batch .note{font-size:13px; color:var(--muted); margin-top:6px; overflow-wrap:anywhere}
+.batch .acts{display:flex; gap:6px}
+.form{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px}
+.lbl{display:block; font-size:13px; color:var(--muted); margin:12px 0 5px; font-weight:600}
+.lbl:first-child{margin-top:0}
+.in{width:100%; padding:12px; border-radius:9px; border:1.5px solid var(--line); background:var(--bg)}
+textarea.in{min-height:64px; resize:vertical}
+.qty{display:grid; grid-template-columns:repeat(3,1fr); gap:8px}
+.qty .in{font-size:22px; text-align:center; font-weight:700; padding:12px 6px}
+.qty small{display:block; text-align:center; font-size:12.5px; color:var(--muted); margin-bottom:4px; font-weight:600}
+.exp2{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+.photo{display:flex; gap:10px; align-items:center}
+.photo img{width:78px; height:78px; object-fit:cover; border-radius:9px; border:1px solid var(--line)}
+.photo label{flex:1}
+.photo input{display:none}
+
+/* report */
+.tabs{display:flex; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:4px; gap:4px; margin-bottom:12px}
+.tab{flex:1; border:0; background:transparent; padding:10px; border-radius:7px; font-weight:600; cursor:pointer; color:var(--muted)}
+.tab.on{background:var(--ink); color:var(--bg)}
+.meta{display:grid; grid-template-columns:auto 1fr; gap:3px 12px; font-size:14px; margin-bottom:12px}
+.meta span{color:var(--muted)}
+.tbl-wrap{overflow-x:auto; background:var(--surface); border:1px solid var(--line); border-radius:12px; margin-bottom:14px}
+table{border-collapse:collapse; width:100%; font-size:13.5px}
+th,td{padding:9px 8px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top}
+th{font-size:12px; color:var(--muted); background:var(--bg); position:sticky; top:0}
+td.r,th.r{text-align:right}
+td.c,th.c{text-align:center; white-space:nowrap}
+td.tot{vertical-align:middle; font-weight:700; border-left:1px solid var(--line)}
+tr:last-child td{border-bottom:0}
+
+.dlbl{color:var(--muted)}
+#iDiffTag{font-style:normal; font-weight:800; font-size:12px; background:#fff; color:var(--danger); border-radius:5px; padding:2px 6px; margin-left:6px}
+#iDiffRow.bad{background:var(--danger); color:#fff; margin:10px -14px 0; padding:10px 14px; border-top-color:transparent}
+#iDiffRow.bad .dlbl{color:#fff}
+
+/* two-team */
+.banner{background:var(--kraft-soft); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:14px; margin-top:10px}
+.banner.ok{background:var(--ok-soft); color:var(--ok); font-weight:600}
+.row.locked{opacity:.5}
+.utag{display:inline-block; font-size:11.5px; font-weight:800; background:var(--done); color:var(--done-ink); border-radius:5px; padding:1px 6px; margin-left:6px; vertical-align:1px}
+.teams{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+.team{border:1.5px solid var(--line); background:var(--surface); border-radius:12px; padding:18px 12px; cursor:pointer; text-align:center}
+.team b{display:block; font-size:22px}
+.team span{font-size:13px; color:var(--muted)}
+.team.done span{color:var(--ok); font-weight:700}
+.team.last{border-color:var(--kraft)}
+.team:disabled{opacity:.4; cursor:not-allowed}
+.rclist .row{cursor:default}
+.btag{display:inline-block; font-size:11.5px; font-weight:800; color:var(--danger); border:1.5px solid var(--danger); border-radius:5px; padding:0 6px; margin-left:6px; vertical-align:1px}
+.row.selisih .btag{color:#fff; border-color:#fff}
+.rclist .row .utag{margin-left:0}
+.sumline{display:flex; gap:10px; margin-bottom:12px}
+.sumline div{flex:1; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:10px; text-align:center; font-size:13px; color:var(--muted)}
+.sumline b{display:block; font-size:20px; color:var(--ink)}
+.sumline .bad b{color:var(--danger)}
+tr.mis td{background:color-mix(in srgb, var(--danger) 16%, transparent)}
+td.st{font-weight:700; white-space:nowrap}
+td.st.ok{color:var(--ok)} td.st.bad{color:var(--danger)}
+
+/* diff sheet */
+.sheetbg{position:fixed; inset:0; z-index:44; background:rgba(0,0,0,.6); display:flex; align-items:flex-end; justify-content:center}
+.sheet{background:var(--bg); width:100%; max-width:640px; max-height:85vh; overflow:auto; border-radius:16px 16px 0 0; padding:14px 12px calc(env(safe-area-inset-bottom,0px) + 16px)}
+.shead{display:flex; align-items:flex-start; gap:10px; margin-bottom:10px}
+.shead b{display:block; font-size:16px; line-height:1.3}
+.shead small{display:block; color:var(--muted); font-size:13px}
+.shead .iconbtn{color:var(--ink)}
+td.bad{color:var(--danger); font-weight:800}
+.dsum{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px}
+.dsum span{font-size:13px; font-weight:700; border-radius:6px; padding:4px 8px; background:color-mix(in srgb, var(--danger) 15%, transparent); color:var(--danger)}
+
+/* photo viewer */
+.pview{position:fixed; inset:0; z-index:45; background:rgba(0,0,0,.88); display:flex; align-items:center; justify-content:center; padding:calc(env(safe-area-inset-top,0px) + 50px) 12px calc(env(safe-area-inset-bottom,0px) + 12px)}
+.pview img{max-width:100%; max-height:100%; border-radius:8px}
+.pview .iconbtn{position:absolute; top:calc(env(safe-area-inset-top,0px) + 8px); right:10px; color:#fff; background:rgba(255,255,255,.15)}
+
+/* toast + loader */
+.toast{position:fixed; left:50%; bottom:calc(env(safe-area-inset-bottom,0px) + 20px); transform:translateX(-50%); background:var(--ink); color:var(--bg); padding:11px 18px; border-radius:10px; font-weight:600; z-index:50; max-width:90vw; text-align:center}
+.toast.bad{background:var(--danger); color:#fff}
+.loading{position:fixed; inset:0; background:rgba(0,0,0,.25); z-index:40; display:flex; align-items:center; justify-content:center}
+.loading div{background:var(--surface); padding:16px 22px; border-radius:12px; font-weight:600}
+@media (prefers-reduced-motion:no-preference){ .toast{animation:up .18s ease-out} @keyframes up{from{opacity:0; transform:translate(-50%,8px)}} }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<section id="s-login" class="login">
+  <h1>Stock Opname</h1>
+  <p>Masukkan PIN untuk mulai.</p>
+  <input id="pin" class="pin num" type="password" inputmode="numeric" autocomplete="off" maxlength="12">
+  <button id="btnLogin" class="btn">Masuk</button>
+  <div id="loginErr" class="err"></div>
+</section>
+
+<!-- HOME -->
+<section id="s-home" class="hidden">
+  <header class="bar">
+    <div class="ttl"><b>Stock Opname</b><small id="whoami"></small></div>
+    <button class="iconbtn" id="btnLogout" title="Keluar" aria-label="Keluar">⏻</button>
+  </header>
+  <div class="wrap">
+    <button class="btn" id="btnNew">Buat dokumen opname baru</button>
+    <div class="sec">Dokumen opname</div>
+    <div id="docList" class="list"></div>
+  </div>
+</section>
+
+<!-- DIVISI -->
+<section id="s-divisi" class="hidden">
+  <header class="bar">
+    <button class="iconbtn back" aria-label="Kembali">‹</button>
+    <div class="ttl"><b>Pilih divisi</b><small>1 dokumen untuk 1 divisi</small></div>
+  </header>
+  <div class="wrap"><div id="divList" class="list"></div></div>
+</section>
+
+<!-- TEAM -->
+<section id="s-team" class="hidden">
+  <header class="bar">
+    <button class="iconbtn back" aria-label="Kembali">‹</button>
+    <div class="ttl"><b id="tDoc"></b><small id="tDiv"></small></div>
+  </header>
+  <div class="wrap">
+    <div class="sec" style="margin-top:4px">Pilih tim Anda</div>
+    <div class="teams">
+      <button class="team" data-tim="A"><b>Tim A</b><span id="tStA"></span></button>
+      <button class="team" data-tim="B"><b>Tim B</b><span id="tStB"></span></button>
+    </div>
+    <div class="sec">Hasil perbandingan</div>
+    <div id="tSum"><div class="empty">Memuat…</div></div>
+  </div>
+</section>
+
+<!-- COMPARE -->
+<section id="s-compare" class="hidden">
+  <header class="bar">
+    <button class="iconbtn back" aria-label="Kembali">‹</button>
+    <div class="ttl"><b id="cpDoc"></b><small id="cpDiv"></small></div>
+  </header>
+  <div class="wrap">
+    <div class="sumline">
+      <div>Cocok<b class="num" id="cpOk">0</b></div>
+      <div class="bad">Beda<b class="num" id="cpBad">0</b></div>
+      <div>Status<b id="cpSt" style="font-size:15px;margin-top:4px">-</b></div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>NAMA BARANG</th><th class="c">EXP</th><th class="c">TIM A</th><th class="c">TIM B</th><th class="c"></th></tr></thead>
+        <tbody id="cpBody"></tbody>
+      </table>
+    </div>
+    <button class="btn" id="btnFinalize" disabled>Finalkan stok fisik</button>
+    <div class="err" id="cpErr"></div>
+  </div>
+</section>
+
+<!-- PRODUCTS -->
+<section id="s-products" class="hidden">
+  <header class="bar">
+    <button class="iconbtn back" aria-label="Kembali">‹</button>
+    <div class="ttl"><b id="pDoc"></b><small id="pDiv"></small></div>
+    <button class="btn-done" id="btnFinish">Selesai</button>
+  </header>
+  <div class="wrap" style="padding-top:0">
+    <div class="tools">
+      <input id="search" class="search" type="search" placeholder="Cari nama atau kode barang">
+      <div class="chips">
+        <button class="chip on" data-f="all">Semua <span id="cAll"></span></button>
+        <button class="chip" data-f="todo">Belum <span id="cTodo"></span></button>
+        <button class="chip" data-f="done">Sudah <span id="cDone"></span></button>
+        <button class="chip hidden" data-f="ulang" id="chipUlang">Ulang <span id="cUlang"></span></button>
+      </div>
+      <div class="banner hidden" id="pBanner"></div>
+    </div>
+    <div id="prodList" class="list"></div>
+  </div>
+</section>
+
+<!-- INPUT -->
+<section id="s-input" class="hidden">
+  <header class="bar">
+    <button class="iconbtn back" aria-label="Kembali">‹</button>
+    <div class="ttl"><b>Input stok</b><small id="iDoc"></small></div>
+  </header>
+  <div class="wrap">
+    <div class="prod">
+      <div class="name" id="iName"></div>
+      <div class="code" id="iCode"></div>
+      <div class="sysline"><span style="color:var(--muted)">Stock system</span><b class="num" id="iSys"></b></div>
+      <div class="sysline"><span style="color:var(--muted)">Total fisik</span><b class="num" id="iFis"></b></div>
+      <div class="sysline" id="iDiffRow"><span class="dlbl">Selisih (fisik − system) <em id="iDiffTag" class="hidden">SELISIH</em></span><b class="num" id="iDiff"></b></div>
+      <div class="sysline"><span style="color:var(--muted)">Keterangan</span><b id="iNote" style="text-align:right;overflow-wrap:anywhere"></b></div>
+    </div>
+
+    <div id="batchWrap">
+      <div class="sec">Sudah diinput</div>
+      <div id="batchList"></div>
+    </div>
+
+    <div class="sec" id="formTitle">Tambah stok</div>
+    <div class="form">
+      <span class="lbl">Foto</span>
+      <div class="photo">
+        <img id="phPrev" class="hidden" alt="Foto barang">
+        <label class="btn ghost" style="margin:0">
+          <span id="phTxt">Ambil foto</span>
+          <input id="phInput" type="file" accept="image/*" capture="environment">
+        </label>
+      </div>
+
+      <span class="lbl">Jumlah stok</span>
+      <div class="qty">
+        <div><small>Karton</small><input id="fKrt" class="in num" type="number" inputmode="decimal" min="0" placeholder="0"></div>
+        <div><small>Lusin/Pak/Rcg</small><input id="fPak" class="in num" type="number" inputmode="decimal" min="0" placeholder="0"></div>
+        <div><small>Pcs</small><input id="fPcs" class="in num" type="number" inputmode="decimal" min="0" placeholder="0"></div>
+      </div>
+
+      <span class="lbl">Expire date</span>
+      <div class="exp2">
+        <select id="fMonth" class="in" aria-label="Bulan expire"></select>
+        <select id="fYear" class="in" aria-label="Tahun expire"></select>
+      </div>
+
+      <div class="err" id="formErr"></div>
+      <button class="btn" id="btnSave">Simpan</button>
+      <button class="btn ghost hidden" id="btnCancelEdit" style="margin-top:8px">Batal edit</button>
+    </div>
+  </div>
+</section>
+
+<!-- REPORT -->
+<section id="s-report" class="hidden">
+  <header class="bar">
+    <button class="iconbtn back" aria-label="Kembali">‹</button>
+    <div class="ttl"><b id="rDoc"></b><small id="rDiv"></small></div>
+  </header>
+  <div class="wrap">
+    <div class="tabs">
+      <button class="tab on" data-t="lap">Laporan</button>
+      <button class="tab" data-t="csv">Export CSV</button>
+    </div>
+
+    <div id="t-lap">
+      <div class="meta" id="rMeta"></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>NAMA BARANG</th><th class="r">KRT</th><th class="r">PAK/RCG</th><th class="r">PCS</th><th class="c">EXPIRE DATE</th><th class="c">TOTAL</th></tr></thead>
+          <tbody id="rBody"></tbody>
+        </table>
+      </div>
+      <button class="btn" id="btnPdf">Export PDF</button>
+    </div>
+
+    <div id="t-csv" class="hidden">
+      <div class="empty">Format CSV belum ditentukan.</div>
+      <button class="btn" disabled>Export CSV</button>
+    </div>
+  </div>
+</section>
+
+<div id="diffView" class="sheetbg hidden" role="dialog" aria-label="Perbandingan barang">
+  <div class="sheet">
+    <div class="shead">
+      <div style="flex:1;min-width:0"><b id="dvName"></b><small id="dvCode"></small></div>
+      <button class="iconbtn" id="dvClose" aria-label="Tutup">✕</button>
+    </div>
+    <div id="dvBody"></div>
+  </div>
+</div>
+
+<div id="photoView" class="pview hidden" role="dialog" aria-label="Foto barang">
+  <img id="pvImg" alt="Foto barang">
+  <button class="iconbtn" id="pvClose" aria-label="Tutup">✕</button>
+</div>
+
+<div id="loading" class="loading hidden"><div id="loadingTxt">Memuat…</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+const SUPABASE_URL = 'https://swxgkuaoctrcfbgncwaz.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_0e8sOfljWkkin-hwhNweEw_CWqt1Az-'; // pastikan key lengkap
+
+let _sb = null;
+function sb(){
+  if(!_sb){
+    if(!window.supabase) throw new Error('Library Supabase gagal dimuat. Cek koneksi lalu refresh.');
+    _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  }
+  return _sb;
+}
+
+function storeGet(store, k){ try{ return window[store].getItem(k); }catch(e){ return null; } }
+function storeSet(store, k, v){ try{ window[store].setItem(k, v); return true; }catch(e){ return false; } }
+function storeDel(store, k){ try{ window[store].removeItem(k); }catch(e){} }
+const S = {
+  pin: storeGet('sessionStorage', 'opn_pin') || '',
+  label: storeGet('sessionStorage', 'opn_label') || '',
+  doc: null, products: [], product: null, items: [],
+  tim: null, filter: 'all', search: '', editId: null, photoBlob: null,
+  report: null, screen: 'login'
+};
+const ALLOWED = ['FULL ACCESS','SENTANI','ENTROP','ABE','HRD','SPVADMIN','HEAD SALES'];
+function fixedTim(){
+  const l = String(S.label || '').trim().toUpperCase();
+  if(['ENTROP','ABE','SENTANI'].includes(l)) return 'B';
+  if(l === 'SPVADMIN') return 'A';
+  return null;
+}
+const PARENT = { divisi:'home', team:'home', products:'team', input:'products', compare:'home', report:'home' };
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = n => { const v = Number(n); return isFinite(v) ? v.toLocaleString('id-ID',{maximumFractionDigits:2}) : '0'; };
+const fmtDate = d => d ? new Date(d).toLocaleString('id-ID',{timeZone:'Asia/Jayapura',day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '-';
+const expTxt = (m,y) => (Number(m) && Number(y)) ? String(m).padStart(2,'0') + '/' + y : '-';
+
+let _memDeviceId = null;
+function deviceId(){
+  let id = storeGet('localStorage', 'device_id') || storeGet('sessionStorage', 'device_id') || _memDeviceId;
+  if(!id){
+    id = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2);
+    if(!storeSet('localStorage', 'device_id', id)) storeSet('sessionStorage', 'device_id', id);
+  }
+  _memDeviceId = id;
+  return id;
+}
+function toast(msg, bad){
+  const t = document.createElement('div'); t.className = 'toast' + (bad ? ' bad' : ''); t.textContent = msg;
+  document.body.appendChild(t); setTimeout(() => t.remove(), bad ? 3500 : 1800);
+}
+function loading(on, txt){ $('loading').classList.toggle('hidden', !on); if(txt) $('loadingTxt').textContent = txt; }
+
+async function rpc(name, params = {}){
+  const { data, error } = await sb().rpc(name, { p_pin: S.pin, ...params });
+  if(error){
+    if(/pin/i.test(error.message)) { logout(); }
+    throw new Error(error.message);
+  }
+  return data;
+}
+
+/* ---------- navigation ---------- */
+function show(screen, push = true){
+  ['login','home','divisi','team','products','input','compare','report'].forEach(s => $('s-' + s).classList.toggle('hidden', s !== screen));
+  S.screen = screen;
+  window.scrollTo(0, 0);
+  if(push && screen !== 'login') history.pushState({ s: screen }, '');
+}
+window.addEventListener('popstate', () => {
+  const p = PARENT[S.screen];
+  if(p) openScreen(p, false);
+});
+document.querySelectorAll('.back').forEach(b => b.addEventListener('click', () => history.back()));
+
+function openScreen(name, push){
+  if(name === 'home') return goHome(push);
+  if(name === 'products') return openProducts(push, false);
+  if(name === 'team') return openTeam(push);
+}
+
+/* ---------- login ---------- */
+async function doLogin(){
+  const pin = $('pin').value.trim();
+  $('loginErr').textContent = '';
+  if(!pin){ $('loginErr').textContent = 'PIN wajib diisi.'; return; }
+  $('btnLogin').disabled = true;
+  try{
+    const { data, error } = await sb().rpc('verify_access_pin', { p_pin: pin, p_device_id: deviceId() });
+    if(error) throw new Error(error.message);
+    const r = Array.isArray(data) ? data[0] : data;
+    if(!r || !r.success) throw new Error(r && r.error ? r.error : 'PIN salah.');
+    if(!ALLOWED.includes(String(r.label || '').trim().toUpperCase())) throw new Error('PIN ini tidak punya akses ke Stock Opname.');
+    const probe = await sb().rpc('get_opname_docs', { p_pin: pin });
+    if(probe.error) throw new Error(probe.error.message);
+    S.pin = pin; S.label = r.label || '';
+    storeSet('sessionStorage', 'opn_pin', pin); storeSet('sessionStorage', 'opn_label', S.label);
+    $('pin').value = '';
+    goHome(true);
+  }catch(e){ $('loginErr').textContent = e.message; }
+  finally{ $('btnLogin').disabled = false; }
+}
+$('btnLogin').addEventListener('click', doLogin);
+$('pin').addEventListener('keydown', e => { if(e.key === 'Enter') doLogin(); });
+
+function logout(){
+  S.pin = ''; S.label = '';
+  storeDel('sessionStorage', 'opn_pin'); storeDel('sessionStorage', 'opn_label');
+  show('login', false);
+}
+$('btnLogout').addEventListener('click', () => { if(confirm('Keluar dari Stock Opname?')) logout(); });
+
+/* ---------- home ---------- */
+async function goHome(push = true){
+  show('home', push);
+  $('whoami').textContent = S.label;
+  $('docList').innerHTML = '<div class="empty">Memuat…</div>';
+  try{
+    const docs = await rpc('get_opname_docs');
+    if(!docs.length){ $('docList').innerHTML = '<div class="empty">Belum ada dokumen. Buat dokumen opname baru untuk mulai.</div>'; return; }
+    const canDel = isFullAccess();
+    $('docList').innerHTML = docs.map(d => `
+      <div class="row" role="button" tabindex="0" data-id="${d.id}">
+        <div class="main">
+          <div class="name num">${esc(d.doc_no)}</div>
+          <div class="sub">${esc(d.divisi)}, ${d.item_count} barang, ${fmtDate(d.created_at)}${d.status === 'OPEN' ? `<br>Putaran ${d.round}, Tim A ${d.done_a ? 'selesai' : 'belum'}, Tim B ${d.done_b ? 'selesai' : 'belum'}` : ''}</div>
+        </div>
+        <span class="pill ${d.status === 'FINAL' ? 'done' : 'open'}">${d.status === 'OPEN' ? 'Lanjutkan' : d.status === 'VALID' ? 'Siap final' : 'Laporan'}</span>
+        ${canDel ? `<button class="delbtn" data-del="${d.id}" aria-label="Hapus dokumen ${esc(d.doc_no)}">🗑</button>` : ''}
+      </div>`).join('');
+    $('docList').querySelectorAll('.row').forEach(el => {
+      const open = () => {
+        const d = docs.find(x => String(x.id) === el.dataset.id);
+        S.doc = d;
+        if(d.status === 'OPEN') openTeam(true);
+        else if(d.status === 'VALID'){
+          if(isFullAccess()) openCompare(true);
+          else toast('Hasil Tim A dan B cocok. Menunggu Full Access memfinalkan.');
+        }
+        else openReport(true);
+      };
+      el.addEventListener('click', open);
+      el.addEventListener('keydown', e => { if(e.key === 'Enter') open(); });
+    });
+    $('docList').querySelectorAll('.delbtn').forEach(b => b.addEventListener('click', e => {
+      e.stopPropagation();
+      deleteDoc(docs.find(x => String(x.id) === b.dataset.del));
+    }));
+  }catch(e){ $('docList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+$('btnNew').addEventListener('click', openDivisi);
+
+function isFullAccess(){ return String(S.label || '').trim().toLowerCase() === 'full access'; }
+async function deleteDoc(d){
+  if(!d) return;
+  if(!confirm(`Hapus dokumen ${d.doc_no} (${d.divisi})?\n\nSemua data opname dan foto di dokumen ini ikut terhapus permanen.`)) return;
+  loading(true, 'Menghapus dokumen…');
+  try{
+    await rpc('delete_opname_doc', { p_header_id: d.id });
+    loading(false); toast(`Dokumen ${d.doc_no} dihapus`);
+    goHome(false);
+  }catch(e){ loading(false); toast(e.message, true); }
+}
+
+/* ---------- divisi ---------- */
+async function openDivisi(){
+  show('divisi');
+  $('divList').innerHTML = '<div class="empty">Memuat…</div>';
+  try{
+    const list = await rpc('get_opname_divisi');
+    if(!list.length){ $('divList').innerHTML = '<div class="empty">Belum ada divisi di master produk.</div>'; return; }
+    $('divList').innerHTML = list.map(d => `<button class="row" data-d="${esc(d)}"><div class="main"><div class="name">${esc(d)}</div></div><span style="color:var(--muted);font-size:20px">›</span></button>`).join('');
+    $('divList').querySelectorAll('.row').forEach(el => el.addEventListener('click', () => createDoc(el.dataset.d)));
+  }catch(e){ $('divList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+async function createDoc(div){
+  if(!confirm(`Buat dokumen opname untuk divisi ${div}?`)) return;
+  loading(true, 'Membuat dokumen…');
+  try{
+    S.doc = await rpc('create_opname_doc', { p_divisi: div, p_created_by: S.label });
+    loading(false);
+    toast(`Dokumen ${S.doc.doc_no} dibuat`);
+    S.doc.round = 1; S.doc.done_a = false; S.doc.done_b = false;
+    history.replaceState({ s: 'home' }, '');
+    S.screen = 'home';
+    openTeam(true);
+  }catch(e){ loading(false); toast(e.message, true); }
+}
+
+/* ---------- team ---------- */
+function openTeam(push = true){
+  show('team', push);
+  const d = S.doc;
+  $('tDoc').textContent = d.doc_no;
+  $('tDiv').textContent = `${d.divisi}, putaran ${d.round || 1}`;
+  renderTeamCards();
+  loadSummary();
+}
+function renderTeamCards(){
+  const d = S.doc, fx = fixedTim();
+  const last = fx || storeGet('sessionStorage', 'opn_tim_' + d.id);
+  document.querySelectorAll('.team').forEach(b => {
+    const t = b.dataset.tim, done = t === 'A' ? !!d.done_a : !!d.done_b;
+    b.querySelector('span').textContent = (fx && fx !== t) ? 'Bukan tim Anda' : done ? 'Selesai' : 'Sedang input';
+    b.classList.toggle('done', done);
+    b.classList.toggle('last', t === last);
+    b.disabled = !!fx && fx !== t;
+  });
+}
+async function loadSummary(){
+  const box = $('tSum');
+  box.innerHTML = '<div class="empty">Memuat…</div>';
+  try{
+    const r = await rpc('get_opname_summary', { p_header_id: S.doc.id });
+    Object.assign(S.doc, r.header);
+    $('tDiv').textContent = `${S.doc.divisi}, putaran ${S.doc.round}`;
+    renderTeamCards();
+    const h = r.header, items = r.diff_items || [], rc = r.recount || [];
+    let html = `<div class="sumline">
+      <div>Sesuai<b class="num">${r.matched}</b></div>
+      <div class="bad">Beda<b class="num">${r.diff}</b></div>
+      <div>Baru 1 tim<b class="num">${r.pending}</b></div>
+    </div>`;
+    if(h.status === 'VALID' || h.status === 'FINAL'){
+      html += `<div class="banner ok">Semua barang sesuai. ${h.status === 'FINAL' ? 'Stok fisik sudah final.' : 'Menunggu Full Access memfinalkan.'}</div>`;
+      if(h.status === 'VALID' && isFullAccess()) html += `<button class="btn" id="btnGoFinal" style="margin-top:12px">Finalkan stok fisik</button>`;
+    }else{
+      if(h.round > 1) html += `<div class="banner">Putaran ${h.round}: ${rc.length} barang wajib dihitung ulang. Barang lain sudah valid dan terkunci.</div>`;
+      if(items.length){
+        html += `<div class="banner">Hasil Tim A dan Tim B beda. HITUNG ULANG</div>
+          <div class="list rclist" style="margin-top:10px">${items.map(x => `
+            <div class="row" role="button" tabindex="0" style="cursor:pointer" data-dc="${esc(x.product_code)}"><div class="main"><div class="name">${esc(x.product_name)}</div><div class="sub">${esc(x.product_code)}</div></div><span class="btag">BEDA</span><span style="color:var(--muted);font-size:20px">›</span></div>`).join('')}</div>`;
+      }else if(!r.matched && !r.pending){
+        html += `<div class="banner">Belum ada input dari kedua tim.</div>`;
+      }else if(!r.pending){
+        html += `<div class="banner ok">Semua barang yang sudah diinput kedua tim hasilnya sama.</div>`;
+      }
+      if(r.pending) html += `<div class="banner">${r.pending} barang baru diinput oleh satu tim, belum bisa dibandingkan.</div>`;
+    }
+    box.innerHTML = html;
+    if($('btnGoFinal')) $('btnGoFinal').addEventListener('click', () => openCompare(true));
+    box.querySelectorAll('[data-dc]').forEach(el => el.addEventListener('click', () => openDiff(el.dataset.dc)));
+  }catch(e){ box.innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+document.querySelectorAll('.team').forEach(b => b.addEventListener('click', () => {
+  const fx = fixedTim();
+  if(fx && fx !== b.dataset.tim){ toast(`Label ${S.label} hanya bisa input di Tim ${fx}.`); return; }
+  S.tim = b.dataset.tim;
+  storeSet('sessionStorage', 'opn_tim_' + S.doc.id, S.tim);
+  S.filter = 'all';
+  document.querySelectorAll('.chip').forEach(x => x.classList.toggle('on', x.dataset.f === 'all'));
+  openProducts(true, true);
+}));
+
+
+/* ---------- products ---------- */
+async function openProducts(push = true, reload = true){
+  show('products', push);
+  renderProdHeader();
+  if(!reload && S.products.length){ renderProducts(); return; }
+  $('prodList').innerHTML = '<div class="empty">Memuat…</div>';
+  S.search = ''; $('search').value = '';
+  try{
+    const r = await rpc('get_opname_products', { p_header_id: S.doc.id, p_tim: S.tim });
+    Object.assign(S.doc, r.header);
+    S.products = r.products || [];
+    renderProdHeader();
+    renderProducts();
+  }catch(e){ $('prodList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+function teamDone(){ return S.tim === 'A' ? !!S.doc.done_a : !!S.doc.done_b; }
+function otherTim(){ return S.tim === 'A' ? 'B' : 'A'; }
+function renderProdHeader(){
+  const d = S.doc, round = d.round || 1, done = teamDone();
+  $('pDoc').textContent = d.doc_no;
+  $('pDiv').textContent = `${d.divisi}, Tim ${S.tim}, putaran ${round}`;
+  $('btnFinish').textContent = `Selesai Tim ${S.tim}`;
+  $('btnFinish').classList.toggle('hidden', d.status !== 'OPEN' || done);
+  $('chipUlang').classList.toggle('hidden', round <= 1);
+  const b = $('pBanner');
+  b.className = 'banner';
+  if(done){ b.textContent = `Tim ${S.tim} sudah selesai. Menunggu Tim ${otherTim()}.`; b.classList.add('ok'); }
+  else if(round > 1){ b.textContent = `Putaran ${round}: hasil kedua tim belum cocok. Hitung ulang barang bertanda HITUNG ULANG. Barang lain sudah valid dan terkunci.`; }
+  else b.classList.add('hidden');
+}
+function lockReason(p){
+  if(S.doc.status !== 'OPEN') return 'Dokumen sudah tidak bisa diubah.';
+  if(teamDone()) return `Tim ${S.tim} sudah selesai.`;
+  if((S.doc.round || 1) > 1 && !p.recount) return 'Barang ini sudah valid, tidak perlu dihitung ulang.';
+  return '';
+}
+function sysTxt(p){
+  if(p.stock != null || p.stock_pcs != null)
+    return { a: `${fmt(p.stock)} ${esc(p.uom || '')}`.trim(), b: `${fmt(p.stock_pcs)} pcs` };
+  const ss = String(p.system_stock || '').trim();
+  if(ss){
+    const [k = '0', pk = '0', pc = '0'] = ss.split('.');
+    return { a: `${esc(k)} / ${esc(pk)} / ${esc(pc)}`, b: 'krt / pak / pcs' };
+  }
+  return { a: '-', b: 'tidak ada data' };
+}
+function isSelisih(p){
+  if(!(p.batch_count > 0)) return false;
+  const sys = parseSys(p);
+  return !!sys && (Number(p.fis_krt) || 0) - sys[0] < 0;
+}
+function renderProducts(){
+  const q = S.search.toLowerCase();
+  const done = S.products.filter(p => p.batch_count > 0).length;
+  $('cAll').textContent = S.products.length;
+  $('cDone').textContent = done;
+  $('cTodo').textContent = S.products.length - done;
+  $('cUlang').textContent = S.products.filter(p => p.recount).length;
+  const rows = S.products.filter(p => {
+    if(S.filter === 'done' && !(p.batch_count > 0)) return false;
+    if(S.filter === 'todo' && p.batch_count > 0) return false;
+    if(S.filter === 'ulang' && !p.recount) return false;
+    if(q && !(String(p.product_name).toLowerCase().includes(q) || String(p.product_code).toLowerCase().includes(q))) return false;
+    return true;
+  });
+  if(!rows.length){ $('prodList').innerHTML = '<div class="empty">Tidak ada barang yang cocok.</div>'; return; }
+  $('prodList').innerHTML = rows.map(p => {
+    const s = sysTxt(p), bad = isSelisih(p), locked = !!lockReason(p);
+    return `<button class="row${bad ? ' selisih' : ''}${locked ? ' locked' : ''}" data-c="${esc(p.product_code)}">
+      <span class="tick ${p.batch_count > 0 ? '' : 'zero'}">${p.batch_count > 0 ? '✓' + (p.batch_count > 1 ? ' ' + p.batch_count : '') : ''}</span>
+      <div class="main"><div class="name">${esc(p.product_name)}</div><div class="sub">${esc(p.product_code)}${p.recount ? '<span class="utag">HITUNG ULANG</span>' : ''}${p.cmp === 'diff' && S.doc.status === 'OPEN' ? '<span class="btag">BEDA</span>' : ''}${bad ? '<span class="stag">SELISIH</span>' : ''}</div></div>
+      <div class="sys num"><b>${s.a}</b>${s.b}</div>
+    </button>`;
+  }).join('');
+  $('prodList').querySelectorAll('.row').forEach(el => el.addEventListener('click', () => {
+    const p = S.products.find(x => String(x.product_code) === el.dataset.c);
+    const why = lockReason(p);
+    if(why){ toast(why); return; }
+    S.product = p;
+    openInput();
+  }));
+}
+$('search').addEventListener('input', e => { S.search = e.target.value; renderProducts(); });
+document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => {
+  document.querySelectorAll('.chip').forEach(x => x.classList.toggle('on', x === c));
+  S.filter = c.dataset.f; renderProducts();
+}));
+
+$('btnFinish').addEventListener('click', async () => {
+  const round = S.doc.round || 1;
+  const done = S.products.filter(p => p.batch_count > 0).length;
+  const recTodo = S.products.filter(p => p.recount && !(p.batch_count > 0)).length;
+  if(round === 1 && !done){ toast('Belum ada barang yang diinput.', true); return; }
+  let msg = `Selesaikan hitungan Tim ${S.tim} untuk ${S.doc.doc_no}?\n\n`;
+  msg += round === 1 ? `${done} barang sudah diinput, ${S.products.length - done} belum.` : `${recTodo} barang hitung ulang masih kosong.`;
+  msg += `\n\nSetelah ini Tim ${S.tim} tidak bisa mengubah data sampai hasil dibandingkan dengan Tim ${otherTim()}.`;
+  if(!confirm(msg)) return;
+  loading(true, 'Menyimpan…');
+  try{
+    const r = await rpc('submit_opname_team', { p_header_id: S.doc.id, p_tim: S.tim });
+    loading(false);
+    if(r.status === 'WAIT'){
+      toast(`Tim ${S.tim} selesai. Menunggu Tim ${otherTim()}.`);
+      openProducts(false, true);
+    }else if(r.status === 'VALID'){
+      alert('Hasil Tim A dan Tim B cocok semua. Menunggu Full Access untuk memfinalkan stok fisik.');
+      history.replaceState({ s: 'home' }, ''); S.screen = 'home';
+      goHome(false);
+    }else{
+      alert(`Ada ${r.mismatch} barang yang hasilnya beda.\n\nPutaran ${r.round}: kedua tim hitung ulang barang bertanda HITUNG ULANG.`);
+      S.filter = 'ulang';
+      document.querySelectorAll('.chip').forEach(x => x.classList.toggle('on', x.dataset.f === 'ulang'));
+      openProducts(false, true);
+    }
+  }catch(e){ loading(false); toast(e.message, true); }
+});
+
+/* ---------- compare (Full Access) ---------- */
+const kpp = (k, p, c) => (k == null && p == null && c == null) ? '-' : `${Number(k)||0}.${Number(p)||0}.${Number(c)||0}`;
+async function openCompare(push = true){
+  show('compare', push);
+  $('cpDoc').textContent = S.doc.doc_no;
+  $('cpDiv').textContent = S.doc.divisi;
+  $('cpBody').innerHTML = '<tr><td colspan="5" class="empty">Memuat…</td></tr>';
+  $('cpErr').textContent = '';
+  $('btnFinalize').disabled = true;
+  try{
+    const r = await rpc('get_opname_compare', { p_header_id: S.doc.id });
+    Object.assign(S.doc, r.header);
+    const h = r.header, rows = r.rows || [];
+    const bad = rows.filter(x => !x.match).length;
+    $('cpOk').textContent = rows.length - bad;
+    $('cpBad').textContent = bad;
+    $('cpSt').textContent = h.status === 'VALID' ? 'Siap final'
+      : `Putaran ${h.round}, A ${h.done_a ? '✓' : '…'} B ${h.done_b ? '✓' : '…'}`;
+    $('cpDiv').textContent = `${h.divisi}, putaran ${h.round}`;
+    $('cpBody').innerHTML = rows.length ? rows.map(x => `
+      <tr class="${x.match ? '' : 'mis'}">
+        <td>${esc(x.product_name)}</td>
+        <td class="c num">${expTxt(x.exp_month, x.exp_year)}</td>
+        <td class="c num">${kpp(x.a_krt, x.a_pak, x.a_pcs)}</td>
+        <td class="c num">${kpp(x.b_krt, x.b_pak, x.b_pcs)}</td>
+        <td class="st ${x.match ? 'ok' : 'bad'}">${x.match ? 'Cocok' : 'Beda'}</td>
+      </tr>`).join('') : '<tr><td colspan="5" class="empty">Belum ada data dari kedua tim.</td></tr>';
+    $('btnFinalize').disabled = h.status !== 'VALID';
+    if(h.status !== 'VALID') $('cpErr').textContent = 'Finalkan aktif setelah kedua tim selesai dan semua hasil cocok.';
+  }catch(e){ $('cpBody').innerHTML = `<tr><td colspan="5" class="empty">${esc(e.message)}</td></tr>`; }
+}
+$('btnFinalize').addEventListener('click', async () => {
+  if(!confirm(`Finalkan ${S.doc.doc_no}?\n\nHasil yang cocok akan disimpan sebagai stok fisik final. Dokumen tidak bisa diubah lagi.`)) return;
+  loading(true, 'Memfinalkan…');
+  try{
+    await rpc('finalize_opname', { p_header_id: S.doc.id });
+    S.doc.status = 'FINAL';
+    loading(false); toast('Stok fisik final disimpan');
+    history.replaceState({ s: 'home' }, ''); S.screen = 'home';
+    openReport(true);
+  }catch(e){ loading(false); toast(e.message, true); }
+});
+
+/* ---------- input ---------- */
+(function fillExpSelects(){
+  const m = $('fMonth'), y = $('fYear');
+  m.innerHTML = '<option value="0">Bulan</option>' + Array.from({length:12}, (_, i) => `<option value="${i+1}">${String(i+1).padStart(2,'0')}</option>`).join('');
+  const now = new Date().getFullYear();
+  let yo = '<option value="0">Tahun</option>';
+  for(let i = now - 2; i <= now + 8; i++) yo += `<option value="${i}">${i}</option>`;
+  y.innerHTML = yo;
+})();
+
+function resetForm(){
+  S.editId = null; S.photoBlob = null;
+  ['fKrt','fPak','fPcs'].forEach(id => $(id).value = '');
+  $('fMonth').value = '0'; $('fYear').value = '0';
+  $('phPrev').classList.add('hidden'); $('phPrev').removeAttribute('src');
+  $('phTxt').textContent = 'Ambil foto'; $('phInput').value = '';
+  $('formErr').textContent = '';
+  $('formTitle').textContent = 'Tambah stok';
+  $('btnSave').textContent = 'Simpan';
+  $('btnCancelEdit').classList.add('hidden');
+}
+
+async function openInput(){
+  show('input');
+  const p = S.product, s = sysTxt(p);
+  $('iDoc').textContent = `${S.doc.doc_no}, ${S.doc.divisi}, Tim ${S.tim}`;
+  $('iName').textContent = p.product_name;
+  $('iCode').textContent = p.product_code + (p.uom_conversion ? `, konversi ${p.uom_conversion}` : '');
+  $('iNote').textContent = p.stapel ? p.stapel : '-';
+  $('iSys').textContent = s.a === '-' ? 'Tidak ada data' : `${s.a.replace(/&amp;/g,'&')} (${s.b})`;
+  resetForm();
+  await loadItems();
+}
+async function loadItems(){
+  $('batchList').innerHTML = '<div class="empty">Memuat…</div>';
+  try{
+    S.items = await rpc('get_opname_items', { p_header_id: S.doc.id, p_product_code: S.product.product_code, p_tim: S.tim });
+    S.product.batch_count = S.items.length;
+    S.product.fis_krt = S.items.reduce((a, d) => a + (Number(d.krt) || 0), 0);
+    S.product.fis_pak = S.items.reduce((a, d) => a + (Number(d.pak) || 0), 0);
+    S.product.fis_pcs = S.items.reduce((a, d) => a + (Number(d.pcs) || 0), 0);
+    renderItems();
+  }catch(e){ $('batchList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+function parseSys(p){
+  const ss = String(p.system_stock || '').trim();
+  if(!ss) return null;
+  const a = ss.split('.').map(x => Number(x) || 0);
+  return [a[0] || 0, a[1] || 0, a[2] || 0];
+}
+function renderSelisih(){
+  const f = [0, 0, 0];
+  S.items.forEach(d => { f[0] += Number(d.krt) || 0; f[1] += Number(d.pak) || 0; f[2] += Number(d.pcs) || 0; });
+  $('iFis').textContent = `${fmt(f[0])} / ${fmt(f[1])} / ${fmt(f[2])}`;
+  const sys = parseSys(S.product);
+  $('iDiffRow').classList.remove('bad'); $('iDiffTag').classList.add('hidden');
+  if(!sys){ $('iDiff').textContent = 'Tidak ada stock system'; return; }
+  $('iDiff').textContent = f.map((v, i) => { const x = v - sys[i]; return (x > 0 ? '+' : '') + fmt(x); }).join(' / ');
+  if(S.items.length && f[0] - sys[0] < 0){
+    $('iDiffRow').classList.add('bad'); $('iDiffTag').classList.remove('hidden');
+  }
+}
+function renderItems(){
+  renderSelisih();
+  $('batchWrap').classList.toggle('hidden', !S.items.length);
+  $('batchList').innerHTML = S.items.map(d => `
+    <div class="batch ${S.editId === d.id ? 'editing' : ''}">
+      <div class="top">
+        <div class="exp num">Exp ${expTxt(d.exp_month, d.exp_year)}</div>
+        <div class="acts">
+          ${d.photo_id ? `<button class="btn ghost small" data-photo="${d.photo_id}">Foto</button>` : ''}
+          <button class="btn ghost small" data-edit="${d.id}">Edit</button>
+          <button class="btn danger small" data-del="${d.id}">Hapus</button>
+        </div>
+      </div>
+      <div class="q num"><div>Karton<b>${fmt(d.krt)}</b></div><div>Pak/Rcg<b>${fmt(d.pak)}</b></div><div>Pcs<b>${fmt(d.pcs)}</b></div></div>
+    </div>`).join('');
+  $('batchList').querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => startEdit(Number(b.dataset.edit))));
+  $('batchList').querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => delItem(Number(b.dataset.del))));
+  $('batchList').querySelectorAll('[data-photo]').forEach(b => b.addEventListener('click', () => viewPhoto(Number(b.dataset.photo))));
+}
+async function fetchPhoto(id){
+  const r = await rpc('get_opname_photo', { p_photo_id: id });
+  if(!r || !r.data) throw new Error('Foto tidak ditemukan');
+  return `data:${r.mime || 'image/jpeg'};base64,${r.data}`;
+}
+async function viewPhoto(id){
+  loading(true, 'Memuat foto…');
+  try{ $('pvImg').src = await fetchPhoto(id); loading(false); $('photoView').classList.remove('hidden'); }
+  catch(e){ loading(false); toast(e.message, true); }
+}
+function startEdit(id){
+  const d = S.items.find(x => x.id === id); if(!d) return;
+  resetForm();
+  S.editId = id;
+  $('fKrt').value = Number(d.krt) || ''; $('fPak').value = Number(d.pak) || ''; $('fPcs').value = Number(d.pcs) || '';
+  $('fMonth').value = String(d.exp_month || 0);
+  if(d.exp_year && !$('fYear').querySelector(`option[value="${d.exp_year}"]`)) $('fYear').insertAdjacentHTML('beforeend', `<option value="${d.exp_year}">${d.exp_year}</option>`);
+  $('fYear').value = String(d.exp_year || 0);
+  if(d.photo_id){
+    $('phTxt').textContent = 'Ganti foto';
+    fetchPhoto(d.photo_id).then(src => { if(S.editId === id && !S.photoBlob){ $('phPrev').src = src; $('phPrev').classList.remove('hidden'); } }).catch(() => {});
+  }
+  $('formTitle').textContent = `Edit stok exp ${expTxt(d.exp_month, d.exp_year)}`;
+  $('btnSave').textContent = 'Simpan perubahan';
+  $('btnCancelEdit').classList.remove('hidden');
+  renderItems();
+  $('formTitle').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+$('btnCancelEdit').addEventListener('click', () => { resetForm(); renderItems(); });
+
+async function delItem(id){
+  const d = S.items.find(x => x.id === id); if(!d) return;
+  if(!confirm(`Hapus stok exp ${expTxt(d.exp_month, d.exp_year)}?`)) return;
+  loading(true, 'Menghapus…');
+  try{
+    await rpc('delete_opname_item', { p_detail_id: id });
+    loading(false); toast('Dihapus');
+    if(S.editId === id) resetForm();
+    await loadItems();
+  }catch(e){ loading(false); toast(e.message, true); }
+}
+
+function compressImage(file, max = 1280, q = 0.72){
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      let w = img.naturalWidth, h = img.naturalHeight;
+      const r = Math.min(1, max / Math.max(w, h));
+      w = Math.round(w * r); h = Math.round(h * r);
+      const c = document.createElement('canvas'); c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      c.toBlob(b => b ? resolve(b) : reject(new Error('Gagal memproses foto')), 'image/jpeg', q);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('File bukan gambar')); };
+    img.src = url;
+  });
+}
+$('phInput').addEventListener('change', async e => {
+  const f = e.target.files && e.target.files[0]; if(!f) return;
+  try{
+    S.photoBlob = await compressImage(f);
+    $('phPrev').src = URL.createObjectURL(S.photoBlob);
+    $('phPrev').classList.remove('hidden');
+    $('phTxt').textContent = 'Ganti foto';
+  }catch(err){ toast(err.message, true); }
+});
+
+function blobToBase64(blob){
+  return new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload = () => res(String(fr.result).split(',')[1]);
+    fr.onerror = () => rej(new Error('Gagal membaca foto'));
+    fr.readAsDataURL(blob);
+  });
+}
+
+$('btnSave').addEventListener('click', async () => {
+  $('formErr').textContent = '';
+  const krt = Number($('fKrt').value || 0), pak = Number($('fPak').value || 0), pcs = Number($('fPcs').value || 0);
+  const m = Number($('fMonth').value), y = Number($('fYear').value);
+  if([krt, pak, pcs].some(v => !isFinite(v) || v < 0)){ $('formErr').textContent = 'Jumlah stok tidak boleh minus.'; return; }
+  if(!m || !y){ $('formErr').textContent = 'Bulan dan tahun expire wajib diisi.'; return; }
+  if(krt === 0 && pak === 0 && pcs === 0 && !confirm('Semua jumlah 0. Tetap simpan sebagai stok kosong?')) return;
+  if(!S.editId){
+    const dup = S.items.find(d => Number(d.exp_month) === m && Number(d.exp_year) === y);
+    if(dup && !confirm(`Exp ${expTxt(m, y)} sudah diinput. Jumlah lama akan diganti dengan yang baru. Lanjutkan?`)) return;
+  }
+  $('btnSave').disabled = true;
+  loading(true, S.photoBlob ? 'Mengunggah foto…' : 'Menyimpan…');
+  try{
+    const photo = S.photoBlob ? await blobToBase64(S.photoBlob) : null;
+    await rpc('save_opname_item', {
+      p_header_id: S.doc.id, p_tim: S.tim, p_product_code: S.product.product_code,
+      p_krt: krt, p_pak: pak, p_pcs: pcs, p_exp_month: m, p_exp_year: y,
+      p_photo_data: photo,
+      p_detail_id: S.editId
+    });
+    loading(false);
+    toast(S.editId ? 'Perubahan disimpan' : 'Tersimpan');
+    resetForm();
+    await loadItems();
+  }catch(e){ loading(false); $('formErr').textContent = e.message; }
+  finally{ $('btnSave').disabled = false; }
+});
+
+/* ---------- report ---------- */
+async function openReport(push = true){
+  show('report', push);
+  setTab('lap');
+  $('rDoc').textContent = S.doc.doc_no;
+  $('rDiv').textContent = S.doc.divisi;
+  $('rBody').innerHTML = '<tr><td colspan="6" class="empty">Memuat…</td></tr>';
+  $('rMeta').innerHTML = '';
+  try{
+    S.report = await rpc('get_opname_report', { p_header_id: S.doc.id });
+    const h = S.report.header || {};
+    $('rMeta').innerHTML = `
+      <span>No. dokumen</span><b class="num">${esc(h.doc_no)}</b>
+      <span>Divisi</span><b>${esc(h.divisi)}</b>
+      <span>Dibuat</span><span style="color:var(--ink)">${fmtDate(h.created_at)}${h.created_by ? ', ' + esc(h.created_by) : ''}</span>
+      <span>Selesai</span><span style="color:var(--ink)">${fmtDate(h.finished_at)}</span>
+      <span>Jumlah baris</span><b class="num">${S.report.rows.length}</b>`;
+    const g = groupTotals(S.report.rows);
+    $('rBody').innerHTML = S.report.rows.length ? S.report.rows.map((r, i) => `
+      <tr><td>${esc(r.product_name)}</td><td class="r num">${fmt(r.krt)}</td><td class="r num">${fmt(r.pak)}</td><td class="r num">${fmt(r.pcs)}</td><td class="c num">${expTxt(r.exp_month, r.exp_year)}</td>${g[i] ? `<td class="c num tot" rowspan="${g[i].span}">${g[i].total}</td>` : ''}</tr>`).join('')
+      : '<tr><td colspan="6" class="empty">Tidak ada data.</td></tr>';
+  }catch(e){ $('rBody').innerHTML = `<tr><td colspan="6" class="empty">${esc(e.message)}</td></tr>`; }
+}
+function groupTotals(rows){
+  const out = new Array(rows.length).fill(null);
+  const n = v => String(Number(v) || 0);
+  let i = 0;
+  while(i < rows.length){
+    let j = i, k = 0, p = 0, c = 0;
+    while(j < rows.length && rows[j].product_code === rows[i].product_code){
+      k += Number(rows[j].krt) || 0; p += Number(rows[j].pak) || 0; c += Number(rows[j].pcs) || 0; j++;
+    }
+    out[i] = { span: j - i, total: `${n(k)}.${n(p)}.${n(c)}` };
+    i = j;
+  }
+  return out;
+}
+function setTab(t){
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x.dataset.t === t));
+  $('t-lap').classList.toggle('hidden', t !== 'lap');
+  $('t-csv').classList.toggle('hidden', t !== 'csv');
+}
+document.querySelectorAll('.tab').forEach(x => x.addEventListener('click', () => setTab(x.dataset.t)));
+
+function loadScript(src){
+  return new Promise((res, rej) => {
+    if(document.querySelector(`script[src="${src}"]`)) return res();
+    const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('Gagal memuat library PDF'));
+    document.head.appendChild(s);
+  });
+}
+$('btnPdf').addEventListener('click', async () => {
+  if(!S.report) return;
+  loading(true, 'Membuat PDF…');
+  try{
+    await loadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js');
+    await loadScript('https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js');
+    const { jsPDF } = window.jspdf;
+    const h = S.report.header;
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
+    pdf.setFontSize(14); pdf.setFont(undefined, 'bold');
+    pdf.text('LAPORAN STOCK OPNAME', 14, 16);
+    pdf.setFontSize(10); pdf.setFont(undefined, 'normal');
+    pdf.text(`No. Dokumen : ${h.doc_no}`, 14, 24);
+    pdf.text(`Divisi           : ${h.divisi}`, 14, 29);
+    pdf.text(`Selesai          : ${fmtDate(h.finished_at)}`, 14, 34);
+    pdf.autoTable({
+      startY: 40,
+      head: [['NAMA BARANG', 'KRT', 'PAK/RCG', 'PCS', 'EXPIRE DATE', 'TOTAL']],
+      body: (() => { const g = groupTotals(S.report.rows); return S.report.rows.map((r, i) => {
+        const row = [r.product_name, fmt(r.krt), fmt(r.pak), fmt(r.pcs), expTxt(r.exp_month, r.exp_year)];
+        if(g[i]) row.push({ content: g[i].total, rowSpan: g[i].span, styles: { valign: 'middle', halign: 'center', fontStyle: 'bold' } });
+        return row;
+      }); })(),
+      styles: { fontSize: 9, cellPadding: 2 },
+      headStyles: { fillColor: [28, 38, 48], textColor: 255 },
+      columnStyles: { 1: { halign: 'right', cellWidth: 18 }, 2: { halign: 'right', cellWidth: 22 }, 3: { halign: 'right', cellWidth: 18 }, 4: { halign: 'center', cellWidth: 24 }, 5: { halign: 'center', cellWidth: 22 } },
+      didDrawPage: d => { pdf.setFontSize(8); pdf.text(`Hal. ${pdf.internal.getNumberOfPages()}`, pdf.internal.pageSize.getWidth() - 14, pdf.internal.pageSize.getHeight() - 8, { align: 'right' }); }
+    });
+    pdf.save(`${h.doc_no}.pdf`);
+    loading(false);
+  }catch(e){ loading(false); toast(e.message, true); }
+});
+
+async function openDiff(code){
+  $('dvName').textContent = 'Memuat…'; $('dvCode').textContent = code;
+  $('dvBody').innerHTML = '';
+  $('diffView').classList.remove('hidden');
+  try{
+    const r = await rpc('get_opname_product_compare', { p_header_id: S.doc.id, p_product_code: code });
+    $('dvName').textContent = r.product_name || code;
+    const rows = r.rows || [];
+    const hasExp = rows.some(x => x.diff === 'only_a' || x.diff === 'only_b');
+    const hasQty = rows.some(x => x.diff === 'qty');
+    const cell = (v, bad) => `<td class="r num${bad ? ' bad' : ''}">${v == null ? '-' : fmt(v)}</td>`;
+    const ket = x => x.diff === 'ok' ? 'Sama' : x.diff === 'qty' ? 'Qty beda' : x.diff === 'only_a' ? 'Exp hanya di Tim A' : 'Exp hanya di Tim B';
+    $('dvBody').innerHTML = `
+      <div class="dsum">${hasExp ? '<span>Expire date beda</span>' : ''}${hasQty ? '<span>Qty beda</span>' : ''}${!hasExp && !hasQty ? '<span style="background:var(--ok-soft);color:var(--ok)">Sudah sama</span>' : ''}</div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr><th rowspan="2">EXP</th><th class="c" colspan="3">TIM A</th><th class="c" colspan="3">TIM B</th><th rowspan="2">KET</th></tr>
+            <tr><th class="r">KRT</th><th class="r">PAK</th><th class="r">PCS</th><th class="r">KRT</th><th class="r">PAK</th><th class="r">PCS</th></tr>
+          </thead>
+          <tbody>${rows.map(x => {
+            const q = x.diff === 'qty', ex = x.diff === 'only_a' || x.diff === 'only_b';
+            return `<tr class="${x.diff === 'ok' ? '' : 'mis'}">
+              <td class="c num${ex ? ' bad' : ''}">${expTxt(x.exp_month, x.exp_year)}</td>
+              ${cell(x.a_krt, q && x.a_krt != x.b_krt)}${cell(x.a_pak, q && x.a_pak != x.b_pak)}${cell(x.a_pcs, q && x.a_pcs != x.b_pcs)}
+              ${cell(x.b_krt, q && x.a_krt != x.b_krt)}${cell(x.b_pak, q && x.a_pak != x.b_pak)}${cell(x.b_pcs, q && x.a_pcs != x.b_pcs)}
+              <td class="${x.diff === 'ok' ? '' : 'bad'}" style="white-space:nowrap">${ket(x)}</td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>`;
+  }catch(e){ $('dvName').textContent = 'Gagal memuat'; $('dvBody').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+$('dvClose').addEventListener('click', () => $('diffView').classList.add('hidden'));
+$('diffView').addEventListener('click', e => { if(e.target === $('diffView')) $('diffView').classList.add('hidden'); });
+
+$('pvClose').addEventListener('click', () => { $('photoView').classList.add('hidden'); $('pvImg').removeAttribute('src'); });
+
+/* ---------- start ---------- */
+(async function start(){
+  if(!S.pin || !ALLOWED.includes(String(S.label || '').trim().toUpperCase())){ logout(); return; }
+  show('login', false);
+  $('loginErr').textContent = '';
+  const { error } = await sb().rpc('get_opname_docs', { p_pin: S.pin });
+  if(error){ logout(); $('loginErr').textContent = error.message; return; }
+  history.replaceState({ s: 'home' }, '');
+  goHome(false);
+})();
+</script>
+</body>
+</html>
