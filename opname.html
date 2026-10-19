@@ -165,6 +165,9 @@ tr.mis td{background:color-mix(in srgb, var(--danger) 16%, transparent)}
 td.st{font-weight:700; white-space:nowrap}
 td.st.ok{color:var(--ok)} td.st.bad{color:var(--danger)}
 
+.kosongbox{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; padding:10px 14px; border:1.5px dashed var(--line); border-radius:12px; font-size:14px; color:var(--muted)}
+.kosongbox.hidden{display:none}
+
 /* diff sheet */
 .sheetbg{position:fixed; inset:0; z-index:44; background:rgba(0,0,0,.6); display:flex; align-items:flex-end; justify-content:center}
 .sheet{background:var(--bg); width:100%; max-width:640px; max-height:85vh; overflow:auto; border-radius:16px 16px 0 0; padding:14px 12px calc(env(safe-area-inset-bottom,0px) + 16px)}
@@ -300,6 +303,11 @@ td.bad{color:var(--danger); font-weight:800}
       <div class="sysline"><span style="color:var(--muted)">Keterangan</span><b id="iNote" style="text-align:right;overflow-wrap:anywhere"></b></div>
     </div>
 
+    <div class="kosongbox">
+      <span>Barang tidak ada di gudang?</span>
+      <button class="btn danger small" id="btnKosong">STOCK KOSONG</button>
+    </div>
+
     <div id="batchWrap">
       <div class="sec">Sudah diinput</div>
       <div id="batchList"></div>
@@ -420,7 +428,8 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt = n => { const v = Number(n); return isFinite(v) ? v.toLocaleString('id-ID',{maximumFractionDigits:2}) : '0'; };
 const fmtDate = d => d ? new Date(d).toLocaleString('id-ID',{timeZone:'Asia/Jayapura',day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '-';
-const expTxt = (m,y) => (Number(m) && Number(y)) ? String(m).padStart(2,'0') + '/' + y : '-';
+const expTxt = (m,y) => (Number(m) && Number(y)) ? String(m).padStart(2,'0') + '/' + y : 'KOSONG';
+const isKosong = d => !Number(d.exp_month) && !Number(d.exp_year);
 
 let _memDeviceId = null;
 function deviceId(){
@@ -821,6 +830,7 @@ function resetForm(){
   $('formTitle').textContent = 'Tambah stok';
   $('btnSave').textContent = 'Simpan';
   $('btnCancelEdit').classList.add('hidden');
+  document.querySelector('.kosongbox').classList.remove('hidden');
 }
 
 async function openInput(){
@@ -869,7 +879,7 @@ function renderItems(){
   $('batchList').innerHTML = S.items.map(d => `
     <div class="batch ${S.editId === d.id ? 'editing' : ''}">
       <div class="top">
-        <div class="exp num">Exp ${expTxt(d.exp_month, d.exp_year)}</div>
+        <div class="exp num"${isKosong(d) ? ' style="color:var(--danger)"' : ''}>${isKosong(d) ? 'STOCK KOSONG' : 'Exp ' + expTxt(d.exp_month, d.exp_year)}</div>
         <div class="acts">
           ${d.photo_id ? `<button class="btn ghost small" data-photo="${d.photo_id}">Foto</button>` : ''}
           <button class="btn ghost small" data-edit="${d.id}">Edit</button>
@@ -907,9 +917,29 @@ function startEdit(id){
   $('formTitle').textContent = `Edit stok exp ${expTxt(d.exp_month, d.exp_year)}`;
   $('btnSave').textContent = 'Simpan perubahan';
   $('btnCancelEdit').classList.remove('hidden');
+  document.querySelector('.kosongbox').classList.add('hidden');
   renderItems();
   $('formTitle').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
+$('btnKosong').addEventListener('click', async () => {
+  if(S.items.some(d => !isKosong(d))){ toast('Masih ada batch lain untuk barang ini. Hapus dulu sebelum tandai STOCK KOSONG.', true); return; }
+  if(S.items.some(isKosong)){ toast('Barang ini sudah ditandai STOCK KOSONG.'); return; }
+  if(!confirm(`Tandai ${S.product.product_name} sebagai STOCK KOSONG (fisik 0)?`)) return;
+  $('btnKosong').disabled = true;
+  loading(true, 'Menyimpan…');
+  try{
+    const photo = S.photoBlob ? await blobToBase64(S.photoBlob) : null;
+    await rpc('save_opname_item', {
+      p_header_id: S.doc.id, p_tim: S.tim, p_product_code: S.product.product_code,
+      p_krt: 0, p_pak: 0, p_pcs: 0, p_exp_month: 0, p_exp_year: 0,
+      p_photo_data: photo, p_detail_id: null
+    });
+    loading(false); toast('Ditandai STOCK KOSONG');
+    resetForm();
+    await loadItems();
+  }catch(e){ loading(false); toast(e.message, true); }
+  finally{ $('btnKosong').disabled = false; }
+});
 $('btnCancelEdit').addEventListener('click', () => { resetForm(); renderItems(); });
 
 async function delItem(id){
