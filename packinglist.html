@@ -991,11 +991,18 @@
   }
 
   // ---- Area filter pills ----
+  const NO_AREA = '__NOAREA__';
+  // toko tanpa area; BDT / CASH dikecualikan
+  function isNoArea(r){
+    if (String(r.area || '').trim()) return false;
+    const n = String(r.nama_toko || '').toUpperCase();
+    return !(n.includes('BDT') || n.includes('CASH'));
+  }
   function renderAreaFilter(){
     const monthRows = invoices.filter(r => isThisOrLastMonth(r.print_date));
     const areas = [...new Set(monthRows.map(r => r.area).filter(Boolean))].sort();
     const PINNED_AREAS = ['JAYAPURA','ABE','SENTANI','SUPERMARKET','ARSO','KOYA','BDT','KANVAS'];
-    if (currentAreaFilter && !areas.includes(currentAreaFilter) && !PINNED_AREAS.includes(currentAreaFilter)) currentAreaFilter = null;
+    if (currentAreaFilter && !areas.includes(currentAreaFilter) && !PINNED_AREAS.includes(currentAreaFilter) && currentAreaFilter !== NO_AREA) currentAreaFilter = null;
     const wrap = document.getElementById('areaFilter');
     wrap.innerHTML = '';
     const counts = {};
@@ -1029,6 +1036,23 @@
     PRIORITY_2.forEach(a => makeBtn(a, a));
     const pinned = new Set([...PRIORITY_1, ...PRIORITY_2]);
     areas.filter(a => !pinned.has(a)).forEach(a => makeBtn(a, a));
+
+    const noAreaCount = monthRows.filter(isNoArea).length;
+    const naGap = document.createElement('div');
+    naGap.className = 'area-filter-gap';
+    wrap.appendChild(naGap);
+    const naBtn = document.createElement('button');
+    naBtn.type = 'button';
+    naBtn.className = 'area-pill' + (currentAreaFilter === NO_AREA ? ' active' : '') + (noAreaCount > 0 ? ' area-pill-alert' : '');
+    naBtn.title = 'Toko yang belum punya Area (kecuali BDT / CASH)';
+    naBtn.innerHTML = `<span class="area-pill-count">${noAreaCount}</span><span class="area-pill-label">TANPA AREA</span>`;
+    naBtn.addEventListener('click', () => {
+      currentAreaFilter = NO_AREA;
+      currentInvPage = 1;
+      renderAreaFilter();
+      renderInvoiceTable();
+    });
+    wrap.appendChild(naBtn);
 
     const lunasGap = document.createElement('div');
     lunasGap.className = 'area-filter-gap area-filter-gap-lunas';
@@ -1110,7 +1134,8 @@
   function filteredInvoices(){
     const term = document.getElementById('invSearch').value.trim().toLowerCase();
     let rows = invoices.filter(r => isThisOrLastMonth(r.print_date));
-    if (currentAreaFilter) rows = rows.filter(r => (r.area || '') === currentAreaFilter);
+    if (currentAreaFilter === NO_AREA) rows = rows.filter(isNoArea);
+    else if (currentAreaFilter) rows = rows.filter(r => (r.area || '') === currentAreaFilter);
     if (term){
       rows = rows.filter(r => [r.no_invoice, r.nama_toko, r.area, r.sub_area, r.gudang]
         .some(f => String(f||'').toLowerCase().includes(term)));
