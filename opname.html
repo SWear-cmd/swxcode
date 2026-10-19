@@ -187,9 +187,33 @@ td.bad{color:var(--danger); font-weight:800}
 /* toast + loader */
 .toast{position:fixed; left:50%; bottom:calc(env(safe-area-inset-bottom,0px) + 20px); transform:translateX(-50%); background:var(--ink); color:var(--bg); padding:11px 18px; border-radius:10px; font-weight:600; z-index:50; max-width:90vw; text-align:center}
 .toast.bad{background:var(--danger); color:#fff}
-.loading{position:fixed; inset:0; background:rgba(0,0,0,.25); z-index:40; display:flex; align-items:center; justify-content:center}
+.loading{position:fixed; inset:0; background:rgba(0,0,0,.25); z-index:50; display:flex; align-items:center; justify-content:center}
 .loading div{background:var(--surface); padding:16px 22px; border-radius:12px; font-weight:600}
 @media (prefers-reduced-motion:no-preference){ .toast{animation:up .18s ease-out} @keyframes up{from{opacity:0; transform:translate(-50%,8px)}} }
+
+/* upload foto (banyak) */
+.srow{display:flex; gap:8px}
+.srow .search{flex:1; min-width:0}
+.upbtn{flex-shrink:0; display:flex; align-items:center; gap:6px; border:1.5px solid var(--kraft); background:var(--kraft); color:var(--kraft-ink); border-radius:10px; padding:0 14px; font-weight:700; cursor:pointer; white-space:nowrap}
+.upbtn input{display:none}
+#upView{z-index:42}
+#upView .sheet{max-height:94vh}
+.thumbs{display:flex; gap:8px; overflow-x:auto; padding-bottom:6px; margin-bottom:10px}
+.thumbs button{position:relative; flex-shrink:0; width:58px; height:58px; padding:0; border:2px solid var(--line); border-radius:9px; overflow:hidden; background:var(--surface); cursor:pointer}
+.thumbs button.on{border-color:var(--kraft)}
+.thumbs img{width:100%; height:100%; object-fit:cover; display:block}
+.thumbs button.done::after{content:"✓"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(47,125,79,.65); color:#fff; font-weight:800; font-size:20px}
+.upbig{display:block; width:100%; max-height:38vh; object-fit:contain; background:#000; border-radius:10px; cursor:zoom-in}
+.upsug{background:var(--surface); border:1px solid var(--line); border-radius:9px; margin-top:6px; max-height:210px; overflow:auto}
+.upsug button{display:block; width:100%; text-align:left; background:transparent; border:0; border-top:1px solid var(--line); padding:9px 12px; cursor:pointer}
+.upsug button:first-child{border-top:0}
+.upsug button:disabled{opacity:.45; cursor:not-allowed}
+.upsug small{display:block; color:var(--muted); font-size:12.5px}
+.upsel{display:flex; align-items:center; gap:10px; background:var(--kraft-soft); border:1.5px solid var(--kraft); border-radius:9px; padding:10px 12px}
+.upsel div{flex:1; min-width:0}
+.upsel b{display:block; overflow-wrap:anywhere}
+.upsel small{display:block; color:var(--muted); font-size:12.5px}
+.upact{display:grid; grid-template-columns:1fr 2fr; gap:8px; margin-top:4px}
 </style>
 </head>
 <body>
@@ -274,7 +298,10 @@ td.bad{color:var(--danger); font-weight:800}
   </header>
   <div class="wrap" style="padding-top:0">
     <div class="tools">
-      <input id="search" class="search" type="search" placeholder="Cari nama atau kode barang">
+      <div class="srow">
+        <input id="search" class="search" type="search" placeholder="Cari nama atau kode barang">
+        <label class="upbtn" id="upLbl" title="Foto barang di luar list, bisa lebih dari 1">📷 Luar list<input id="upInput" type="file" accept="image/*" multiple></label>
+      </div>
       <div class="chips">
         <button class="chip on" data-f="all">Semua <span id="cAll"></span></button>
         <button class="chip" data-f="todo">Belum <span id="cTodo"></span></button>
@@ -284,6 +311,10 @@ td.bad{color:var(--danger); font-weight:800}
       <div class="banner hidden" id="pBanner"></div>
     </div>
     <div id="prodList" class="list"></div>
+    <div id="extraWrap" class="hidden">
+      <div class="sec">Barang di luar list</div>
+      <div id="extraList"></div>
+    </div>
   </div>
 </section>
 
@@ -384,6 +415,40 @@ td.bad{color:var(--danger); font-weight:800}
   </div>
 </div>
 
+<div id="upView" class="sheetbg hidden" role="dialog" aria-label="Input dari foto">
+  <div class="sheet">
+    <div class="shead">
+      <div style="flex:1;min-width:0"><b>Barang di luar list</b><small id="upCount"></small></div>
+      <button class="iconbtn" id="upClose" aria-label="Tutup">✕</button>
+    </div>
+    <div class="thumbs" id="upThumbs"></div>
+    <img id="upBig" class="upbig" alt="Foto yang dipilih">
+    <div class="form" style="margin-top:10px">
+      <span class="lbl">Nama barang (di luar list)</span>
+      <input id="upName" class="in" type="text" maxlength="150" placeholder="Ketik nama barang" autocomplete="off" autocapitalize="characters">
+
+      <span class="lbl">Jumlah stok</span>
+      <div class="qty">
+        <div><small>Karton</small><input id="upKrt" class="in num" type="number" inputmode="decimal" min="0" placeholder="0"></div>
+        <div><small>Lusin/Pak/Rcg</small><input id="upPak" class="in num" type="number" inputmode="decimal" min="0" placeholder="0"></div>
+        <div><small>Pcs</small><input id="upPcs" class="in num" type="number" inputmode="decimal" min="0" placeholder="0"></div>
+      </div>
+
+      <span class="lbl">Expire date</span>
+      <div class="exp2">
+        <select id="upMonth" class="in" aria-label="Bulan expire"></select>
+        <select id="upYear" class="in" aria-label="Tahun expire"></select>
+      </div>
+
+      <div class="err" id="upErr"></div>
+      <div class="upact">
+        <button class="btn ghost" id="upSkip">Lewati</button>
+        <button class="btn" id="upSave">Simpan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="photoView" class="pview hidden" role="dialog" aria-label="Foto barang">
   <img id="pvImg" alt="Foto barang">
   <button class="iconbtn" id="pvClose" aria-label="Tutup">✕</button>
@@ -412,7 +477,7 @@ const S = {
   pin: storeGet('sessionStorage', 'opn_pin') || '',
   label: storeGet('sessionStorage', 'opn_label') || '',
   doc: null, products: [], product: null, items: [],
-  tim: null, filter: 'all', search: '', editId: null, photoBlob: null,
+  tim: null, filter: 'all', search: '', editId: null, photoBlob: null, up: null,
   report: null, screen: 'login'
 };
 const ALLOWED = ['FULL ACCESS','SENTANI','ENTROP','ABE','HRD','SPVADMIN','HEAD SALES'];
@@ -464,6 +529,7 @@ function show(screen, push = true){
   if(push && screen !== 'login') history.pushState({ s: screen }, '');
 }
 window.addEventListener('popstate', () => {
+  $('upView').classList.add('hidden'); S.up = null;
   const p = PARENT[S.screen];
   if(p) openScreen(p, false);
 });
@@ -654,7 +720,7 @@ document.querySelectorAll('.team').forEach(b => b.addEventListener('click', () =
 async function openProducts(push = true, reload = true){
   show('products', push);
   renderProdHeader();
-  if(!reload && S.products.length){ renderProducts(); return; }
+  if(!reload && S.products.length){ renderProducts(); loadExtras(); return; }
   $('prodList').innerHTML = '<div class="empty">Memuat…</div>';
   S.search = ''; $('search').value = '';
   try{
@@ -663,6 +729,7 @@ async function openProducts(push = true, reload = true){
     S.products = r.products || [];
     renderProdHeader();
     renderProducts();
+    loadExtras();
   }catch(e){ $('prodList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
 }
 function teamDone(){ return S.tim === 'A' ? !!S.doc.done_a : !!S.doc.done_b; }
@@ -673,6 +740,7 @@ function renderProdHeader(){
   $('pDiv').textContent = `${d.divisi}, Tim ${S.tim}, putaran ${round}`;
   $('btnFinish').textContent = `Selesai Tim ${S.tim}`;
   $('btnFinish').classList.toggle('hidden', d.status !== 'OPEN' || done);
+  $('upLbl').classList.toggle('hidden', d.status !== 'OPEN' || done);
   $('chipUlang').classList.toggle('hidden', round <= 1);
   const b = $('pBanner');
   b.className = 'banner';
@@ -732,10 +800,10 @@ function renderProducts(){
     openInput();
   }));
 }
-$('search').addEventListener('input', e => { S.search = e.target.value; renderProducts(); });
+$('search').addEventListener('input', e => { S.search = e.target.value; renderProducts(); renderExtras(); });
 document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => {
   document.querySelectorAll('.chip').forEach(x => x.classList.toggle('on', x === c));
-  S.filter = c.dataset.f; renderProducts();
+  S.filter = c.dataset.f; renderProducts(); renderExtras();
 }));
 
 $('btnFinish').addEventListener('click', async () => {
@@ -990,6 +1058,26 @@ function blobToBase64(blob){
   });
 }
 
+/* simpan dengan aturan: expire date sama -> qty dijumlah ke batch yang sudah ada */
+async function saveMerged({ product, items, krt, pak, pcs, m, y, photoBlob, editId }){
+  const dup = items.find(d => Number(d.exp_month) === m && Number(d.exp_year) === y && d.id !== editId);
+  const photo = photoBlob ? await blobToBase64(photoBlob) : null;
+  const base = { p_header_id: S.doc.id, p_tim: S.tim, p_product_code: product.product_code, p_exp_month: m, p_exp_year: y, p_photo_data: photo };
+  if(!dup){
+    await rpc('save_opname_item', { ...base, p_krt: krt, p_pak: pak, p_pcs: pcs, p_detail_id: editId || null });
+    return null;
+  }
+  const t = [(Number(dup.krt) || 0) + krt, (Number(dup.pak) || 0) + pak, (Number(dup.pcs) || 0) + pcs];
+  await rpc('save_opname_item', { ...base, p_krt: t[0], p_pak: t[1], p_pcs: t[2], p_detail_id: dup.id });
+  if(editId) await rpc('delete_opname_item', { p_detail_id: editId });
+  return `Exp ${expTxt(m, y)} digabung jadi ${fmt(t[0])} / ${fmt(t[1])} / ${fmt(t[2])}`;
+}
+function mergeConfirm(items, m, y, editId){
+  const dup = items.find(d => Number(d.exp_month) === m && Number(d.exp_year) === y && d.id !== editId);
+  if(dup && editId) return confirm(`Exp ${expTxt(m, y)} sudah ada di batch lain. Batch ini akan digabung (qty dijumlah) ke batch tersebut. Lanjutkan?`);
+  return true;
+}
+
 $('btnSave').addEventListener('click', async () => {
   $('formErr').textContent = '';
   const krt = Number($('fKrt').value || 0), pak = Number($('fPak').value || 0), pcs = Number($('fPcs').value || 0);
@@ -997,27 +1085,153 @@ $('btnSave').addEventListener('click', async () => {
   if([krt, pak, pcs].some(v => !isFinite(v) || v < 0)){ $('formErr').textContent = 'Jumlah stok tidak boleh minus.'; return; }
   if(!m || !y){ $('formErr').textContent = 'Bulan dan tahun expire wajib diisi.'; return; }
   if(krt === 0 && pak === 0 && pcs === 0 && !confirm('Semua jumlah 0. Tetap simpan sebagai stok kosong?')) return;
-  if(!S.editId){
-    const dup = S.items.find(d => Number(d.exp_month) === m && Number(d.exp_year) === y);
-    if(dup && !confirm(`Exp ${expTxt(m, y)} sudah diinput. Jumlah lama akan diganti dengan yang baru. Lanjutkan?`)) return;
-  }
+  if(!mergeConfirm(S.items, m, y, S.editId)) return;
   $('btnSave').disabled = true;
   loading(true, S.photoBlob ? 'Mengunggah foto…' : 'Menyimpan…');
   try{
-    const photo = S.photoBlob ? await blobToBase64(S.photoBlob) : null;
-    await rpc('save_opname_item', {
-      p_header_id: S.doc.id, p_tim: S.tim, p_product_code: S.product.product_code,
-      p_krt: krt, p_pak: pak, p_pcs: pcs, p_exp_month: m, p_exp_year: y,
-      p_photo_data: photo,
-      p_detail_id: S.editId
-    });
+    const merged = await saveMerged({ product: S.product, items: S.items, krt, pak, pcs, m, y, photoBlob: S.photoBlob, editId: S.editId });
     loading(false);
-    toast(S.editId ? 'Perubahan disimpan' : 'Tersimpan');
+    toast(merged || (S.editId ? 'Perubahan disimpan' : 'Tersimpan'));
     resetForm();
     await loadItems();
   }catch(e){ loading(false); $('formErr').textContent = e.message; }
   finally{ $('btnSave').disabled = false; }
 });
+
+/* ---------- upload foto (banyak) dari daftar barang ---------- */
+$('upMonth').innerHTML = $('fMonth').innerHTML;
+$('upYear').innerHTML = $('fYear').innerHTML;
+
+$('upInput').addEventListener('change', async e => {
+  const files = Array.from(e.target.files || []);
+  e.target.value = '';
+  if(!files.length) return;
+  loading(true, `Memproses ${files.length} foto…`);
+  const list = [];
+  for(const f of files){
+    try{ const blob = await compressImage(f); list.push({ blob, url: URL.createObjectURL(blob), done: false }); }
+    catch(err){ toast(`${f.name}: ${err.message}`, true); }
+  }
+  loading(false);
+  if(!list.length) return;
+  if(S.up && S.up.files.some(x => !x.done)) S.up.files.push(...list);
+  else { S.up = { files: list, i: 0 }; $('upName').value = ''; }
+  if(!S.up.files[S.up.i] || S.up.files[S.up.i].done) S.up.i = S.up.files.findIndex(x => !x.done);
+  $('upView').classList.remove('hidden');
+  upClearForm();
+  upRender();
+});
+
+function upRender(){
+  const U = S.up; if(!U) return;
+  const left = U.files.filter(x => !x.done).length;
+  $('upCount').textContent = `Foto ${U.i + 1} dari ${U.files.length}, ${left} belum disimpan`;
+  $('upThumbs').innerHTML = U.files.map((x, i) => `<button class="${i === U.i ? 'on' : ''}${x.done ? ' done' : ''}" data-i="${i}" aria-label="Foto ${i + 1}"><img src="${x.url}" alt=""></button>`).join('');
+  $('upThumbs').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    const i = Number(b.dataset.i);
+    if(U.files[i].done){ toast('Foto ini sudah disimpan.'); return; }
+    U.i = i; upRender();
+  }));
+  $('upBig').src = U.files[U.i].url;
+}
+function upClearForm(){
+  ['upKrt','upPak','upPcs'].forEach(id => $(id).value = '');
+  $('upMonth').value = '0'; $('upYear').value = '0';
+  $('upErr').textContent = '';
+}
+$('upBig').addEventListener('click', () => { $('pvImg').src = $('upBig').src; $('photoView').classList.remove('hidden'); });
+
+function upNext(){
+  const U = S.up;
+  const n = U.files.findIndex((x, i) => i > U.i && !x.done);
+  const k = n >= 0 ? n : U.files.findIndex(x => !x.done);
+  if(k < 0){ upClose(true); toast('Semua foto sudah diproses'); return; }
+  U.i = k; upClearForm(); upRender();
+  $('upView').querySelector('.sheet').scrollTop = 0;
+}
+function upClose(force){
+  const U = S.up;
+  if(!force && U && U.files.some(x => !x.done) && !confirm('Masih ada foto yang belum disimpan. Tutup dan buang foto tersebut?')) return;
+  if(U) U.files.forEach(x => URL.revokeObjectURL(x.url));
+  S.up = null;
+  $('upView').classList.add('hidden');
+  $('upBig').removeAttribute('src');
+  renderProducts();
+  loadExtras();
+}
+$('upClose').addEventListener('click', () => upClose(false));
+$('upSkip').addEventListener('click', () => {
+  const U = S.up;
+  if(U.files.filter(x => !x.done).length <= 1){
+    if(confirm('Ini foto terakhir. Buang foto ini dan tutup?')){ U.files[U.i].done = true; upClose(true); }
+    return;
+  }
+  URL.revokeObjectURL(U.files.splice(U.i, 1)[0].url);
+  if(U.i >= U.files.length) U.i = 0;
+  if(U.files[U.i].done) U.i = U.files.findIndex(x => !x.done);
+  upClearForm(); upRender();
+});
+
+$('upSave').addEventListener('click', async () => {
+  $('upErr').textContent = '';
+  const U = S.up;
+  const name = $('upName').value.trim().replace(/\s+/g, ' ');
+  if(!name){ $('upErr').textContent = 'Nama barang wajib diisi.'; return; }
+  if(S.doc.status !== 'OPEN' || teamDone()){ $('upErr').textContent = 'Dokumen atau tim sudah tidak bisa diubah.'; return; }
+  const krt = Number($('upKrt').value || 0), pak = Number($('upPak').value || 0), pcs = Number($('upPcs').value || 0);
+  const m = Number($('upMonth').value), y = Number($('upYear').value);
+  if([krt, pak, pcs].some(v => !isFinite(v) || v < 0)){ $('upErr').textContent = 'Jumlah stok tidak boleh minus.'; return; }
+  if(krt === 0 && pak === 0 && pcs === 0){ $('upErr').textContent = 'Isi jumlah stok.'; return; }
+  if(!m || !y){ $('upErr').textContent = 'Bulan dan tahun expire wajib diisi.'; return; }
+  $('upSave').disabled = true;
+  loading(true, 'Mengunggah foto…');
+  try{
+    const r = await rpc('save_opname_extra', {
+      p_header_id: S.doc.id, p_tim: S.tim, p_name: name,
+      p_krt: krt, p_pak: pak, p_pcs: pcs, p_exp_month: m, p_exp_year: y,
+      p_photo_data: await blobToBase64(U.files[U.i].blob)
+    });
+    loading(false);
+    toast(r && r.merged ? `Exp ${expTxt(m, y)} digabung jadi ${fmt(r.krt)} / ${fmt(r.pak)} / ${fmt(r.pcs)}` : 'Tersimpan');
+    U.files[U.i].done = true;
+    upNext();
+  }catch(e){ loading(false); $('upErr').textContent = e.message; }
+  finally{ $('upSave').disabled = false; }
+});
+
+/* ---------- barang di luar list ---------- */
+S.extras = [];
+async function loadExtras(){
+  if(!S.doc || !S.tim) return;
+  try{ S.extras = await rpc('get_opname_extras', { p_header_id: S.doc.id, p_tim: S.tim }) || []; }
+  catch(e){ S.extras = []; toast(e.message, true); }
+  renderExtras();
+}
+function renderExtras(){
+  const q = S.search.toLowerCase();
+  const rows = (S.filter === 'all' || S.filter === 'done') ? S.extras.filter(d => !q || String(d.product_name).toLowerCase().includes(q)) : [];
+  $('extraWrap').classList.toggle('hidden', !rows.length);
+  const canEdit = S.doc.status === 'OPEN' && !teamDone();
+  $('extraList').innerHTML = rows.map(d => `
+    <div class="batch">
+      <div class="top">
+        <div style="min-width:0"><b style="overflow-wrap:anywhere">${esc(d.product_name)}</b><div class="exp num">Exp ${expTxt(d.exp_month, d.exp_year)}</div></div>
+        <div class="acts">
+          ${d.photo_id ? `<button class="btn ghost small" data-photo="${d.photo_id}">Foto</button>` : ''}
+          ${canEdit ? `<button class="btn danger small" data-del="${d.id}">Hapus</button>` : ''}
+        </div>
+      </div>
+      <div class="q num"><div>Karton<b>${fmt(d.krt)}</b></div><div>Pak/Rcg<b>${fmt(d.pak)}</b></div><div>Pcs<b>${fmt(d.pcs)}</b></div></div>
+    </div>`).join('');
+  $('extraList').querySelectorAll('[data-photo]').forEach(b => b.addEventListener('click', () => viewPhoto(Number(b.dataset.photo))));
+  $('extraList').querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', async () => {
+    const d = S.extras.find(x => x.id === Number(b.dataset.del)); if(!d) return;
+    if(!confirm(`Hapus ${d.product_name} exp ${expTxt(d.exp_month, d.exp_year)}?`)) return;
+    loading(true, 'Menghapus…');
+    try{ await rpc('delete_opname_item', { p_detail_id: d.id }); loading(false); toast('Dihapus'); loadExtras(); }
+    catch(e){ loading(false); toast(e.message, true); }
+  }));
+}
 
 /* ---------- report ---------- */
 async function openReport(push = true){
