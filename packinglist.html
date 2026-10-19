@@ -52,6 +52,7 @@
 
   .toolrow{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px;}
   .toolrow-right{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  .month-sel{margin-left:auto;background:var(--panel);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;}
   .search{background:var(--panel);border:1px solid var(--border);color:var(--text);padding:9px 14px;border-radius:8px;font-size:13px;min-width:220px;}
   .search::placeholder{color:var(--muted);}
 
@@ -61,6 +62,7 @@
   thead th{text-align:left;font-size:10.5px;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);padding:10px 8px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--panel);z-index:2;white-space:nowrap;}
   tbody td{padding:8px;border-bottom:1px solid #1d2530;white-space:nowrap;}
   tbody tr:last-child td{border-bottom:none;}
+  td.sopir-td{white-space:normal;width:220px;min-width:160px;max-width:220px;line-height:1.35;}
   tbody tr:hover{background:#171f29;}
   th.check-th, td.check-td{text-align:center;width:34px;}
   .row-check, #selectAllInv{width:15px;height:15px;cursor:pointer;accent-color:var(--teal);}
@@ -182,6 +184,7 @@
     <button class="tab-pill active" data-tab="invoice">INVOICE</button>
     <button class="tab-pill" data-tab="packing">PACKING LIST</button>
     <button class="tab-pill" data-tab="tracking">TRACKING</button>
+    <select class="month-sel" id="monthSel" title="Bulan (TGL REKAP) untuk Packing List & Tracking" style="display:none"></select>
   </div>
 
   <!-- ============ INVOICE TAB ============ -->
@@ -671,8 +674,36 @@
       document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
       btn.classList.add('active');
       document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+      document.getElementById('monthSel').style.display = btn.dataset.tab === 'invoice' ? 'none' : '';
     });
   });
+
+  // ---- month selector (Packing List & Tracking load one month at a time, by TGL REKAP) ----
+  (function initMonthSel(){
+    const sel = document.getElementById('monthSel');
+    const BLN = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+    const now = new Date();
+    for (let i = 0; i < 12; i++){
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const v = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+      sel.add(new Option(BLN[d.getMonth()] + ' ' + d.getFullYear(), v));
+    }
+    sel.addEventListener('change', async () => {
+      sel.disabled = true;
+      document.getElementById('updatedAt').textContent = 'Memuat...';
+      await Promise.all([loadPackingList(), loadTrackingItems()]);
+      sel.disabled = false;
+      document.getElementById('updatedAt').textContent = 'Terakhir dimuat: ' + new Date().toLocaleString('id-ID');
+    });
+  })();
+  function monthRange(){
+    const [y, m] = document.getElementById('monthSel').value.split('-').map(Number);
+    const pad = n => String(n).padStart(2, '0');
+    const start = `${y}-${pad(m)}-01`;
+    const end = m === 12 ? `${y + 1}-01-01` : `${y}-${pad(m + 1)}-01`;
+    return { start, end };
+  }
+  const byMonth = col => q => { const { start, end } = monthRange(); return q.gte(col, start).lt(col, end); };
 
   // ---- data load ----
   async function refreshAll(){
@@ -890,28 +921,14 @@
 
   // ---- KAS/Col status (kas_kecil.no_faktur / invoice_payments.invoice_no) ----
   async function loadKasColStatus(){
-    const CHUNK = 1000;
     try{
-      const kasRows = [];
-      let from = 0;
-      for (let guard = 0; guard < 200; guard++){ // safety cap: 200k rows max
-        const { data, error } = await sb.rpc('get_kas_kecil_faktur_list').range(from, from + CHUNK - 1);
-        if (error) throw error;
-        const chunk = data || [];
-        kasRows.push(...chunk);
-        if (chunk.length < CHUNK) break;
-        from += CHUNK;
-      }
-      const colRows = [];
-      from = 0;
-      for (let guard = 0; guard < 200; guard++){
-        const { data, error } = await sb.rpc('get_invoice_payment_no_list').range(from, from + CHUNK - 1);
-        if (error) throw error;
-        const chunk = data || [];
-        colRows.push(...chunk);
-        if (chunk.length < CHUNK) break;
-        from += CHUNK;
-      }
+      const [kas, col] = await Promise.all([
+        rpcAll('get_kas_kecil_faktur_list'),
+        rpcAll('get_invoice_payment_no_list')
+      ]);
+      if (kas.error) throw kas.error;
+      if (col.error) throw col.error;
+      const kasRows = kas.data, colRows = col.data;
       kasFakturSet = new Set(kasRows.map(r => String(r.no_faktur || '').trim().toUpperCase()).filter(Boolean));
       colInvoiceSet = new Set(colRows.map(r => String(r.invoice_no || '').trim().toUpperCase()).filter(Boolean));
     }catch(e){
@@ -967,17 +984,9 @@
   });
 
   async function loadInvoices(){
-    const CHUNK = 1000;
-    let all = [];
-    let from = 0;
-    for (let guard = 0; guard < 200; guard++){ // safety cap: 200k rows max
-      const { data, error } = await sb.rpc('get_invoices', { p_pin: currentPin }).range(from, from + CHUNK - 1);
-      if (error){ alert('Gagal memuat invoice: ' + error.message); return; }
-      const chunk = data || [];
-      all = all.concat(chunk);
-      if (chunk.length < CHUNK) break;
-      from += CHUNK;
-    }
+    const { data, error } = await rpcAll('get_invoices', { p_pin: currentPin });
+    if (error){ alert('Gagal memuat invoice: ' + error.message); return; }
+    const all = data;
     invoices = all;
     // BDT CASH customers are grouped under a dedicated BDT area regardless of their stored area
     invoices.forEach(r => {
@@ -1067,15 +1076,27 @@
   }
 
   // PostgREST caps every response at 1000 rows -> page through RPC results
-  async function rpcAll(fn, params){
-    const CHUNK = 1000;
+  // fetch pages in parallel batches (PARALLEL pages per round) instead of one-by-one
+  async function rpcAll(fn, params, applyFilter){
+    const CHUNK = 1000, PARALLEL = 6;
     let all = [];
-    for (let from = 0, guard = 0; guard < 200; guard++, from += CHUNK){
-      const { data, error } = await sb.rpc(fn, params).range(from, from + CHUNK - 1);
-      if (error) return { data: null, error };
-      const chunk = data || [];
-      all = all.concat(chunk);
-      if (chunk.length < CHUNK) break;
+    for (let page = 0; page < 200; page += PARALLEL){
+      const reqs = [];
+      for (let i = 0; i < PARALLEL; i++){
+        const from = (page + i) * CHUNK;
+        let q = params ? sb.rpc(fn, params) : sb.rpc(fn);
+        if (applyFilter) q = applyFilter(q);
+        reqs.push(q.range(from, from + CHUNK - 1));
+      }
+      const results = await Promise.all(reqs);
+      let done = false;
+      for (const { data, error } of results){
+        if (error) return { data: null, error };
+        const chunk = data || [];
+        all = all.concat(chunk);
+        if (chunk.length < CHUNK){ done = true; break; }
+      }
+      if (done) break;
     }
     return { data: all, error: null };
   }
@@ -1113,10 +1134,11 @@
   }
 
   async function loadPackingList(){
-    const { data, error } = await rpcAll('get_packing_list_items', { p_pin: currentPin });
+    const { data, error } = await rpcAll('get_packing_list_items', { p_pin: currentPin }, byMonth('tgl'));
     if (error){ alert('Gagal memuat packing list: ' + error.message); return; }
     plItems = data || [];
     renderPackingListTable();
+    renderTrackingTable();
   }
 
   // ---- Invoice tab render ----
@@ -1450,56 +1472,50 @@
   function renderPackingListTable(){
     const groups = getPlGroups();
     const tbody = document.getElementById('plTbody');
-    tbody.innerHTML = '';
-
-    groups.forEach(g => {
-      const tr = document.createElement('tr');
-      tr.innerHTML =
-        `<td><b>${escapeHtml(g.no_pl)}</b></td>` +
+    tbody.innerHTML = groups.map(g =>
+        `<tr><td><b>${escapeHtml(g.no_pl)}</b></td>` +
         `<td class="num">${(Number(g.total_kubikasi) || 0).toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</td>` +
         `<td>${escapeHtml(g.pl_area || '-')}</td>` +
-        `<td>${escapeHtml(g.sopir || '-')}</td>` +
+        `<td class="sopir-td">${escapeHtml(g.sopir || '-')}</td>` +
         `<td>${escapeHtml(g.tgl || '-')}</td>` +
         `<td class="num">${g.count}</td>` +
         `<td>${g.tgl_antar ? fmtDateShort(g.tgl_antar) : '-'}</td>` +
         `<td class="pl-summary-actions">` +
           `<button type="button" class="btn btn-sm pl-reprint-btn" data-pl="${escapeHtml(g.no_pl)}">Cetak Ulang</button>` +
           `<button type="button" class="btn btn-sm pl-view-detail-btn" data-pl="${escapeHtml(g.no_pl)}">Lihat Invoice</button>` +
-        `</td>`;
-      tbody.appendChild(tr);
-    });
+        `</td></tr>`).join('');
 
     document.getElementById('plEmpty').classList.toggle('hidden', groups.length > 0);
     document.getElementById('plMeta').textContent = groups.length + ' packing list';
-
-    tbody.querySelectorAll('.pl-reprint-btn').forEach(btn => {
-      btn.addEventListener('click', () => reprintPackingList(btn.dataset.pl));
-    });
-    tbody.querySelectorAll('.pl-view-detail-btn').forEach(btn => {
-      btn.addEventListener('click', () => openPlDetailModal(btn.dataset.pl));
-    });
-
-    function reprintPackingList(noPl){
-      const rows = plItems.filter(r => r.no_pl === noPl);
-      if (!rows.length) return;
-      const g = rows[0];
-      buildPackingListPdf(noPl, rows, {
-        tgl: g.tgl, sopir: g.sopir, area: g.pl_area, total: g.total_kubikasi
-      });
-    }
 
     // if the detail modal is open, refresh its contents too (e.g. after a header edit or status change)
     if (activeDetailPl && !document.getElementById('plDetailOverlay').classList.contains('hidden')){
       renderPlDetailTable(activeDetailPl);
     }
   }
-  document.getElementById('plSearch').addEventListener('input', renderPackingListTable);
+  // one delegated listener instead of 2 listeners per row
+  document.getElementById('plTbody').addEventListener('click', e => {
+    const rb = e.target.closest('.pl-reprint-btn');
+    if (rb){ reprintPackingList(rb.dataset.pl); return; }
+    const vb = e.target.closest('.pl-view-detail-btn');
+    if (vb) openPlDetailModal(vb.dataset.pl);
+  });
+  function reprintPackingList(noPl){
+      const rows = plItems.filter(r => r.no_pl === noPl);
+      if (!rows.length) return;
+      const g = rows[0];
+      buildPackingListPdf(noPl, rows, {
+        tgl: g.tgl, sopir: g.sopir, area: g.pl_area, total: g.total_kubikasi
+      });
+  }
+  function debounce(fn, ms){ let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+  document.getElementById('plSearch').addEventListener('input', debounce(renderPackingListTable, 250));
 
   // ---- Tracking tab ----
   async function loadTrackingItems(){
     const [res, exp] = await Promise.all([
-      rpcAll('get_tracking_items', { p_pin: currentPin }),
-      rpcAll('get_invoice_exported_at', { p_pin: currentPin })
+      rpcAll('get_tracking_items', { p_pin: currentPin }, byMonth('tgl')),
+      rpcAll('get_invoice_exported_at', { p_pin: currentPin }, q => q.gte('exported_at', monthRange().start))
     ]);
     const { data, error } = res;
     if (error){ alert('Gagal memuat tracking: ' + error.message); return; }
@@ -1526,41 +1542,55 @@
     });
     const plKeys = [...byPl.keys()].sort((a, b) => String(b || '').localeCompare(String(a || '')));
 
+    const plHdr = new Map();
+    plItems.forEach(p => { if (!plHdr.has(p.no_pl)) plHdr.set(p.no_pl, p); });
+
     const tbody = document.getElementById('trackTbody');
-    tbody.innerHTML = '';
+    const html = [];
     plKeys.forEach(noPl => {
       const groupRows = byPl.get(noPl);
       const g = groupRows[0];
-      const groupTr = document.createElement('tr');
-      groupTr.className = 'pl-group-row';
-      groupTr.innerHTML = `<td colspan="7"><b>${escapeHtml(noPl)}</b> &middot; ${escapeHtml(g.sopir || '-')} &middot; ${escapeHtml(g.pl_area || '-')} &middot; ${g.tgl || '-'}</td>`;
-      tbody.appendChild(groupTr);
+      const plRef = plHdr.get(noPl) || {};
+      const tglPl = String(g.tgl || '').slice(0, 10);
+      const tglAntar = String(g.tgl_antar || plRef.tgl_antar || '').slice(0, 10);
+      let antarTxt = '';
+      if (tglAntar){
+        antarTxt = ` &rarr; ${tglAntar}`;
+        if (tglPl){
+          const diff = Math.round((new Date(tglAntar + 'T00:00:00Z') - new Date(tglPl + 'T00:00:00Z')) / 86400000);
+          if (!isNaN(diff)) antarTxt += ` (${diff} hari)`;
+        }
+      }
+      html.push(`<tr class="pl-group-row"><td colspan="7"><b>${escapeHtml(noPl)}</b> &middot; ${escapeHtml(g.sopir || plRef.sopir || '-')} &middot; ${escapeHtml(g.pl_area || '-')} &middot; ${tglPl || '-'}${antarTxt}</td></tr>`);
 
       groupRows.forEach(r => {
-        const tr = document.createElement('tr');
-        tr.innerHTML =
-          `<td>${escapeHtml(r.no_invoice)}</td>` +
+        html.push(
+          `<tr><td>${escapeHtml(r.no_invoice)}</td>` +
           `<td>${escapeHtml(displayToko(r.nama_toko, r.no_invoice))}</td>` +
           `<td class="num">${fmtNumber(r.kubikasi)}</td>` +
           `<td>${escapeHtml(r.branch)}</td>` +
           `<td>${escapeHtml(r.status)}</td>` +
           `<td>${r.exported ? '\u2714' : '-'}</td>` +
-          `<td style="white-space:nowrap">${r.exported_at ? fmtDateShort(r.exported_at) : '-'}</td>`;
-        tbody.appendChild(tr);
+          `<td style="white-space:nowrap">${r.exported_at ? fmtDateShort(r.exported_at) : '-'}</td></tr>`);
       });
     });
+    tbody.innerHTML = html.join('');
 
     document.getElementById('trackEmpty').classList.toggle('hidden', rows.length > 0);
     document.getElementById('trackMeta').textContent = rows.length + ' baris';
 
-    const exportable = trackItems.filter(r => r.status === 'FULL' && !r.exported);
-    document.getElementById('trackExportBtn').disabled = exportable.length === 0;
   }
-  document.getElementById('trackSearch').addEventListener('input', renderTrackingTable);
+  document.getElementById('trackSearch').addEventListener('input', debounce(renderTrackingTable, 250));
 
   document.getElementById('trackExportBtn').addEventListener('click', async () => {
-    const exportable = trackItems.filter(r => r.status === 'FULL' && !r.exported);
-    if (!exportable.length) return;
+    // export covers ALL months, not just the selected one
+    const btn = document.getElementById('trackExportBtn');
+    btn.disabled = true;
+    const res = await rpcAll('get_tracking_items', { p_pin: currentPin }, q => q.eq('status', 'FULL').eq('exported', false));
+    btn.disabled = false;
+    if (res.error){ alert('Gagal memuat data export: ' + res.error.message); return; }
+    const exportable = res.data || [];
+    if (!exportable.length){ alert('Tidak ada invoice FULL yang belum di-export.'); return; }
 
     const byBranch = { DAF: [], ABP: [], KSI: [] };
     exportable.forEach(r => {
@@ -1573,7 +1603,6 @@
       aoa.push([byBranch.DAF[i] || '', byBranch.ABP[i] || '', byBranch.KSI[i] || '']);
     }
 
-    const btn = document.getElementById('trackExportBtn');
     btn.disabled = true;
     try{
       const wb = XLSX.utils.book_new();
@@ -1609,6 +1638,7 @@
     plItems.forEach(r => { if (r.no_pl === noPl){ r.sopir = sopir; r.tgl_antar = tgl; } });
     msgEl.textContent = 'Tersimpan'; msgEl.className = 'automsg success';
     renderPackingListTable();
+    renderTrackingTable();
   });
 
   // ---- PL detail modal (invoices inside one packing list) ----
