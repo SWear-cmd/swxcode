@@ -154,6 +154,32 @@ tr:last-child td{border-bottom:0}
 .team.last{border-color:var(--kraft)}
 .team:disabled{opacity:.4; cursor:not-allowed}
 .rclist .row{cursor:default}
+.modes{display:grid; gap:14px; margin-top:10px}
+.modebtn{display:block; width:100%; text-align:left; background:var(--surface); border:1.5px solid var(--line); border-radius:14px; padding:22px 18px; cursor:pointer; color:var(--ink)}
+.modebtn b{display:block; font-size:21px; letter-spacing:.3px}
+.modebtn span{display:block; font-size:13.5px; color:var(--muted); margin-top:4px}
+.modebtn:hover{border-color:var(--kraft)}
+.ltabs{display:flex; gap:6px; margin-bottom:12px}
+.ltab{flex:1; border:1.5px solid var(--line); background:var(--surface); border-radius:9px; padding:10px 4px; font-weight:700; cursor:pointer; color:var(--muted)}
+.ltab.on{background:var(--ink); color:var(--bg); border-color:var(--ink)}
+.calnav{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px}
+.calnav b{font-size:17px}
+.calnav button{width:44px; height:40px; border-radius:9px; border:1.5px solid var(--line); background:var(--surface); color:var(--ink); font-size:20px; cursor:pointer}
+.calnav button:disabled{opacity:.35; cursor:default}
+.cal{display:grid; grid-template-columns:repeat(7,1fr); gap:6px}
+.cal .wd{text-align:center; font-size:12px; color:var(--muted); font-weight:700; padding:4px 0}
+.cal .d{aspect-ratio:1/1; border-radius:10px; border:1.5px solid var(--line); background:var(--surface); color:var(--ink); font-weight:700; font-size:15px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; padding:0}
+.cal .d small{font-size:10px; font-weight:600; opacity:.85}
+.cal .d.today{outline:2.5px solid var(--kraft); outline-offset:1px}
+.cal .d.g{background:#2F9E5B; border-color:#2F9E5B; color:#fff}
+.cal .d.y{background:#F2C230; border-color:#F2C230; color:#1C2630}
+.cal .d.r{background:#D2453D; border-color:#D2453D; color:#fff}
+.cal .d.sun{background:var(--line); color:var(--muted); border-color:var(--line); cursor:not-allowed; opacity:.6}
+.cal .d.fut{opacity:.4; cursor:not-allowed}
+.cal .d.pad{visibility:hidden}
+.legend{display:flex; flex-wrap:wrap; gap:10px 14px; font-size:12.5px; color:var(--muted); margin:12px 2px 0}
+.legend i{display:inline-block; width:12px; height:12px; border-radius:3px; margin-right:5px; vertical-align:-1px}
+.nltag{display:inline-block; font-size:11px; font-weight:800; color:#e0a458; border:1.5px solid #e0a458; border-radius:5px; padding:0 6px; margin-left:6px; vertical-align:1px; white-space:nowrap}
 .btag{display:inline-block; font-size:11.5px; font-weight:800; color:var(--danger); border:1.5px solid var(--danger); border-radius:5px; padding:0 6px; margin-left:6px; vertical-align:1px}
 .row.selisih .btag{color:#fff; border-color:#fff}
 .rclist .row .utag{margin-left:0}
@@ -227,10 +253,93 @@ td.bad{color:var(--danger); font-weight:800}
   <div id="loginErr" class="err"></div>
 </section>
 
+<!-- MODE -->
+<section id="s-mode" class="hidden">
+  <header class="bar">
+    <div class="ttl"><b>Stock Opname</b><small id="whoami2"></small></div>
+    <button class="iconbtn" id="btnLogout2" title="Keluar" aria-label="Keluar">⏻</button>
+  </header>
+  <div class="wrap">
+    <div class="modes">
+      <button class="modebtn" id="btnModeH"><b>OPNAME HARIAN</b><span>Item wajib stock setiap hari, per tanggal</span></button>
+      <button class="modebtn" id="btnModeB"><b>OPNAME BULANAN</b><span>Opname per divisi, Tim A dan Tim B</span></button>
+    </div>
+  </div>
+</section>
+
+<!-- HARIAN: KALENDER -->
+<section id="s-dcal" class="hidden">
+  <header class="bar">
+    <button class="iconbtn back" aria-label="Kembali">‹</button>
+    <div class="ttl"><b>Opname Harian</b><small id="dcLok"></small></div>
+  </header>
+  <div class="wrap">
+    <div class="ltabs hidden" id="dcTabs">
+      <button class="ltab" data-lok="ENTROP">ENTROP</button>
+      <button class="ltab" data-lok="ABE">ABE</button>
+      <button class="ltab" data-lok="SENTANI">SENTANI</button>
+    </div>
+    <div class="calnav">
+      <button id="dcPrev" aria-label="Bulan sebelumnya">‹</button>
+      <b id="dcMonth"></b>
+      <button id="dcNext" aria-label="Bulan berikutnya">›</button>
+    </div>
+    <div class="cal" id="dcGrid"></div>
+    <div class="legend">
+      <span><i style="background:#2F9E5B"></i>Semua item selesai</span>
+      <span><i style="background:#F2C230"></i>Sebagian item belum</span>
+      <span><i style="background:#D2453D"></i>Tidak di stock</span>
+      <span><i style="background:var(--line)"></i>Minggu</span>
+    </div>
+    <div id="dcInfo"></div>
+    <button class="btn ghost hidden" id="btnDItems" style="margin-top:16px">Atur item harian</button>
+  </div>
+</section>
+
+<!-- HARIAN: LIST ITEM PER TANGGAL -->
+<section id="s-dprod" class="hidden">
+  <header class="bar">
+    <button class="iconbtn back" aria-label="Kembali">‹</button>
+    <div class="ttl"><b id="dpTitle"></b><small id="dpSub"></small></div>
+  </header>
+  <div class="wrap" style="padding-top:0">
+    <div class="tools">
+      <input id="dSearch" class="search" type="search" placeholder="Cari nama atau kode barang">
+      <div class="chips">
+        <button class="dchip chip on" data-f="all">Semua <span id="dcAll"></span></button>
+        <button class="dchip chip" data-f="todo">Belum <span id="dcTodo"></span></button>
+        <button class="dchip chip" data-f="done">Sudah <span id="dcDone"></span></button>
+      </div>
+      <div class="banner hidden" id="dpBanner"></div>
+    </div>
+    <div id="dProdList" class="list"></div>
+  </div>
+</section>
+
+<!-- HARIAN: ATUR ITEM (FULL ACCESS) -->
+<section id="s-ditems" class="hidden">
+  <header class="bar">
+    <button class="iconbtn back" aria-label="Kembali">‹</button>
+    <div class="ttl"><b>Atur item harian</b><small>Item wajib stock setiap hari, bisa lintas divisi</small></div>
+  </header>
+  <div class="wrap">
+    <div class="ltabs" id="diTabs">
+      <button class="ltab" data-lok="ENTROP">ENTROP</button>
+      <button class="ltab" data-lok="ABE">ABE</button>
+      <button class="ltab" data-lok="SENTANI">SENTANI</button>
+    </div>
+    <input id="diSearch" class="search" type="search" placeholder="Cari barang untuk ditambahkan (nama / kode)" autocomplete="off">
+    <div id="diResult" class="list hidden" style="margin-top:8px"></div>
+    <div class="sec" id="diCount">Item harian</div>
+    <div id="diList" class="list"></div>
+  </div>
+</section>
+
 <!-- HOME -->
 <section id="s-home" class="hidden">
   <header class="bar">
-    <div class="ttl"><b>Stock Opname</b><small id="whoami"></small></div>
+    <button class="iconbtn back" aria-label="Kembali">‹</button>
+    <div class="ttl"><b>Opname Bulanan</b><small id="whoami"></small></div>
     <button class="iconbtn" id="btnLogout" title="Keluar" aria-label="Keluar">⏻</button>
   </header>
   <div class="wrap">
@@ -385,6 +494,7 @@ td.bad{color:var(--danger); font-weight:800}
     <div class="tabs">
       <button class="tab on" data-t="lap">Laporan</button>
       <button class="tab" data-t="csv">Export CSV</button>
+      <button class="tab" data-t="adj">Cek Adjust</button>
     </div>
 
     <div id="t-lap">
@@ -398,9 +508,24 @@ td.bad{color:var(--danger); font-weight:800}
       <button class="btn" id="btnPdf">Export PDF</button>
     </div>
 
+    <div id="t-adj" class="hidden">
+      <div class="banner" style="margin-top:0">Import file Excel hasil adjust dari program (Stock Opname Report). Kolom <b>Physical Count</b> dibandingkan dengan hasil opname untuk cek salah input admin.</div>
+      <label class="btn" style="display:flex;align-items:center;justify-content:center;margin-top:12px;cursor:pointer">📥 Import Excel (bisa lebih dari 1 file)<input id="adjFile" type="file" accept=".xls,.xlsx,.htm,.html" multiple hidden></label>
+      <div id="adjOut"></div>
+    </div>
+
     <div id="t-csv" class="hidden">
-      <div class="empty">Format CSV belum ditentukan.</div>
-      <button class="btn" disabled>Export CSV</button>
+      <div class="banner" id="csvInfo" style="margin-top:12px"></div>
+      <button class="btn" id="btnCsv">Export CSV</button>
+      <div id="csvNL" class="hidden" style="margin-top:16px">
+        <div class="sec">Barang di luar list (tidak ikut export)</div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>NAMA BARANG</th><th class="r">KRT</th><th class="r">PAK/RCG</th><th class="r">PCS</th><th class="c">EXPIRE DATE</th></tr></thead>
+            <tbody id="csvNLBody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -478,7 +603,8 @@ const S = {
   label: storeGet('sessionStorage', 'opn_label') || '',
   doc: null, products: [], product: null, items: [],
   tim: null, filter: 'all', search: '', editId: null, photoBlob: null, up: null,
-  report: null, screen: 'login'
+  report: null, screen: 'login', mode: 'bulanan',
+  daily: { lokasi: '', y: 0, m: 0, date: '', today: '', cal: null, products: [], filter: 'all', search: '', editable: false }
 };
 const ALLOWED = ['FULL ACCESS','SENTANI','ENTROP','ABE','HRD','SPVADMIN','HEAD SALES'];
 function fixedTim(){
@@ -487,7 +613,8 @@ function fixedTim(){
   if(l === 'SPVADMIN') return 'A';
   return null;
 }
-const PARENT = { divisi:'home', team:'home', products:'team', input:'products', compare:'home', report:'home' };
+const PARENT = { home:'mode', divisi:'home', team:'home', products:'team', input:'products', compare:'home', report:'home', dcal:'mode', dprod:'dcal', ditems:'dcal' };
+const parentOf = sc => (sc === 'input' && S.mode === 'harian') ? 'dprod' : PARENT[sc];
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -523,19 +650,22 @@ async function rpc(name, params = {}){
 
 /* ---------- navigation ---------- */
 function show(screen, push = true){
-  ['login','home','divisi','team','products','input','compare','report'].forEach(s => $('s-' + s).classList.toggle('hidden', s !== screen));
+  ['login','mode','home','divisi','team','products','input','compare','report','dcal','dprod','ditems'].forEach(s => $('s-' + s).classList.toggle('hidden', s !== screen));
   S.screen = screen;
   window.scrollTo(0, 0);
   if(push && screen !== 'login') history.pushState({ s: screen }, '');
 }
 window.addEventListener('popstate', () => {
   $('upView').classList.add('hidden'); S.up = null;
-  const p = PARENT[S.screen];
+  const p = parentOf(S.screen);
   if(p) openScreen(p, false);
 });
 document.querySelectorAll('.back').forEach(b => b.addEventListener('click', () => history.back()));
 
 function openScreen(name, push){
+  if(name === 'mode') return goMode(push);
+  if(name === 'dcal') return openDCal(push);
+  if(name === 'dprod') return openDProd(push, false);
   if(name === 'home') return goHome(push);
   if(name === 'products') return openProducts(push, false);
   if(name === 'team') return openTeam(push);
@@ -558,7 +688,7 @@ async function doLogin(){
     S.pin = pin; S.label = r.label || '';
     storeSet('sessionStorage', 'opn_pin', pin); storeSet('sessionStorage', 'opn_label', S.label);
     $('pin').value = '';
-    goHome(true);
+    goMode(true);
   }catch(e){ $('loginErr').textContent = e.message; }
   finally{ $('btnLogin').disabled = false; }
 }
@@ -574,6 +704,7 @@ $('btnLogout').addEventListener('click', () => { if(confirm('Keluar dari Stock O
 
 /* ---------- home ---------- */
 async function goHome(push = true){
+  S.mode = 'bulanan';
   show('home', push);
   $('whoami').textContent = S.label;
   $('docList').innerHTML = '<div class="empty">Memuat…</div>';
@@ -688,7 +819,16 @@ async function loadSummary(){
       html += `<div class="banner ok">Semua barang sesuai. ${h.status === 'FINAL' ? 'Stok fisik sudah final.' : 'Menunggu Full Access / SPVADMIN memfinalkan.'}</div>`;
       if(h.status === 'VALID' && canFinalize()) html += `<button class="btn" id="btnGoFinal" style="margin-top:12px">Finalkan stok fisik</button>`;
     }else{
-      if(h.round > 1) html += `<div class="banner">Putaran ${h.round}: ${rc.length} barang wajib dihitung ulang. Barang lain sudah valid dan terkunci.</div>`;
+      if(h.round > 1){
+        const rcL = rc.filter(c => !String(c).startsWith('NL-')), rcNL = rc.length - rcL.length;
+        if(rcL.length) html += `<div class="banner">Putaran ${h.round}: ${rcL.length} barang wajib dihitung ulang. Barang lain sudah valid dan terkunci.</div>`;
+        if(rcL.length){
+          const nm = c => { const p = (S.products || []).find(x => x.product_code === c); return p ? p.product_name : c; };
+          html += `<div class="list rclist" style="margin-top:10px">${rcL.map(c => `
+            <div class="row" role="button" tabindex="0" style="cursor:pointer" data-dc="${esc(c)}"><div class="main"><div class="name">${esc(nm(c))}</div><div class="sub">${esc(c)}</div></div><span class="utag">HITUNG ULANG</span><span style="color:var(--muted);font-size:20px">›</span></div>`).join('')}</div>`;
+        }
+        if(rcNL) html += `<div class="banner">Ada ${rcNL} barang di luar list.</div>`;
+      }
       if(items.length){
         html += `<div class="banner">Hasil Tim A dan Tim B beda. HITUNG ULANG</div>
           <div class="list rclist" style="margin-top:10px">${items.map(x => `
@@ -801,8 +941,8 @@ function renderProducts(){
   }));
 }
 $('search').addEventListener('input', e => { S.search = e.target.value; renderProducts(); renderExtras(); });
-document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => {
-  document.querySelectorAll('.chip').forEach(x => x.classList.toggle('on', x === c));
+document.querySelectorAll('#s-products .chip').forEach(c => c.addEventListener('click', () => {
+  document.querySelectorAll('#s-products .chip').forEach(x => x.classList.toggle('on', x === c));
   S.filter = c.dataset.f; renderProducts(); renderExtras();
 }));
 
@@ -856,7 +996,7 @@ async function openCompare(push = true){
     $('cpDiv').textContent = `${h.divisi}, putaran ${h.round}`;
     $('cpBody').innerHTML = rows.length ? rows.map(x => `
       <tr class="${x.match ? '' : 'mis'}">
-        <td>${esc(x.product_name)}</td>
+        <td>${esc(x.product_name)}${String(x.product_code || '').startsWith('NL-') ? '<span class="nltag">LUAR LIST</span>' : ''}</td>
         <td class="c num">${expTxt(x.exp_month, x.exp_year)}</td>
         <td class="c num">${kpp(x.a_krt, x.a_pak, x.a_pcs)}</td>
         <td class="c num">${kpp(x.b_krt, x.b_pak, x.b_pcs)}</td>
@@ -904,7 +1044,7 @@ function resetForm(){
 async function openInput(){
   show('input');
   const p = S.product, s = sysTxt(p);
-  $('iDoc').textContent = `${S.doc.doc_no}, ${S.doc.divisi}, Tim ${S.tim}`;
+  $('iDoc').textContent = S.mode === 'harian' ? `Harian ${S.daily.lokasi}, ${fmtDay(S.daily.date)}` : `${S.doc.doc_no}, ${S.doc.divisi}, Tim ${S.tim}`;
   $('iName').textContent = p.product_name;
   $('iCode').textContent = p.product_code + (p.uom_conversion ? `, konversi ${p.uom_conversion}` : '');
   $('iNote').textContent = p.stapel ? p.stapel : '-';
@@ -915,11 +1055,14 @@ async function openInput(){
 async function loadItems(){
   $('batchList').innerHTML = '<div class="empty">Memuat…</div>';
   try{
-    S.items = await rpc('get_opname_items', { p_header_id: S.doc.id, p_product_code: S.product.product_code, p_tim: S.tim });
+    S.items = S.mode === 'harian'
+      ? await rpc('get_daily_items', { p_lokasi: S.daily.lokasi, p_tanggal: S.daily.date, p_product_code: S.product.product_code })
+      : await rpc('get_opname_items', { p_header_id: S.doc.id, p_product_code: S.product.product_code, p_tim: S.tim });
     S.product.batch_count = S.items.length;
     S.product.fis_krt = S.items.reduce((a, d) => a + (Number(d.krt) || 0), 0);
     S.product.fis_pak = S.items.reduce((a, d) => a + (Number(d.pak) || 0), 0);
     S.product.fis_pcs = S.items.reduce((a, d) => a + (Number(d.pcs) || 0), 0);
+    S.product.kosong = S.items.length > 0 && S.items.every(isKosong);
     renderItems();
   }catch(e){ $('batchList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
 }
@@ -961,7 +1104,7 @@ function renderItems(){
   $('batchList').querySelectorAll('[data-photo]').forEach(b => b.addEventListener('click', () => viewPhoto(Number(b.dataset.photo))));
 }
 async function fetchPhoto(id){
-  const r = await rpc('get_opname_photo', { p_photo_id: id });
+  const r = await rpc(S.mode === 'harian' ? 'get_daily_photo' : 'get_opname_photo', { p_photo_id: id });
   if(!r || !r.data) throw new Error('Foto tidak ditemukan');
   return `data:${r.mime || 'image/jpeg'};base64,${r.data}`;
 }
@@ -997,11 +1140,7 @@ $('btnKosong').addEventListener('click', async () => {
   loading(true, 'Menyimpan…');
   try{
     const photo = S.photoBlob ? await blobToBase64(S.photoBlob) : null;
-    await rpc('save_opname_item', {
-      p_header_id: S.doc.id, p_tim: S.tim, p_product_code: S.product.product_code,
-      p_krt: 0, p_pak: 0, p_pcs: 0, p_exp_month: 0, p_exp_year: 0,
-      p_photo_data: photo, p_detail_id: null
-    });
+    await apiSave({ code: S.product.product_code, krt: 0, pak: 0, pcs: 0, m: 0, y: 0, photo, detailId: null });
     loading(false); toast('Ditandai STOCK KOSONG');
     resetForm();
     await loadItems();
@@ -1015,7 +1154,7 @@ async function delItem(id){
   if(!confirm(`Hapus stok exp ${expTxt(d.exp_month, d.exp_year)}?`)) return;
   loading(true, 'Menghapus…');
   try{
-    await rpc('delete_opname_item', { p_detail_id: id });
+    await apiDel(id);
     loading(false); toast('Dihapus');
     if(S.editId === id) resetForm();
     await loadItems();
@@ -1058,18 +1197,29 @@ function blobToBase64(blob){
   });
 }
 
+/* simpan ke bulanan (opname_detail) atau harian (opname_daily_detail) sesuai mode */
+function apiSave(x){
+  const q = { p_product_code: x.code, p_krt: x.krt, p_pak: x.pak, p_pcs: x.pcs, p_exp_month: x.m, p_exp_year: x.y, p_photo_data: x.photo || null, p_detail_id: x.detailId || null };
+  if(S.mode === 'harian') return rpc('save_daily_item', { p_lokasi: S.daily.lokasi, p_tanggal: S.daily.date, ...q });
+  return rpc('save_opname_item', { p_header_id: S.doc.id, p_tim: S.tim, ...q });
+}
+function apiDel(id){
+  if(S.mode === 'harian') return rpc('delete_daily_item', { p_detail_id: id });
+  return rpc('delete_opname_item', { p_detail_id: id });
+}
+
 /* simpan dengan aturan: expire date sama -> qty dijumlah ke batch yang sudah ada */
 async function saveMerged({ product, items, krt, pak, pcs, m, y, photoBlob, editId }){
   const dup = items.find(d => Number(d.exp_month) === m && Number(d.exp_year) === y && d.id !== editId);
   const photo = photoBlob ? await blobToBase64(photoBlob) : null;
-  const base = { p_header_id: S.doc.id, p_tim: S.tim, p_product_code: product.product_code, p_exp_month: m, p_exp_year: y, p_photo_data: photo };
+  const base = { code: product.product_code, m, y, photo };
   if(!dup){
-    await rpc('save_opname_item', { ...base, p_krt: krt, p_pak: pak, p_pcs: pcs, p_detail_id: editId || null });
+    await apiSave({ ...base, krt, pak, pcs, detailId: editId || null });
     return null;
   }
   const t = [(Number(dup.krt) || 0) + krt, (Number(dup.pak) || 0) + pak, (Number(dup.pcs) || 0) + pcs];
-  await rpc('save_opname_item', { ...base, p_krt: t[0], p_pak: t[1], p_pcs: t[2], p_detail_id: dup.id });
-  if(editId) await rpc('delete_opname_item', { p_detail_id: editId });
+  await apiSave({ ...base, krt: t[0], pak: t[1], pcs: t[2], detailId: dup.id });
+  if(editId) await apiDel(editId);
   return `Exp ${expTxt(m, y)} digabung jadi ${fmt(t[0])} / ${fmt(t[1])} / ${fmt(t[2])}`;
 }
 function mergeConfirm(items, m, y, editId){
@@ -1243,6 +1393,7 @@ async function openReport(push = true){
   $('rMeta').innerHTML = '';
   try{
     S.report = await rpc('get_opname_report', { p_header_id: S.doc.id });
+    S.adj = null; $('adjOut').innerHTML = '';
     const h = S.report.header || {};
     $('rMeta').innerHTML = `
       <span>No. dokumen</span><b class="num">${esc(h.doc_no)}</b>
@@ -1270,10 +1421,174 @@ function groupTotals(rows){
   }
   return out;
 }
+function csvRows(){
+  const m = new Map();
+  const nlRows = [];
+  for(const r of (S.report && S.report.rows) || []){
+    const code = String(r.product_code || '');
+    if(code.startsWith('NL-')){ nlRows.push(r); continue; }
+    if(!m.has(code)) m.set(code, { code, name: r.product_name || '', k: 0, p: 0, c: 0 });
+    const x = m.get(code);
+    x.k += Number(r.krt) || 0; x.p += Number(r.pak) || 0; x.c += Number(r.pcs) || 0;
+  }
+  return { rows: [...m.values()], nl: nlRows.length, nlRows };
+}
+function csvInfo(){
+  const { rows, nl, nlRows } = csvRows();
+  $('csvNL').classList.toggle('hidden', !nl);
+  $('csvNLBody').innerHTML = nlRows.map(r => `<tr><td>${esc(r.product_name)}</td><td class="r num">${fmt(r.krt)}</td><td class="r num">${fmt(r.pak)}</td><td class="r num">${fmt(r.pcs)}</td><td class="c num">${expTxt(r.exp_month, r.exp_year)}</td></tr>`).join('');
+  $('csvInfo').textContent = `${rows.length} barang akan diexport (qty dijumlah per barang, semua ExpiryDate 2050-12-31).` + (nl ? ` ${nl} baris barang di luar list tidak ikut karena tidak punya ProductCode.` : '');
+}
+$('btnCsv').addEventListener('click', () => {
+  if(!S.report) return;
+  const { rows } = csvRows();
+  if(!rows.length){ toast('Tidak ada data.', true); return; }
+  const q = v => { v = String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  const lines = [['ProductCode','ProductDescription','VarianCode','VarianName','BatchCode','QtyInUom1','QtyInUom2','QtyInUom3','QtyInUom4','ExpiryDate'].join(',')];
+  for(const x of rows){
+    const code = x.code.startsWith('0') ? "'" + x.code : x.code;
+    lines.push([code, x.name, '-', 'Standard', '-', x.k, x.p, x.c, 0, '2050-12-31'].map(q).join(','));
+  }
+  const h = S.report.header || {};
+  const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${h.doc_no || 'opname'}_${h.divisi || ''}.csv`.replace(/[^\w.-]+/g, '_');
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+});
+/* ---------- cek adjust (import excel program) ---------- */
+S.adj = null;
+const adjNorm = v => String(v == null ? '' : v).toUpperCase().replace(/\s+/g, ' ').trim();
+const adjKpc = v => { const a = String(v == null ? '' : v).trim().split('.').map(x => Number(x) || 0); return [a[0] || 0, a[1] || 0, a[2] || 0]; };
+const adjTxt = a => a ? a.join('.') : '-';
+function adjParseHtml(text){
+  const doc = new DOMParser().parseFromString(text, 'text/html');
+  for(const tb of doc.querySelectorAll('table')){
+    const trs = [...tb.rows];
+    const hi = trs.findIndex(tr => [...tr.cells].some(c => /^physical\s*count$/i.test(c.textContent.trim())));
+    if(hi < 0) continue;
+    const head = [...trs[hi].cells].map(c => c.textContent.trim());
+    if(head.length > 30) continue;
+    return { head, rows: trs.slice(hi + 1).map(tr => [...tr.cells].map(c => c.textContent.trim())) };
+  }
+  return null;
+}
+async function adjParseXlsx(buf){
+  await loadScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
+  const wb = XLSX.read(buf, { type: 'array' });
+  for(const n of wb.SheetNames){
+    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: false, defval: '' });
+    const hi = aoa.findIndex(r => r.some(c => /^physical\s*count$/i.test(String(c).trim())));
+    if(hi >= 0) return { head: aoa[hi].map(x => String(x).trim()), rows: aoa.slice(hi + 1).map(r => r.map(x => String(x).trim())) };
+  }
+  return null;
+}
+async function adjReadFile(f){
+  const buf = await f.arrayBuffer();
+  const head = new TextDecoder('utf-8').decode(buf.slice(0, 4096));
+  const t = /<table|<html/i.test(head) ? adjParseHtml(new TextDecoder('utf-8').decode(buf)) : await adjParseXlsx(buf);
+  if(!t) throw new Error(`${f.name}: kolom "Physical Count" tidak ditemukan.`);
+  const ix = re => t.head.findIndex(h => re.test(h));
+  const iCode = ix(/product\s*code/i), iName = ix(/product\s*name/i), iPhys = ix(/physical\s*count/i);
+  if(iCode < 0 || iPhys < 0) throw new Error(`${f.name}: kolom Product Code / Physical Count tidak ditemukan.`);
+  const prog = t.rows
+    .filter(r => r[iCode] && /^\d/.test(r[iCode]) && r[iPhys] !== undefined && r[iPhys] !== '')
+    .map(r => ({ code: r[iCode], name: r[iName] || '', phys: adjKpc(r[iPhys]), file: f.name }));
+  if(!prog.length) throw new Error(`${f.name}: tidak ada baris barang.`);
+  return prog;
+}
+$('adjFile').addEventListener('change', async e => {
+  const files = [...e.target.files]; e.target.value = '';
+  if(!files.length || !S.report) return;
+  if(!S.adj) S.adj = { files: [] };
+  loading(true, 'Membaca file…');
+  const errs = [];
+  for(const f of files){
+    try{
+      const prog = await adjReadFile(f);
+      S.adj.files = S.adj.files.filter(x => x.name !== f.name);
+      S.adj.files.push({ name: f.name, prog });
+    }catch(err){ errs.push(err.message); }
+  }
+  loading(false);
+  if(errs.length) toast(errs.join(' | '), true);
+  renderAdj();
+});
+function renderAdj(){
+  const box = $('adjOut');
+  if(!S.adj || !S.adj.files.length){ box.innerHTML = ''; S.adj = null; return; }
+  const pm = new Map(), dup = new Set();
+  for(const f of S.adj.files) for(const r of f.prog){
+    if(pm.has(r.code)){
+      dup.add(r.code);
+      const x = pm.get(r.code); x.phys = x.phys.map((v, i) => v + r.phys[i]); x.file += ', ' + r.file;
+    }else pm.set(r.code, { ...r, phys: [...r.phys] });
+  }
+  const prog = [...pm.values()];
+  const opn = new Map();
+  for(const r of S.report.rows || []){
+    const code = String(r.product_code || '');
+    if(code.startsWith('NL-')) continue;
+    if(!opn.has(code)) opn.set(code, { code, name: r.product_name || '', q: [0, 0, 0] });
+    const x = opn.get(code);
+    x.q[0] += Number(r.krt) || 0; x.q[1] += Number(r.pak) || 0; x.q[2] += Number(r.pcs) || 0;
+  }
+  const byName = new Map([...opn.values()].map(x => [adjNorm(x.name), x]));
+  const used = new Set(), out = [];
+  for(const p of prog){
+    const o = opn.get(p.code) || byName.get(adjNorm(p.name));
+    if(o) used.add(o.code);
+    const zero = p.phys.every(v => !v);
+    const st = !o ? (zero ? 'ok' : 'noopn') : (o.q.join('.') === p.phys.join('.') ? 'ok' : 'beda');
+    out.push({ name: p.name || (o && o.name), code: p.code, o: o ? o.q : null, p: p.phys, st, file: p.file, dup: dup.has(p.code) });
+  }
+  for(const o of opn.values()){
+    if(used.has(o.code)) continue;
+    out.push({ name: o.name, code: o.code, o: o.q, p: null, st: o.q.every(v => !v) ? 'ok' : 'noprog' });
+  }
+  const lbl = { beda: 'Beda', noopn: 'Tidak ada di opname', noprog: 'Belum diadjust', ok: 'Sesuai' };
+  const ord = { beda: 0, noprog: 1, noopn: 2, ok: 3 };
+  out.sort((a, b) => ord[a.st] - ord[b.st] || String(a.name).localeCompare(String(b.name)));
+  const cnt = k => out.filter(x => x.st === k).length;
+  const bad = out.length - cnt('ok');
+  const showAll = !!S.adjAll;
+  const rows = showAll ? out : out.filter(x => x.st !== 'ok');
+  box.innerHTML = `
+    <div class="banner">${S.adj.files.length} file, ${prog.length} barang dari program.</div>
+    <div class="list" style="margin-top:8px">${S.adj.files.map((f, i) => `
+      <div class="row"><div class="main"><div class="name" style="font-size:14px">${esc(f.name)}</div><div class="sub">${f.prog.length} barang</div></div>
+      <button class="btn ghost small" data-adjdel="${i}" style="width:auto;margin:0">Hapus</button></div>`).join('')}</div>
+    ${dup.size ? `<div class="banner">${dup.size} barang muncul di lebih dari 1 file, qty-nya dijumlah.</div>` : ''}
+    <div style="font-size:13px;color:var(--muted);margin-top:8px">"Belum diadjust" = ada di opname tapi belum ada di file mana pun. Tambah file partial lain untuk melengkapi.</div>
+    <div class="sumline" style="margin-top:12px">
+      <div>Sesuai<b class="num">${cnt('ok')}</b></div>
+      <div class="bad">Beda<b class="num">${cnt('beda')}</b></div>
+      <div class="bad">Belum diadjust<b class="num">${cnt('noprog')}</b></div>
+      <div class="bad">Tidak ada di opname<b class="num">${cnt('noopn')}</b></div>
+    </div>
+    ${bad ? '' : '<div class="banner ok" style="margin-bottom:12px">Semua Physical Count di program sama dengan hasil opname. Tidak ada salah input.</div>'}
+    <label style="display:flex;align-items:center;gap:8px;font-size:14px;margin:4px 0 10px;cursor:pointer"><input type="checkbox" id="adjAll" ${showAll ? 'checked' : ''}> Tampilkan semua barang</label>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>NAMA BARANG</th><th class="c">OPNAME</th><th class="c">PROGRAM</th><th class="c">STATUS</th></tr></thead>
+        <tbody>${rows.length ? rows.map(x => `
+          <tr class="${x.st === 'ok' ? '' : 'mis'}"><td>${esc(x.name)}<div style="font-size:12px;color:var(--muted)">${esc(x.code)}${x.file && S.adj.files.length > 1 ? ' · ' + esc(x.file) : ''}${x.dup ? ' · <b>DOBEL</b>' : ''}</div></td>
+          <td class="c num">${adjTxt(x.o)}</td><td class="c num">${adjTxt(x.p)}</td>
+          <td class="st ${x.st === 'ok' ? 'ok' : 'bad'}">${lbl[x.st]}</td></tr>`).join('')
+          : '<tr><td colspan="4" class="empty">Tidak ada selisih.</td></tr>'}</tbody>
+      </table>
+    </div>`;
+  $('adjAll').addEventListener('change', e => { S.adjAll = e.target.checked; renderAdj(); });
+  box.querySelectorAll('[data-adjdel]').forEach(b => b.addEventListener('click', () => { S.adj.files.splice(Number(b.dataset.adjdel), 1); renderAdj(); }));
+}
+
 function setTab(t){
   document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x.dataset.t === t));
   $('t-lap').classList.toggle('hidden', t !== 'lap');
   $('t-csv').classList.toggle('hidden', t !== 'csv');
+  $('t-adj').classList.toggle('hidden', t !== 'adj');
+  if(t === 'csv') csvInfo();
 }
 document.querySelectorAll('.tab').forEach(x => x.addEventListener('click', () => setTab(x.dataset.t)));
 
@@ -1312,6 +1627,23 @@ $('btnPdf').addEventListener('click', async () => {
       columnStyles: { 1: { halign: 'right', cellWidth: 18 }, 2: { halign: 'right', cellWidth: 22 }, 3: { halign: 'right', cellWidth: 18 }, 4: { halign: 'center', cellWidth: 24 }, 5: { halign: 'center', cellWidth: 22 } },
       didDrawPage: d => { pdf.setFontSize(8); pdf.text(`Hal. ${pdf.internal.getNumberOfPages()}`, pdf.internal.pageSize.getWidth() - 14, pdf.internal.pageSize.getHeight() - 8, { align: 'right' }); }
     });
+    {
+      const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight();
+      let y = pdf.lastAutoTable.finalY + 14;
+      if(y + 50 > ph - 14){ pdf.addPage(); pdf.setFontSize(8); pdf.text(`Hal. ${pdf.internal.getNumberOfPages()}`, pw - 14, ph - 8, { align: 'right' }); y = 20; }
+      const w = (pw - 28) / 3;
+      ['ADMIN TIM A', 'ADMIN TIM B', 'KEPALA GUDANG'].forEach((t, i) => {
+        const x0 = 14 + w * i, cx = x0 + w / 2, l = x0 + 6, r = x0 + w - 6;
+        pdf.setFontSize(10); pdf.setFont(undefined, 'bold');
+        pdf.text(t, cx, y, { align: 'center' });
+        pdf.setFont(undefined, 'normal'); pdf.setFontSize(8);
+        pdf.text('TTD', cx, y + 5, { align: 'center' });
+        pdf.line(l, y + 28, r, y + 28);
+        pdf.setFontSize(9);
+        pdf.text('Nama', l, y + 35); pdf.text(':', l + 13, y + 35); pdf.line(l + 16, y + 36, r, y + 36);
+        pdf.text('Tanggal', l, y + 43); pdf.text(':', l + 13, y + 43); pdf.line(l + 16, y + 44, r, y + 44);
+      });
+    }
     pdf.save(`${h.doc_no}.pdf`);
     loading(false);
   }catch(e){ loading(false); toast(e.message, true); }
@@ -1355,6 +1687,209 @@ $('diffView').addEventListener('click', e => { if(e.target === $('diffView')) $(
 
 $('pvClose').addEventListener('click', () => { $('photoView').classList.add('hidden'); $('pvImg').removeAttribute('src'); });
 
+/* ================= MODE ================= */
+function goMode(push = true){
+  show('mode', push);
+  $('whoami2').textContent = S.label;
+}
+$('btnModeB').addEventListener('click', () => goHome(true));
+$('btnModeH').addEventListener('click', () => { S.mode = 'harian'; openDCal(true); });
+$('btnLogout2').addEventListener('click', () => { if(confirm('Keluar dari Stock Opname?')) logout(); });
+
+/* ================= OPNAME HARIAN ================= */
+const LOKASI = ['ENTROP','ABE','SENTANI'];
+const BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+const HARI = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+function fixedLokasi(){ const l = String(S.label || '').trim().toUpperCase(); return LOKASI.includes(l) ? l : null; }
+function jayapuraToday(){
+  const p = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jayapura', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  return p; // YYYY-MM-DD
+}
+const ymd = (y, m, d) => `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+function dowOf(iso){ const [y, m, d] = iso.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)).getUTCDay(); }
+function fmtDay(iso){ if(!iso) return ''; const [y, m, d] = iso.split('-').map(Number); return `${HARI[dowOf(iso)]}, ${d} ${BULAN[m - 1]} ${y}`; }
+
+function openDCal(push = true){
+  S.mode = 'harian';
+  show('dcal', push);
+  const fx = fixedLokasi();
+  if(fx) S.daily.lokasi = fx;
+  else if(!LOKASI.includes(S.daily.lokasi)) S.daily.lokasi = LOKASI[0];
+  $('dcTabs').classList.toggle('hidden', !!fx);
+  document.querySelectorAll('#dcTabs .ltab').forEach(b => b.classList.toggle('on', b.dataset.lok === S.daily.lokasi));
+  $('btnDItems').classList.toggle('hidden', !isFullAccess());
+  if(!S.daily.y){
+    const t = jayapuraToday().split('-').map(Number);
+    S.daily.y = t[0]; S.daily.m = t[1];
+  }
+  loadCal();
+}
+document.querySelectorAll('#dcTabs .ltab').forEach(b => b.addEventListener('click', () => {
+  S.daily.lokasi = b.dataset.lok;
+  document.querySelectorAll('#dcTabs .ltab').forEach(x => x.classList.toggle('on', x === b));
+  loadCal();
+}));
+$('dcPrev').addEventListener('click', () => { S.daily.m--; if(S.daily.m < 1){ S.daily.m = 12; S.daily.y--; } loadCal(); });
+$('dcNext').addEventListener('click', () => { S.daily.m++; if(S.daily.m > 12){ S.daily.m = 1; S.daily.y++; } loadCal(); });
+$('btnDItems').addEventListener('click', () => openDItems(true));
+
+async function loadCal(){
+  const { y, m, lokasi } = S.daily;
+  $('dcLok').textContent = `Lokasi ${lokasi}`;
+  $('dcMonth').textContent = `${BULAN[m - 1]} ${y}`;
+  const tp = jayapuraToday().split('-').map(Number);
+  $('dcNext').disabled = (y > tp[0]) || (y === tp[0] && m >= tp[1]);
+  $('dcGrid').innerHTML = '<div class="empty" style="grid-column:1/-1">Memuat…</div>';
+  $('dcInfo').innerHTML = '';
+  try{
+    const r = await rpc('get_daily_calendar', { p_lokasi: lokasi, p_year: y, p_month: m });
+    if(S.daily.y !== y || S.daily.m !== m || S.daily.lokasi !== lokasi) return;
+    S.daily.cal = r; S.daily.today = r.today || jayapuraToday();
+    renderCal();
+  }catch(e){ $('dcGrid').innerHTML = `<div class="empty" style="grid-column:1/-1">${esc(e.message)}</div>`; }
+}
+function dayState(iso){
+  const r = S.daily.cal, total = Number(r.total) || 0;
+  const done = Number((r.days || []).find(x => String(x.tanggal).slice(0, 10) === iso)?.done) || 0;
+  if(dowOf(iso) === 0) return { c: 'sun', done, total, off: true };
+  if(iso > S.daily.today) return { c: 'fut', done, total, off: true };
+  if(total && done >= total) return { c: 'g', done, total };
+  if(done > 0) return { c: 'y', done, total };
+  if(iso < S.daily.today) return { c: 'r', done, total };
+  return { c: '', done, total };
+}
+function renderCal(){
+  const { y, m } = S.daily, r = S.daily.cal, total = Number(r.total) || 0;
+  const days = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const lead = (dowOf(ymd(y, m, 1)) + 6) % 7; // Senin di kolom pertama
+  let h = ['Sen','Sel','Rab','Kam','Jum','Sab','Min'].map(w => `<div class="wd">${w}</div>`).join('');
+  for(let i = 0; i < lead; i++) h += '<div class="d pad"></div>';
+  for(let d = 1; d <= days; d++){
+    const iso = ymd(y, m, d), st = dayState(iso);
+    const sub = (!st.off && total && (st.c === 'y' || st.c === 'g' || st.c === '')) ? `<small>${st.done}/${total}</small>` : '';
+    h += `<button class="d ${st.c}${iso === S.daily.today ? ' today' : ''}" data-iso="${iso}"${st.off ? ' disabled' : ''} aria-label="${fmtDay(iso)}">${d}${sub}</button>`;
+  }
+  $('dcGrid').innerHTML = h;
+  $('dcGrid').querySelectorAll('.d[data-iso]:not([disabled])').forEach(b => b.addEventListener('click', () => {
+    S.daily.date = b.dataset.iso; openDProd(true, true);
+  }));
+  $('dcInfo').innerHTML = total ? '' : `<div class="banner">Belum ada item harian untuk ${esc(S.daily.lokasi)}.${isFullAccess() ? ' Tekan "Atur item harian" untuk menambahkan.' : ' Hubungi Full Access untuk menentukan item.'}</div>`;
+}
+
+/* ----- list item per tanggal ----- */
+async function openDProd(push = true, reload = true){
+  S.mode = 'harian';
+  show('dprod', push);
+  $('dpTitle').textContent = fmtDay(S.daily.date);
+  if(!reload && S.daily.products.length){ renderDProd(); return; }
+  S.daily.search = ''; $('dSearch').value = '';
+  $('dProdList').innerHTML = '<div class="empty">Memuat…</div>';
+  try{
+    const r = await rpc('get_daily_products', { p_lokasi: S.daily.lokasi, p_tanggal: S.daily.date });
+    S.daily.products = r.products || [];
+    S.daily.editable = !!r.editable;
+    S.daily.lockMsg = r.lock_reason || '';
+    renderDProd();
+  }catch(e){ $('dProdList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+function renderDProd(){
+  const P = S.daily.products, q = S.daily.search.toLowerCase();
+  const done = P.filter(p => p.batch_count > 0).length;
+  $('dpSub').textContent = `${S.daily.lokasi}, ${done}/${P.length} item selesai`;
+  $('dcAll').textContent = P.length; $('dcDone').textContent = done; $('dcTodo').textContent = P.length - done;
+  const b = $('dpBanner');
+  b.className = 'banner';
+  if(!S.daily.editable){ b.textContent = S.daily.lockMsg || 'Tanggal ini hanya bisa dilihat.'; }
+  else if(P.length && done === P.length){ b.textContent = 'Semua item hari ini sudah di stock.'; b.classList.add('ok'); }
+  else b.classList.add('hidden');
+  const rows = P.filter(p => {
+    if(S.daily.filter === 'done' && !(p.batch_count > 0)) return false;
+    if(S.daily.filter === 'todo' && p.batch_count > 0) return false;
+    if(q && !(String(p.product_name).toLowerCase().includes(q) || String(p.product_code).toLowerCase().includes(q))) return false;
+    return true;
+  });
+  if(!P.length){ $('dProdList').innerHTML = '<div class="empty">Belum ada item harian untuk lokasi ini.</div>'; return; }
+  if(!rows.length){ $('dProdList').innerHTML = '<div class="empty">Tidak ada barang yang cocok.</div>'; return; }
+  $('dProdList').innerHTML = rows.map(p => {
+    const s = sysTxt(p), bad = isSelisih(p);
+    const fis = p.batch_count > 0 ? (p.kosong ? 'STOCK KOSONG' : `${fmt(p.fis_krt)} / ${fmt(p.fis_pak)} / ${fmt(p.fis_pcs)}`) : '';
+    return `<button class="row${bad ? ' selisih' : ''}${S.daily.editable ? '' : ' locked'}" data-c="${esc(p.product_code)}">
+      <span class="tick ${p.batch_count > 0 ? '' : 'zero'}">${p.batch_count > 0 ? '✓' + (p.batch_count > 1 ? ' ' + p.batch_count : '') : ''}</span>
+      <div class="main"><div class="name">${esc(p.product_name)}</div><div class="sub">${esc(p.product_code)}${p.divisi ? ' · ' + esc(p.divisi) : ''}${fis ? `<br>Fisik: <b>${fis}</b>` : ''}${bad ? '<span class="stag">SELISIH</span>' : ''}</div></div>
+      <div class="sys num"><b>${s.a}</b>${s.b}</div>
+    </button>`;
+  }).join('');
+  $('dProdList').querySelectorAll('.row').forEach(el => el.addEventListener('click', () => {
+    const p = S.daily.products.find(x => String(x.product_code) === el.dataset.c);
+    if(!S.daily.editable){ toast(S.daily.lockMsg || 'Tanggal ini hanya bisa dilihat.'); return; }
+    S.product = p;
+    openInput();
+  }));
+}
+$('dSearch').addEventListener('input', e => { S.daily.search = e.target.value; renderDProd(); });
+document.querySelectorAll('.dchip').forEach(c => c.addEventListener('click', () => {
+  document.querySelectorAll('.dchip').forEach(x => x.classList.toggle('on', x === c));
+  S.daily.filter = c.dataset.f; renderDProd();
+}));
+
+/* ----- atur item harian (FULL ACCESS) ----- */
+S.di = { lokasi: 'ENTROP', list: [], timer: null };
+function openDItems(push = true){
+  show('ditems', push);
+  S.di.lokasi = LOKASI.includes(S.daily.lokasi) ? S.daily.lokasi : 'ENTROP';
+  document.querySelectorAll('#diTabs .ltab').forEach(b => b.classList.toggle('on', b.dataset.lok === S.di.lokasi));
+  $('diSearch').value = ''; $('diResult').classList.add('hidden');
+  loadDItems();
+}
+document.querySelectorAll('#diTabs .ltab').forEach(b => b.addEventListener('click', () => {
+  S.di.lokasi = b.dataset.lok;
+  document.querySelectorAll('#diTabs .ltab').forEach(x => x.classList.toggle('on', x === b));
+  loadDItems(); diSearch();
+}));
+async function loadDItems(){
+  $('diList').innerHTML = '<div class="empty">Memuat…</div>';
+  try{
+    S.di.list = await rpc('get_daily_item_list', { p_lokasi: S.di.lokasi }) || [];
+    renderDItems();
+  }catch(e){ $('diList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+function renderDItems(){
+  $('diCount').textContent = `Item harian ${S.di.lokasi} (${S.di.list.length})`;
+  if(!S.di.list.length){ $('diList').innerHTML = '<div class="empty">Belum ada item. Cari barang di atas untuk menambahkan.</div>'; return; }
+  $('diList').innerHTML = S.di.list.map(x => `
+    <div class="row" style="cursor:default"><div class="main"><div class="name">${esc(x.name)}</div><div class="sub">${esc(x.sku)} · ${esc(x.category || '-')}</div></div>
+    <button class="btn danger small" data-rm="${x.id}" style="width:auto;margin:0">Hapus</button></div>`).join('');
+  $('diList').querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', async () => {
+    const x = S.di.list.find(i => String(i.id) === b.dataset.rm);
+    if(!confirm(`Hapus ${x.name} dari item harian ${S.di.lokasi}?`)) return;
+    try{ await rpc('remove_daily_item', { p_item_id: x.id }); toast('Dihapus'); await loadDItems(); diSearch(); }
+    catch(e){ toast(e.message, true); }
+  }));
+}
+function diSearch(){
+  const q = $('diSearch').value.trim();
+  clearTimeout(S.di.timer);
+  if(q.length < 2){ $('diResult').classList.add('hidden'); return; }
+  S.di.timer = setTimeout(async () => {
+    try{
+      const r = await rpc('search_daily_product', { p_q: q });
+      if($('diSearch').value.trim() !== q) return;
+      const have = new Set(S.di.list.map(x => String(x.product_id)));
+      $('diResult').classList.remove('hidden');
+      $('diResult').innerHTML = r.length ? r.map(x => `
+        <div class="row" style="cursor:default"><div class="main"><div class="name">${esc(x.name)}</div><div class="sub">${esc(x.sku)} · ${esc(x.category || '-')}</div></div>
+        ${have.has(String(x.id)) ? '<span class="pill done">Sudah</span>' : `<button class="btn small" data-add="${x.id}" style="width:auto;margin:0">Tambah</button>`}</div>`).join('')
+        : '<div class="empty">Barang tidak ditemukan.</div>';
+      $('diResult').querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', async () => {
+        b.disabled = true;
+        try{ await rpc('add_daily_item', { p_lokasi: S.di.lokasi, p_product_id: Number(b.dataset.add) }); toast('Ditambahkan'); await loadDItems(); diSearch(); }
+        catch(e){ b.disabled = false; toast(e.message, true); }
+      }));
+    }catch(e){ toast(e.message, true); }
+  }, 300);
+}
+$('diSearch').addEventListener('input', diSearch);
+
 /* ---------- start ---------- */
 (async function start(){
   if(!S.pin || !ALLOWED.includes(String(S.label || '').trim().toUpperCase())){ logout(); return; }
@@ -1362,8 +1897,8 @@ $('pvClose').addEventListener('click', () => { $('photoView').classList.add('hid
   $('loginErr').textContent = '';
   const { error } = await sb().rpc('get_opname_docs', { p_pin: S.pin });
   if(error){ logout(); $('loginErr').textContent = error.message; return; }
-  history.replaceState({ s: 'home' }, '');
-  goHome(false);
+  history.replaceState({ s: 'mode' }, '');
+  goMode(false);
 })();
 </script>
 </body>
