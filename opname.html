@@ -222,6 +222,14 @@ td.bad{color:var(--danger); font-weight:800}
 .srow .search{flex:1; min-width:0}
 .upbtn{flex-shrink:0; display:flex; align-items:center; gap:6px; border:1.5px solid var(--kraft); background:var(--kraft); color:var(--kraft-ink); border-radius:10px; padding:0 14px; font-weight:700; cursor:pointer; white-space:nowrap}
 .upbtn input{display:none}
+.upbtn.rusak{background:transparent; color:var(--danger); border-color:var(--danger)}
+.rkpick{display:flex; align-items:center; gap:10px; background:var(--bg); border:1.5px solid var(--kraft); border-radius:9px; padding:10px 12px}
+.rkpick div{flex:1; min-width:0}
+.rkpick b{display:block; overflow-wrap:anywhere}
+.rkpick small{color:var(--muted)}
+#rkResult{max-height:280px; overflow-y:auto; border:1px solid var(--line); border-radius:9px; margin-top:6px; background:var(--surface)}
+#rkResult .row:first-child{border-top:0}
+.batch.rk{border-left-color:var(--danger)}
 #upView{z-index:42}
 #upView .sheet{max-height:94vh}
 .thumbs{display:flex; gap:8px; overflow-x:auto; padding-bottom:6px; margin-bottom:10px}
@@ -304,7 +312,10 @@ td.bad{color:var(--danger); font-weight:800}
   </header>
   <div class="wrap" style="padding-top:0">
     <div class="tools">
-      <input id="dSearch" class="search" type="search" placeholder="Cari nama atau kode barang">
+      <div class="srow">
+        <input id="dSearch" class="search" type="search" placeholder="Cari nama atau kode barang">
+        <button class="upbtn rusak" id="btnRusakH" title="Input dan laporan item rusak">⚠ Item rusak</button>
+      </div>
       <div class="chips">
         <button class="dchip chip on" data-f="all">Semua <span id="dcAll"></span></button>
         <button class="dchip chip" data-f="todo">Belum <span id="dcTodo"></span></button>
@@ -410,6 +421,7 @@ td.bad{color:var(--danger); font-weight:800}
       <div class="srow">
         <input id="search" class="search" type="search" placeholder="Cari nama atau kode barang">
         <label class="upbtn" id="upLbl" title="Foto barang di luar list, bisa lebih dari 1">📷 Luar list<input id="upInput" type="file" accept="image/*" multiple></label>
+        <button class="upbtn rusak" id="btnRusakB" title="Input dan laporan item rusak">⚠ Item rusak</button>
       </div>
       <div class="chips">
         <button class="chip on" data-f="all">Semua <span id="cAll"></span></button>
@@ -424,6 +436,57 @@ td.bad{color:var(--danger); font-weight:800}
       <div class="sec">Barang di luar list</div>
       <div id="extraList"></div>
     </div>
+  </div>
+</section>
+
+<!-- ITEM RUSAK -->
+<section id="s-rusak" class="hidden">
+  <header class="bar">
+    <button class="iconbtn back" aria-label="Kembali">‹</button>
+    <div class="ttl"><b>Item Rusak</b><small id="rkCtx"></small></div>
+  </header>
+  <div class="wrap">
+    <div class="banner hidden" id="rkBanner" style="margin-top:0"></div>
+    <div id="rkFormWrap">
+      <div class="sec" style="margin-top:4px">Tambah item rusak</div>
+      <div class="form">
+        <span class="lbl">Barang</span>
+        <div id="rkPickWrap">
+          <input id="rkSearch" class="in" type="search" placeholder="Cari nama atau kode barang" autocomplete="off">
+          <div id="rkResult" class="hidden"></div>
+        </div>
+        <div class="rkpick hidden" id="rkSel">
+          <div><b id="rkSelName"></b><small id="rkSelCode"></small></div>
+          <button class="btn ghost small" id="rkSelClear">Ganti</button>
+        </div>
+
+        <span class="lbl">Foto</span>
+        <div class="photo">
+          <img id="rkPhPrev" class="hidden" alt="Foto item rusak">
+          <label class="btn ghost" style="margin:0">
+            <span id="rkPhTxt">Ambil foto</span>
+            <input id="rkPhInput" type="file" accept="image/*" capture="environment">
+          </label>
+        </div>
+
+        <span class="lbl">Jumlah rusak</span>
+        <div class="qty">
+          <div><small>Karton</small><input id="rkKrt" class="in num" type="number" inputmode="decimal" min="0" placeholder="0"></div>
+          <div><small>Lusin/Pak/Rcg</small><input id="rkPak" class="in num" type="number" inputmode="decimal" min="0" placeholder="0"></div>
+          <div><small>Pcs</small><input id="rkPcs" class="in num" type="number" inputmode="decimal" min="0" placeholder="0"></div>
+        </div>
+
+        <span class="lbl">Keterangan kerusakan</span>
+        <textarea id="rkKet" class="in" maxlength="200" placeholder="Contoh: kemasan sobek, basah, penyok"></textarea>
+
+        <div class="err" id="rkErr"></div>
+        <button class="btn" id="rkSave">Simpan item rusak</button>
+      </div>
+    </div>
+
+    <div class="sec" id="rkCount">Item rusak</div>
+    <div id="rkList"></div>
+    <button class="btn ghost" id="rkPdf" disabled>Export PDF laporan item rusak</button>
   </div>
 </section>
 
@@ -471,8 +534,8 @@ td.bad{color:var(--danger); font-weight:800}
         <div><small>Pcs</small><input id="fPcs" class="in num" type="number" inputmode="decimal" min="0" placeholder="0"></div>
       </div>
 
-      <span class="lbl">Expire date</span>
-      <div class="exp2">
+      <span class="lbl" id="fExpLbl">Expire date</span>
+      <div class="exp2" id="fExpBox">
         <select id="fMonth" class="in" aria-label="Bulan expire"></select>
         <select id="fYear" class="in" aria-label="Tahun expire"></select>
       </div>
@@ -614,14 +677,20 @@ function fixedTim(){
   return null;
 }
 const PARENT = { home:'mode', divisi:'home', team:'home', products:'team', input:'products', compare:'home', report:'home', dcal:'mode', dprod:'dcal', ditems:'dcal' };
-const parentOf = sc => (sc === 'input' && S.mode === 'harian') ? 'dprod' : PARENT[sc];
+const parentOf = sc => (sc === 'input' || sc === 'rusak') ? (S.mode === 'harian' ? 'dprod' : 'products') : PARENT[sc];
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt = n => { const v = Number(n); return isFinite(v) ? v.toLocaleString('id-ID',{maximumFractionDigits:2}) : '0'; };
 const fmtDate = d => d ? new Date(d).toLocaleString('id-ID',{timeZone:'Asia/Jayapura',day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '-';
 const expTxt = (m,y) => (Number(m) && Number(y)) ? String(m).padStart(2,'0') + '/' + y : 'KOSONG';
-const isKosong = d => !Number(d.exp_month) && !Number(d.exp_year);
+const isKosong = d => S.mode === 'harian'
+  ? !(Number(d.krt) || Number(d.pak) || Number(d.pcs))
+  : (!Number(d.exp_month) && !Number(d.exp_year));
+/* label batch: harian tanpa expire date */
+const batchTxt = d => S.mode === 'harian'
+  ? (Number(d.exp_month) && Number(d.exp_year) ? 'Stok fisik (exp ' + expTxt(d.exp_month, d.exp_year) + ')' : 'Stok fisik')
+  : 'Exp ' + expTxt(d.exp_month, d.exp_year);
 
 let _memDeviceId = null;
 function deviceId(){
@@ -650,7 +719,7 @@ async function rpc(name, params = {}){
 
 /* ---------- navigation ---------- */
 function show(screen, push = true){
-  ['login','mode','home','divisi','team','products','input','compare','report','dcal','dprod','ditems'].forEach(s => $('s-' + s).classList.toggle('hidden', s !== screen));
+  ['login','mode','home','divisi','team','products','input','compare','report','dcal','dprod','ditems','rusak'].forEach(s => $('s-' + s).classList.toggle('hidden', s !== screen));
   S.screen = screen;
   window.scrollTo(0, 0);
   if(push && screen !== 'login') history.pushState({ s: screen }, '');
@@ -1032,6 +1101,8 @@ function resetForm(){
   S.editId = null; S.photoBlob = null;
   ['fKrt','fPak','fPcs'].forEach(id => $(id).value = '');
   $('fMonth').value = '0'; $('fYear').value = '0';
+  const harian = S.mode === 'harian';
+  $('fExpLbl').classList.toggle('hidden', harian); $('fExpBox').classList.toggle('hidden', harian);
   $('phPrev').classList.add('hidden'); $('phPrev').removeAttribute('src');
   $('phTxt').textContent = 'Ambil foto'; $('phInput').value = '';
   $('formErr').textContent = '';
@@ -1090,7 +1161,7 @@ function renderItems(){
   $('batchList').innerHTML = S.items.map(d => `
     <div class="batch ${S.editId === d.id ? 'editing' : ''}">
       <div class="top">
-        <div class="exp num"${isKosong(d) ? ' style="color:var(--danger)"' : ''}>${isKosong(d) ? 'STOCK KOSONG' : 'Exp ' + expTxt(d.exp_month, d.exp_year)}</div>
+        <div class="exp num"${isKosong(d) ? ' style="color:var(--danger)"' : ''}>${isKosong(d) ? 'STOCK KOSONG' : batchTxt(d)}</div>
         <div class="acts">
           ${d.photo_id ? `<button class="btn ghost small" data-photo="${d.photo_id}">Foto</button>` : ''}
           <button class="btn ghost small" data-edit="${d.id}">Edit</button>
@@ -1125,7 +1196,7 @@ function startEdit(id){
     $('phTxt').textContent = 'Ganti foto';
     fetchPhoto(d.photo_id).then(src => { if(S.editId === id && !S.photoBlob){ $('phPrev').src = src; $('phPrev').classList.remove('hidden'); } }).catch(() => {});
   }
-  $('formTitle').textContent = `Edit stok exp ${expTxt(d.exp_month, d.exp_year)}`;
+  $('formTitle').textContent = S.mode === 'harian' ? 'Edit stok' : `Edit stok exp ${expTxt(d.exp_month, d.exp_year)}`;
   $('btnSave').textContent = 'Simpan perubahan';
   $('btnCancelEdit').classList.remove('hidden');
   document.querySelector('.kosongbox').classList.add('hidden');
@@ -1151,7 +1222,7 @@ $('btnCancelEdit').addEventListener('click', () => { resetForm(); renderItems();
 
 async function delItem(id){
   const d = S.items.find(x => x.id === id); if(!d) return;
-  if(!confirm(`Hapus stok exp ${expTxt(d.exp_month, d.exp_year)}?`)) return;
+  if(!confirm(S.mode === 'harian' ? 'Hapus stok ini?' : `Hapus stok exp ${expTxt(d.exp_month, d.exp_year)}?`)) return;
   loading(true, 'Menghapus…');
   try{
     await apiDel(id);
@@ -1220,10 +1291,11 @@ async function saveMerged({ product, items, krt, pak, pcs, m, y, photoBlob, edit
   const t = [(Number(dup.krt) || 0) + krt, (Number(dup.pak) || 0) + pak, (Number(dup.pcs) || 0) + pcs];
   await apiSave({ ...base, krt: t[0], pak: t[1], pcs: t[2], detailId: dup.id });
   if(editId) await apiDel(editId);
-  return `Exp ${expTxt(m, y)} digabung jadi ${fmt(t[0])} / ${fmt(t[1])} / ${fmt(t[2])}`;
+  return `${S.mode === 'harian' ? 'Stok' : 'Exp ' + expTxt(m, y)} digabung jadi ${fmt(t[0])} / ${fmt(t[1])} / ${fmt(t[2])}`;
 }
 function mergeConfirm(items, m, y, editId){
   const dup = items.find(d => Number(d.exp_month) === m && Number(d.exp_year) === y && d.id !== editId);
+  if(dup && S.mode === 'harian') return isKosong(dup) || confirm(`Stok barang ini sudah ada (${fmt(dup.krt)} / ${fmt(dup.pak)} / ${fmt(dup.pcs)}). Jumlah baru akan ditambahkan ke stok tersebut. Lanjutkan?`);
   if(dup && editId) return confirm(`Exp ${expTxt(m, y)} sudah ada di batch lain. Batch ini akan digabung (qty dijumlah) ke batch tersebut. Lanjutkan?`);
   return true;
 }
@@ -1231,9 +1303,10 @@ function mergeConfirm(items, m, y, editId){
 $('btnSave').addEventListener('click', async () => {
   $('formErr').textContent = '';
   const krt = Number($('fKrt').value || 0), pak = Number($('fPak').value || 0), pcs = Number($('fPcs').value || 0);
-  const m = Number($('fMonth').value), y = Number($('fYear').value);
+  const harian = S.mode === 'harian';
+  const m = harian ? 0 : Number($('fMonth').value), y = harian ? 0 : Number($('fYear').value);
   if([krt, pak, pcs].some(v => !isFinite(v) || v < 0)){ $('formErr').textContent = 'Jumlah stok tidak boleh minus.'; return; }
-  if(!m || !y){ $('formErr').textContent = 'Bulan dan tahun expire wajib diisi.'; return; }
+  if(!harian && (!m || !y)){ $('formErr').textContent = 'Bulan dan tahun expire wajib diisi.'; return; }
   if(krt === 0 && pak === 0 && pcs === 0 && !confirm('Semua jumlah 0. Tetap simpan sebagai stok kosong?')) return;
   if(!mergeConfirm(S.items, m, y, S.editId)) return;
   $('btnSave').disabled = true;
@@ -1812,7 +1885,8 @@ function renderDProd(){
   if(!rows.length){ $('dProdList').innerHTML = '<div class="empty">Tidak ada barang yang cocok.</div>'; return; }
   $('dProdList').innerHTML = rows.map(p => {
     const s = sysTxt(p), bad = isSelisih(p);
-    const fis = p.batch_count > 0 ? (p.kosong ? 'STOCK KOSONG' : `${fmt(p.fis_krt)} / ${fmt(p.fis_pak)} / ${fmt(p.fis_pcs)}`) : '';
+    const kosong = p.kosong && !(Number(p.fis_krt) || Number(p.fis_pak) || Number(p.fis_pcs));
+    const fis = p.batch_count > 0 ? (kosong ? 'STOCK KOSONG' : `${fmt(p.fis_krt)} / ${fmt(p.fis_pak)} / ${fmt(p.fis_pcs)}`) : '';
     return `<button class="row${bad ? ' selisih' : ''}${S.daily.editable ? '' : ' locked'}" data-c="${esc(p.product_code)}">
       <span class="tick ${p.batch_count > 0 ? '' : 'zero'}">${p.batch_count > 0 ? '✓' + (p.batch_count > 1 ? ' ' + p.batch_count : '') : ''}</span>
       <div class="main"><div class="name">${esc(p.product_name)}</div><div class="sub">${esc(p.product_code)}${p.divisi ? ' · ' + esc(p.divisi) : ''}${fis ? `<br>Fisik: <b>${fis}</b>` : ''}${bad ? '<span class="stag">SELISIH</span>' : ''}</div></div>
@@ -1831,6 +1905,197 @@ document.querySelectorAll('.dchip').forEach(c => c.addEventListener('click', () 
   document.querySelectorAll('.dchip').forEach(x => x.classList.toggle('on', x === c));
   S.daily.filter = c.dataset.f; renderDProd();
 }));
+
+/* ================= ITEM RUSAK (harian & bulanan, laporan terpisah) ================= */
+S.rk = { items: [], sel: null, photo: null, timer: null, editable: false, lock: '' };
+function rkCtx(){
+  return S.mode === 'harian'
+    ? { p_mode: 'HARIAN', p_header_id: null, p_lokasi: S.daily.lokasi, p_tanggal: S.daily.date }
+    : { p_mode: 'BULANAN', p_header_id: S.doc.id, p_lokasi: null, p_tanggal: null };
+}
+function rkCtxTxt(){
+  return S.mode === 'harian' ? `Harian ${S.daily.lokasi}, ${fmtDay(S.daily.date)}` : `${S.doc.doc_no}, ${S.doc.divisi}`;
+}
+async function openRusak(push = true){
+  show('rusak', push);
+  $('rkCtx').textContent = rkCtxTxt();
+  rkReset();
+  await rkLoad();
+}
+$('btnRusakB').addEventListener('click', () => openRusak(true));
+$('btnRusakH').addEventListener('click', () => openRusak(true));
+
+function rkReset(){
+  S.rk.sel = null; S.rk.photo = null;
+  ['rkKrt','rkPak','rkPcs','rkKet','rkSearch'].forEach(id => $(id).value = '');
+  $('rkResult').classList.add('hidden'); $('rkResult').innerHTML = '';
+  $('rkPickWrap').classList.remove('hidden'); $('rkSel').classList.add('hidden');
+  $('rkPhPrev').classList.add('hidden'); $('rkPhPrev').removeAttribute('src');
+  $('rkPhTxt').textContent = 'Ambil foto'; $('rkPhInput').value = '';
+  $('rkErr').textContent = '';
+}
+async function rkLoad(){
+  $('rkList').innerHTML = '<div class="empty">Memuat…</div>';
+  try{
+    const r = await rpc('get_rusak_items', rkCtx());
+    S.rk.items = r.items || [];
+    S.rk.editable = !!r.editable;
+    S.rk.lock = r.lock_reason || '';
+    rkRender();
+  }catch(e){ $('rkList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+function rkRender(){
+  const b = $('rkBanner');
+  b.textContent = S.rk.lock;
+  b.classList.toggle('hidden', S.rk.editable);
+  $('rkFormWrap').classList.toggle('hidden', !S.rk.editable);
+  $('rkCount').textContent = `Item rusak (${S.rk.items.length})`;
+  $('rkPdf').disabled = !S.rk.items.length;
+  if(!S.rk.items.length){ $('rkList').innerHTML = '<div class="empty">Belum ada item rusak.</div>'; return; }
+  $('rkList').innerHTML = S.rk.items.map(d => `
+    <div class="batch rk">
+      <div class="top">
+        <div style="min-width:0"><b style="overflow-wrap:anywhere">${esc(d.product_name)}</b><div class="num" style="font-size:13px;color:var(--muted)">${esc(d.product_code)}</div></div>
+        <div class="acts">
+          ${d.photo_id ? `<button class="btn ghost small" data-photo="${d.photo_id}">Foto</button>` : ''}
+          ${S.rk.editable ? `<button class="btn danger small" data-del="${d.id}">Hapus</button>` : ''}
+        </div>
+      </div>
+      <div class="q num"><div>Karton<b>${fmt(d.krt)}</b></div><div>Pak/Rcg<b>${fmt(d.pak)}</b></div><div>Pcs<b>${fmt(d.pcs)}</b></div></div>
+      ${d.keterangan ? `<div class="note">${esc(d.keterangan)}</div>` : ''}
+    </div>`).join('');
+  $('rkList').querySelectorAll('[data-photo]').forEach(x => x.addEventListener('click', () => rkViewPhoto(Number(x.dataset.photo))));
+  $('rkList').querySelectorAll('[data-del]').forEach(x => x.addEventListener('click', () => rkDel(Number(x.dataset.del))));
+}
+async function rkViewPhoto(id){
+  loading(true, 'Memuat foto…');
+  try{
+    const r = await rpc('get_rusak_photo', { p_photo_id: id });
+    if(!r || !r.data) throw new Error('Foto tidak ditemukan');
+    $('pvImg').src = `data:${r.mime || 'image/jpeg'};base64,${r.data}`;
+    loading(false); $('photoView').classList.remove('hidden');
+  }catch(e){ loading(false); toast(e.message, true); }
+}
+async function rkDel(id){
+  const d = S.rk.items.find(x => x.id === id); if(!d) return;
+  if(!confirm(`Hapus ${d.product_name} dari item rusak?`)) return;
+  loading(true, 'Menghapus…');
+  try{ await rpc('delete_rusak_item', { p_detail_id: id }); loading(false); toast('Dihapus'); await rkLoad(); }
+  catch(e){ loading(false); toast(e.message, true); }
+}
+
+/* pilih barang */
+$('rkSearch').addEventListener('input', () => {
+  const q = $('rkSearch').value.trim();
+  clearTimeout(S.rk.timer);
+  if(q.length < 2){ $('rkResult').classList.add('hidden'); return; }
+  S.rk.timer = setTimeout(async () => {
+    try{
+      const r = await rpc('search_rusak_product', { p_q: q, p_header_id: S.mode === 'harian' ? null : S.doc.id }) || [];
+      if($('rkSearch').value.trim() !== q) return;
+      $('rkResult').classList.remove('hidden');
+      $('rkResult').innerHTML = r.length ? r.map(x => `
+        <button class="row" data-sku="${esc(x.sku)}" data-name="${esc(x.name)}" data-cat="${esc(x.category || '')}"><div class="main"><div class="name">${esc(x.name)}</div><div class="sub">${esc(x.sku)} · ${esc(x.category || '-')}</div></div></button>`).join('')
+        : '<div class="empty">Barang tidak ditemukan.</div>';
+      $('rkResult').querySelectorAll('[data-sku]').forEach(b => b.addEventListener('click', () => {
+        S.rk.sel = { code: b.dataset.sku, name: b.dataset.name, divisi: b.dataset.cat };
+        $('rkSelName').textContent = S.rk.sel.name; $('rkSelCode').textContent = S.rk.sel.code;
+        $('rkPickWrap').classList.add('hidden'); $('rkSel').classList.remove('hidden');
+        $('rkResult').classList.add('hidden');
+      }));
+    }catch(e){ toast(e.message, true); }
+  }, 300);
+});
+$('rkSelClear').addEventListener('click', () => {
+  S.rk.sel = null; $('rkSearch').value = '';
+  $('rkSel').classList.add('hidden'); $('rkPickWrap').classList.remove('hidden'); $('rkSearch').focus();
+});
+$('rkPhInput').addEventListener('change', async e => {
+  const f = e.target.files && e.target.files[0]; if(!f) return;
+  try{
+    S.rk.photo = await compressImage(f);
+    $('rkPhPrev').src = URL.createObjectURL(S.rk.photo);
+    $('rkPhPrev').classList.remove('hidden');
+    $('rkPhTxt').textContent = 'Ganti foto';
+  }catch(err){ toast(err.message, true); }
+});
+
+$('rkSave').addEventListener('click', async () => {
+  $('rkErr').textContent = '';
+  const sel = S.rk.sel;
+  const krt = Number($('rkKrt').value || 0), pak = Number($('rkPak').value || 0), pcs = Number($('rkPcs').value || 0);
+  if(!sel){ $('rkErr').textContent = 'Pilih barang dulu.'; return; }
+  if([krt, pak, pcs].some(v => !isFinite(v) || v < 0)){ $('rkErr').textContent = 'Jumlah tidak boleh minus.'; return; }
+  if(krt === 0 && pak === 0 && pcs === 0){ $('rkErr').textContent = 'Isi jumlah barang rusak.'; return; }
+  const dup = S.rk.items.find(d => String(d.product_code) === sel.code);
+  if(dup && !confirm(`${sel.name} sudah ada di item rusak (${fmt(dup.krt)} / ${fmt(dup.pak)} / ${fmt(dup.pcs)}). Jumlah baru akan ditambahkan. Lanjutkan?`)) return;
+  $('rkSave').disabled = true;
+  loading(true, S.rk.photo ? 'Mengunggah foto…' : 'Menyimpan…');
+  try{
+    const r = await rpc('save_rusak_item', {
+      ...rkCtx(), p_product_code: sel.code, p_divisi: sel.divisi || null, p_krt: krt, p_pak: pak, p_pcs: pcs,
+      p_keterangan: $('rkKet').value.trim() || null,
+      p_photo_data: S.rk.photo ? await blobToBase64(S.rk.photo) : null
+    });
+    loading(false);
+    toast(r && r.merged ? `Digabung jadi ${fmt(r.krt)} / ${fmt(r.pak)} / ${fmt(r.pcs)}` : 'Tersimpan');
+    rkReset();
+    await rkLoad();
+  }catch(e){ loading(false); $('rkErr').textContent = e.message; }
+  finally{ $('rkSave').disabled = false; }
+});
+
+/* laporan PDF item rusak (terpisah dari laporan opname barang bagus) */
+$('rkPdf').addEventListener('click', async () => {
+  if(!S.rk.items.length) return;
+  loading(true, 'Membuat PDF…');
+  try{
+    await loadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js');
+    await loadScript('https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js');
+    const { jsPDF } = window.jspdf;
+    const harian = S.mode === 'harian';
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
+    const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight();
+    const pageNo = () => { pdf.setFontSize(8); pdf.text(`Hal. ${pdf.internal.getNumberOfPages()}`, pw - 14, ph - 8, { align: 'right' }); };
+    pdf.setFontSize(14); pdf.setFont(undefined, 'bold');
+    pdf.text(harian ? 'LAPORAN ITEM RUSAK - OPNAME HARIAN' : 'LAPORAN ITEM RUSAK - OPNAME BULANAN', 14, 16);
+    pdf.setFontSize(10); pdf.setFont(undefined, 'normal');
+    const meta = harian
+      ? [['Lokasi', S.daily.lokasi], ['Tanggal', fmtDay(S.daily.date)]]
+      : [['No. Dokumen', S.doc.doc_no], ['Divisi', S.doc.divisi]];
+    meta.push(['Dicetak', fmtDate(new Date())]);
+    meta.forEach(([k, v], i) => { pdf.text(k, 14, 24 + i * 5); pdf.text(`: ${v}`, 42, 24 + i * 5); });
+    const sum = [0, 0, 0];
+    S.rk.items.forEach(d => { sum[0] += Number(d.krt) || 0; sum[1] += Number(d.pak) || 0; sum[2] += Number(d.pcs) || 0; });
+    pdf.autoTable({
+      startY: 24 + meta.length * 5 + 3,
+      head: [['NO', 'KODE', 'NAMA BARANG', 'KRT', 'PAK/RCG', 'PCS', 'KETERANGAN']],
+      body: S.rk.items.map((d, i) => [i + 1, d.product_code, d.product_name, fmt(d.krt), fmt(d.pak), fmt(d.pcs), d.keterangan || '-']),
+      foot: [[{ content: 'TOTAL', colSpan: 3, styles: { halign: 'right' } }, fmt(sum[0]), fmt(sum[1]), fmt(sum[2]), '']],
+      showFoot: 'lastPage',
+      styles: { fontSize: 9, cellPadding: 2 },
+      headStyles: { fillColor: [180, 52, 45], textColor: 255 },
+      footStyles: { fillColor: [238, 241, 243], textColor: 20, fontStyle: 'bold' },
+      columnStyles: { 0: { halign: 'center', cellWidth: 10 }, 1: { cellWidth: 22 }, 3: { halign: 'right', cellWidth: 14 }, 4: { halign: 'right', cellWidth: 18 }, 5: { halign: 'right', cellWidth: 14 }, 6: { cellWidth: 42 } },
+      didDrawPage: pageNo
+    });
+    let y = pdf.lastAutoTable.finalY + 14;
+    if(y + 50 > ph - 14){ pdf.addPage(); pageNo(); y = 20; }
+    const ttd = harian ? ['DIBUAT OLEH', 'KEPALA GUDANG'] : ['ADMIN TIM A', 'ADMIN TIM B', 'KEPALA GUDANG'];
+    const w = (pw - 28) / ttd.length;
+    ttd.forEach((t, i) => {
+      const x0 = 14 + w * i, cx = x0 + w / 2, l = x0 + 6, rr = x0 + w - 6;
+      pdf.setFontSize(10); pdf.setFont(undefined, 'bold'); pdf.text(t, cx, y, { align: 'center' });
+      pdf.setFont(undefined, 'normal'); pdf.setFontSize(8); pdf.text('TTD', cx, y + 5, { align: 'center' });
+      pdf.line(l, y + 28, rr, y + 28);
+      pdf.setFontSize(9);
+      pdf.text('Nama', l, y + 35); pdf.text(':', l + 13, y + 35); pdf.line(l + 16, y + 36, rr, y + 36);
+      pdf.text('Tanggal', l, y + 43); pdf.text(':', l + 13, y + 43); pdf.line(l + 16, y + 44, rr, y + 44);
+    });
+    pdf.save(harian ? `RUSAK-HARIAN-${S.daily.lokasi}-${S.daily.date}.pdf` : `RUSAK-${S.doc.doc_no}.pdf`);
+    loading(false);
+  }catch(e){ loading(false); toast(e.message, true); }
+});
 
 /* ----- atur item harian (FULL ACCESS) ----- */
 S.di = { lokasi: 'ENTROP', list: [], timer: null };
@@ -1874,11 +2139,11 @@ function diSearch(){
     try{
       const r = await rpc('search_daily_product', { p_q: q });
       if($('diSearch').value.trim() !== q) return;
-      const have = new Set(S.di.list.map(x => String(x.product_id)));
+      const have = new Set(S.di.list.map(x => String(x.sku || '').trim()));
       $('diResult').classList.remove('hidden');
       $('diResult').innerHTML = r.length ? r.map(x => `
         <div class="row" style="cursor:default"><div class="main"><div class="name">${esc(x.name)}</div><div class="sub">${esc(x.sku)} · ${esc(x.category || '-')}</div></div>
-        ${have.has(String(x.id)) ? '<span class="pill done">Sudah</span>' : `<button class="btn small" data-add="${x.id}" style="width:auto;margin:0">Tambah</button>`}</div>`).join('')
+        ${have.has(String(x.sku || '').trim()) ? '<span class="pill done">Sudah</span>' : `<button class="btn small" data-add="${x.id}" style="width:auto;margin:0">Tambah</button>`}</div>`).join('')
         : '<div class="empty">Barang tidak ditemukan.</div>';
       $('diResult').querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', async () => {
         b.disabled = true;
