@@ -67,7 +67,7 @@ h3{font-size:14px; color:var(--muted); margin:18px 2px 6px; font-weight:700}
     <select id="engine" aria-label="Mesin pembaca">
       <option value="auto">Mesin: otomatis</option>
       <option value="native">Mesin: bawaan HP</option>
-      <option value="zxing">Mesin: ZXing</option>
+      <option value="wasm">Mesin: ZXing WASM</option>
     </select>
     <button class="btn" id="btnTorch" disabled>🔦 Senter</button>
   </div>
@@ -100,19 +100,20 @@ h3{font-size:14px; color:var(--muted); margin:18px 2px 6px; font-weight:700}
     Waktu baca dihitung sejak kamera siap (atau sejak scan sebelumnya) sampai barcode terbaca.
     Hijau di bawah 1 detik, kuning 1 sampai 3 detik, merah di atas 3 detik.
     Kalau barcode tidak terbaca setelah dicoba sekitar 10 detik, tekan "Tidak terbaca" untuk mencatatnya.
-    Format yang dibaca: EAN-13, EAN-8, UPC-A, UPC-E, Code128.
+    Format yang dibaca: EAN-13, EAN-8, UPC-A, UPC-E, Code128, ITF-14 (karton).
   </p>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/zxing-wasm@3.1.5/dist/iife/reader/index.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 const S = {
   stream: null, track: null, running: false, engine: null, detector: null, zx: null,
   armedAt: 0, lastCode: '', lastAt: 0, cooldownUntil: 0, torch: false,
-  log: [], canvas: document.createElement('canvas')
+  frame: 0, log: [], canvas: document.createElement('canvas')
 };
-const NATIVE_FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128'];
+const NATIVE_FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'itf'];
+
 const COOLDOWN = 1200;   // jeda setelah berhasil
 const SAME_CODE = 2500;  // abaikan barcode yang sama dalam waktu ini
 
@@ -125,29 +126,35 @@ const SAME_CODE = 2500;  // abaikan barcode yang sama dalam waktu ini
 })();
 
 /* ---------- mesin pembaca ---------- */
+const ZXW_FORMATS = ['EAN13', 'EAN8', 'UPCA', 'UPCE', 'Code128', 'ITF'];
 async function pickEngine(){
   const want = $('engine').value;
-  if(want !== 'zxing' && 'BarcodeDetector' in window){
+  S.detector = null; S.zw = null;
+  if(want !== 'wasm' && 'BarcodeDetector' in window){
     try{
       const sup = await BarcodeDetector.getSupportedFormats();
       const f = NATIVE_FORMATS.filter(x => sup.includes(x));
-      if(f.length){
-        S.detector = new BarcodeDetector({ formats: f });
-        return 'native';
-      }
+      if(f.length) S.detector = new BarcodeDetector({ formats: f });
     }catch(e){}
   }
-  if(want === 'native') throw new Error('Pembaca bawaan tidak tersedia di HP/browser ini. Pilih ZXing.');
-  if(!window.ZXing) throw new Error('Library ZXing gagal dimuat. Cek koneksi internet.');
-  const Z = window.ZXing;
-  const hints = new Map();
-  hints.set(Z.DecodeHintType.POSSIBLE_FORMATS, [
-    Z.BarcodeFormat.EAN_13, Z.BarcodeFormat.EAN_8, Z.BarcodeFormat.UPC_A, Z.BarcodeFormat.UPC_E, Z.BarcodeFormat.CODE_128
-  ]);
-  hints.set(Z.DecodeHintType.TRY_HARDER, true);
-  S.zx = new Z.MultiFormatReader();
-  S.zx.setHints(hints);
-  return 'zxing';
+  if(want === 'native' && !S.detector) throw new Error('Pembaca bawaan tidak tersedia di HP/browser ini. Pilih ZXing WASM.');
+  if(want !== 'native'){
+    if(!window.ZXingWASM) throw new Error('Library ZXing WASM gagal dimuat. Cek koneksi internet.');
+    S.zw = window.ZXingWASM;
+    await S.zw.prepareZXingModule({ fireImmediately: true });
+  }
+  return S.detector && S.zw ? 'both' : S.detector ? 'native' : 'wasm';
+}
+async function decodeFrame(c){
+  const useNative = S.detector && (!S.zw || (S.frame++ % 2) === 0);
+  if(useNative){
+    const r = await S.detector.detect(c);
+    return r && r.length ? { code: r[0].rawValue, fmt: r[0].format, by: 'native' } : null;
+  }
+  const im = c.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, c.width, c.height);
+  const r = await S.zw.readBarcodes(im, { formats: ZXW_FORMATS, tryHarder: true, tryInvert: true });
+  const ok = (r || []).find(x => x.isValid !== false && x.text);
+  return ok ? { code: ok.text, fmt: ok.format, by: 'wasm' } : null;
 }
 
 /* ---------- kamera ---------- */
@@ -213,18 +220,7 @@ async function loop(){
       const ctx = c.getContext('2d', { willReadFrequently: true });
       ctx.drawImage(v, sx, sy, sw, sh, 0, 0, c.width, c.height);
       let hit = null;
-      try{
-        if(S.engine === 'native'){
-          const r = await S.detector.detect(c);
-          if(r && r.length) hit = { code: r[0].rawValue, fmt: r[0].format };
-        }else{
-          const Z = window.ZXing;
-          const src = new Z.HTMLCanvasElementLuminanceSource(c);
-          const bmp = new Z.BinaryBitmap(new Z.HybridBinarizer(src));
-          const r = S.zx.decodeWithState(bmp);
-          hit = { code: r.getText(), fmt: Z.BarcodeFormat[r.getBarcodeFormat()] };
-        }
-      }catch(e){ /* tidak ketemu di frame ini */ }
+      try{ hit = await decodeFrame(c); }catch(e){}
       if(hit) onHit(hit);
     }
     await new Promise(r => requestAnimationFrame(r));
@@ -239,7 +235,7 @@ function onHit(hit){
   S.cooldownUntil = now + COOLDOWN;
   S.armedAt = now + COOLDOWN;
   feedback();
-  add({ ok: true, code: hit.code, fmt: String(hit.fmt).toUpperCase().replace('_', '-'), ms, engine: S.engine });
+  add({ ok: true, code: hit.code, fmt: String(hit.fmt).toUpperCase().replace('_', '-'), ms, engine: hit.by });
 }
 
 function failNow(){
@@ -272,7 +268,7 @@ function setWaiting(){
 function add(x){
   S.log.unshift(x);
   if(x.ok){
-    $('result').innerHTML = `<div class="ms${msCls(x.ms)}">${x.ms} ms</div><div class="code">${esc(x.code)}</div><div class="meta">${esc(x.fmt)}, mesin ${x.engine === 'native' ? 'bawaan HP' : 'ZXing'}</div>`;
+    $('result').innerHTML = `<div class="ms${msCls(x.ms)}">${x.ms} ms</div><div class="code">${esc(x.code)}</div><div class="meta">${esc(x.fmt)}, mesin ${x.engine === 'native' ? 'bawaan HP' : 'ZXing WASM'}</div>`;
   }else{
     $('result').innerHTML = `<div class="ms bad">Tidak terbaca</div><div class="meta">Dicoba ${(x.ms / 1000).toFixed(1)} detik</div>`;
   }
@@ -286,7 +282,7 @@ function render(){
   $('stMed').textContent = ms.length ? ms[Math.floor((ms.length - 1) / 2)] : '-';
   $('stMax').textContent = ms.length ? ms[ms.length - 1] : '-';
   $('log').innerHTML = S.log.length ? S.log.map(x => x.ok
-    ? `<div class="it"><b>${esc(x.code)}</b><span>${esc(x.fmt)}, ${x.ms} ms</span></div>`
+    ? `<div class="it"><b>${esc(x.code)}</b><span>${esc(x.fmt)}, ${x.ms} ms, ${x.engine === 'native' ? 'bawaan' : 'wasm'}</span></div>`
     : `<div class="it fail"><b>Tidak terbaca</b><span>${(x.ms / 1000).toFixed(1)} detik</span></div>`).join('')
     : '<div class="empty">Belum ada scan.</div>';
 }
@@ -299,7 +295,7 @@ async function copyLog(){
   const lines = [
     'Tes Scan Barcode',
     $('dev').textContent,
-    `Mesin: ${S.engine ? (S.engine === 'native' ? 'bawaan HP' : 'ZXing') : $('engine').value}`,
+    `Mesin: ${({ both: 'bawaan HP + ZXing WASM', native: 'bawaan HP', wasm: 'ZXing WASM' })[S.engine] || $('engine').value}`,
     `Berhasil ${ok.length}, gagal ${S.log.length - ok.length}, median ${ms.length ? ms[Math.floor((ms.length - 1) / 2)] : '-'} ms, terlama ${ms.length ? ms[ms.length - 1] : '-'} ms`,
     '',
     ...S.log.slice().reverse().map((x, i) => x.ok ? `${i + 1}. ${x.code} (${x.fmt}) ${x.ms} ms` : `${i + 1}. TIDAK TERBACA ${(x.ms / 1000).toFixed(1)} detik`)
