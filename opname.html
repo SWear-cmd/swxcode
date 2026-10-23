@@ -230,6 +230,19 @@ td.bad{color:var(--danger); font-weight:800}
 #rkResult{max-height:280px; overflow-y:auto; border:1px solid var(--line); border-radius:9px; margin-top:6px; background:var(--surface)}
 #rkResult .row:first-child{border-top:0}
 .batch.rk{border-left-color:var(--danger)}
+.scanbtn{margin-top:8px}
+.scanv{position:fixed; inset:0; z-index:47; background:#000; display:flex; flex-direction:column}
+.scanv .cam{position:relative; flex:1; overflow:hidden}
+.scanv video{position:absolute; inset:0; width:100%; height:100%; object-fit:cover}
+.scanv .frame{position:absolute; left:8%; right:8%; top:36%; height:22%; border:3px solid rgba(255,255,255,.9); border-radius:12px; box-shadow:0 0 0 999px rgba(0,0,0,.4); transition:border-color .15s}
+.scanv .frame.hit{border-color:#3FAE6E}
+.scanv .frame::after{content:""; position:absolute; left:8px; right:8px; top:50%; height:2px; background:#E06C6C}
+.scanv .stxt{position:absolute; left:0; right:0; top:calc(env(safe-area-inset-top,0px) + 64px); text-align:center; color:#fff; font-size:14.5px; padding:0 20px; text-shadow:0 1px 3px #000}
+.scanv .stop{position:absolute; top:calc(env(safe-area-inset-top,0px) + 10px); right:12px; left:12px; display:flex; justify-content:space-between}
+.scanv .stop .iconbtn{color:#fff; background:rgba(255,255,255,.18)}
+.scanv .sbot{display:flex; gap:8px; padding:12px 12px calc(env(safe-area-inset-bottom,0px) + 14px); background:#000}
+.scanv .sbot .btn{margin:0}
+.scanv .on{background:#fff; color:#000}
 #upView{z-index:42}
 #upView .sheet{max-height:94vh}
 .thumbs{display:flex; gap:8px; overflow-x:auto; padding-bottom:6px; margin-bottom:10px}
@@ -316,6 +329,7 @@ td.bad{color:var(--danger); font-weight:800}
         <input id="dSearch" class="search" type="search" placeholder="Cari nama atau kode barang">
         <button class="upbtn rusak" id="btnRusakH" title="Input dan laporan item rusak">⚠ Item rusak</button>
       </div>
+      <button class="btn scanbtn" id="btnScanH">📷 Scan barcode</button>
       <div class="chips">
         <button class="dchip chip on" data-f="all">Semua <span id="dcAll"></span></button>
         <button class="dchip chip" data-f="todo">Belum <span id="dcTodo"></span></button>
@@ -423,6 +437,7 @@ td.bad{color:var(--danger); font-weight:800}
         <label class="upbtn" id="upLbl" title="Foto barang di luar list, bisa lebih dari 1">📷 Luar list<input id="upInput" type="file" accept="image/*" multiple></label>
         <button class="upbtn rusak" id="btnRusakB" title="Input dan laporan item rusak">⚠ Item rusak</button>
       </div>
+      <button class="btn scanbtn" id="btnScanB">📷 Scan barcode</button>
       <div class="chips">
         <button class="chip on" data-f="all">Semua <span id="cAll"></span></button>
         <button class="chip" data-f="todo">Belum <span id="cTodo"></span></button>
@@ -452,6 +467,7 @@ td.bad{color:var(--danger); font-weight:800}
       <div class="form">
         <span class="lbl">Barang</span>
         <div id="rkPickWrap">
+          <button class="btn ghost" id="btnScanR" style="margin:0 0 8px">📷 Scan barcode</button>
           <input id="rkSearch" class="in" type="search" placeholder="Cari nama atau kode barang" autocomplete="off">
           <div id="rkResult" class="hidden"></div>
         </div>
@@ -543,6 +559,7 @@ td.bad{color:var(--danger); font-weight:800}
       <div class="err" id="formErr"></div>
       <button class="btn" id="btnSave">Simpan</button>
       <button class="btn ghost hidden" id="btnCancelEdit" style="margin-top:8px">Batal edit</button>
+      <button class="btn ghost hidden" id="btnScanNext" style="margin-top:8px">📷 Scan barang lain (tanpa simpan)</button>
     </div>
   </div>
 </section>
@@ -637,6 +654,33 @@ td.bad{color:var(--danger); font-weight:800}
   </div>
 </div>
 
+<div id="scanView" class="scanv hidden" role="dialog" aria-label="Scan barcode">
+  <div class="cam">
+    <video id="scVideo" playsinline muted></video>
+    <div class="frame" id="scFrame"></div>
+    <div class="stxt" id="scTxt">Arahkan barcode ke dalam kotak</div>
+    <div class="stop">
+      <button class="iconbtn" id="scTorch" aria-label="Senter" title="Senter">🔦</button>
+      <button class="iconbtn" id="scClose" aria-label="Tutup">✕</button>
+    </div>
+  </div>
+  <div class="sbot">
+    <button class="btn ghost" id="scManual">Cari manual</button>
+  </div>
+</div>
+
+<div id="bcView" class="sheetbg hidden" role="dialog" aria-label="Hubungkan barcode">
+  <div class="sheet">
+    <div class="shead">
+      <div style="flex:1;min-width:0"><b>Barcode belum terdaftar</b><small id="bcCode"></small></div>
+      <button class="iconbtn" id="bcClose" aria-label="Tutup">✕</button>
+    </div>
+    <p style="margin:4px 2px 10px;color:var(--muted);font-size:14px">Pilih barang untuk barcode ini. Cukup sekali, scan berikutnya langsung dikenali.</p>
+    <input id="bcSearch" class="in" type="search" placeholder="Cari nama atau kode barang" autocomplete="off">
+    <div id="bcList" class="list" style="margin-top:8px"></div>
+  </div>
+</div>
+
 <div id="photoView" class="pview hidden" role="dialog" aria-label="Foto barang">
   <img id="pvImg" alt="Foto barang">
   <button class="iconbtn" id="pvClose" aria-label="Tutup">✕</button>
@@ -725,6 +769,11 @@ function show(screen, push = true){
   if(push && screen !== 'login') history.pushState({ s: screen }, '');
 }
 window.addEventListener('popstate', () => {
+  if(S.sc.open || !$('bcView').classList.contains('hidden')){
+    scanClose(); bcClose();
+    history.pushState({ s: S.screen }, '');
+    return;
+  }
   $('upView').classList.add('hidden'); S.up = null;
   const p = parentOf(S.screen);
   if(p) openScreen(p, false);
@@ -1112,8 +1161,10 @@ function resetForm(){
   document.querySelector('.kosongbox').classList.remove('hidden');
 }
 
-async function openInput(){
+async function openInput(fromScan = false){
   show('input');
+  S.scanFlow = !!fromScan;
+  $('btnScanNext').classList.toggle('hidden', !S.scanFlow);
   const p = S.product, s = sysTxt(p);
   $('iDoc').textContent = S.mode === 'harian' ? `Harian ${S.daily.lokasi}, ${fmtDay(S.daily.date)}` : `${S.doc.doc_no}, ${S.doc.divisi}, Tim ${S.tim}`;
   $('iName').textContent = p.product_name;
@@ -1213,6 +1264,7 @@ $('btnKosong').addEventListener('click', async () => {
     const photo = S.photoBlob ? await blobToBase64(S.photoBlob) : null;
     await apiSave({ code: S.product.product_code, krt: 0, pak: 0, pcs: 0, m: 0, y: 0, photo, detailId: null });
     loading(false); toast('Ditandai STOCK KOSONG');
+    if(S.scanFlow){ scanNext(); return; }
     resetForm();
     await loadItems();
   }catch(e){ loading(false); toast(e.message, true); }
@@ -1316,6 +1368,7 @@ $('btnSave').addEventListener('click', async () => {
     loading(false);
     toast(merged || (S.editId ? 'Perubahan disimpan' : 'Tersimpan'));
     resetForm();
+    if(S.scanFlow){ scanNext(); return; }
     await loadItems();
   }catch(e){ loading(false); $('formErr').textContent = e.message; }
   finally{ $('btnSave').disabled = false; }
@@ -1668,7 +1721,7 @@ document.querySelectorAll('.tab').forEach(x => x.addEventListener('click', () =>
 function loadScript(src){
   return new Promise((res, rej) => {
     if(document.querySelector(`script[src="${src}"]`)) return res();
-    const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('Gagal memuat library PDF'));
+    const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('Gagal memuat library. Cek koneksi.'));
     document.head.appendChild(s);
   });
 }
@@ -1906,6 +1959,226 @@ document.querySelectorAll('.dchip').forEach(c => c.addEventListener('click', () 
   S.daily.filter = c.dataset.f; renderDProd();
 }));
 
+/* ================= SCAN BARCODE ================= */
+const ZXW_URL = 'https://cdn.jsdelivr.net/npm/zxing-wasm@3.1.5/dist/iife/reader/index.js';
+const ZXW_FORMATS = ['EAN13', 'EAN8', 'UPCA', 'UPCE', 'Code128', 'ITF'];
+const BC_FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'itf'];
+
+S.sc = { frame: 0, open: false, ctx: '', stream: null, track: null, engine: '', det: null, zw: null, busy: false, torch: false, canvas: document.createElement('canvas'), pending: '' };
+
+const normBarcode = c => { c = String(c || '').trim(); return /^\d{12}$/.test(c) ? '0' + c : c; };
+
+/* mesin: bawaan HP (cepat untuk barcode barang) + zxing-wasm (kuat untuk barcode karton ITF-14), dipakai selang-seling */
+async function scanEngine(){
+  if(S.sc.engine) return;
+  if('BarcodeDetector' in window){
+    try{
+      const sup = await BarcodeDetector.getSupportedFormats();
+      const f = BC_FORMATS.filter(x => sup.includes(x));
+      if(f.length) S.sc.det = new BarcodeDetector({ formats: f });
+    }catch(e){}
+  }
+  try{
+    await loadScript(ZXW_URL);
+    S.sc.zw = window.ZXingWASM || null;
+    if(S.sc.zw) await S.sc.zw.prepareZXingModule({ fireImmediately: true });
+  }catch(e){ S.sc.zw = null; }
+  if(!S.sc.det && !S.sc.zw) throw new Error('Library scan gagal dimuat. Cek koneksi.');
+  S.sc.engine = S.sc.det && S.sc.zw ? 'both' : S.sc.det ? 'native' : 'wasm';
+}
+async function scanDecode(c){
+  const useNative = S.sc.det && (!S.sc.zw || (S.sc.frame++ % 2) === 0);
+  if(useNative){
+    const r = await S.sc.det.detect(c);
+    return r && r.length ? r[0].rawValue : '';
+  }
+  const im = c.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, c.width, c.height);
+  const r = await S.sc.zw.readBarcodes(im, { formats: ZXW_FORMATS, tryHarder: true, tryInvert: true });
+  const ok = (r || []).find(x => x.isValid !== false && x.text);
+  return ok ? ok.text : '';
+}
+
+async function scanOpen(ctx){
+  if(!window.isSecureContext){ toast('Scan kamera hanya bisa lewat HTTPS.', true); return; }
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ toast('Browser ini tidak mendukung kamera.', true); return; }
+  S.sc.ctx = ctx;
+  $('scTxt').textContent = 'Menyalakan kamera…';
+  $('scanView').classList.remove('hidden');
+  S.sc.open = true;
+  try{
+    await scanEngine();
+    S.sc.stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } });
+    if(!S.sc.open){ S.sc.stream.getTracks().forEach(t => t.stop()); S.sc.stream = null; return; }
+    S.sc.track = S.sc.stream.getVideoTracks()[0];
+    try{ await S.sc.track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); }catch(e){}
+    const caps = S.sc.track.getCapabilities ? S.sc.track.getCapabilities() : {};
+    $('scTorch').classList.toggle('hidden', !caps.torch);
+    $('scTorch').classList.remove('on'); S.sc.torch = false;
+    const v = $('scVideo'); v.srcObject = S.sc.stream; await v.play();
+    $('scTxt').textContent = 'Arahkan barcode ke dalam kotak';
+    S.sc.busy = false;
+    scanLoop();
+  }catch(e){
+    scanClose();
+    toast(e && e.name === 'NotAllowedError' ? 'Izin kamera ditolak. Izinkan kamera di setelan Chrome.' : (e.message || String(e)), true);
+  }
+}
+function scanClose(){
+  S.sc.open = false;
+  if(S.sc.stream) S.sc.stream.getTracks().forEach(t => t.stop());
+  S.sc.stream = null; S.sc.track = null;
+  $('scVideo').srcObject = null;
+  $('scanView').classList.add('hidden');
+}
+async function scanLoop(){
+  const v = $('scVideo');
+  while(S.sc.open){
+    if(!S.sc.busy && v.readyState >= 2 && v.videoWidth){
+      const vw = v.videoWidth, vh = v.videoHeight, c = S.sc.canvas;
+      const sx = vw * 0.06, sy = vh * 0.28, sw = vw * 0.88, sh = vh * 0.38;
+      c.width = Math.round(sw); c.height = Math.round(sh);
+      c.getContext('2d', { willReadFrequently: true }).drawImage(v, sx, sy, sw, sh, 0, 0, c.width, c.height);
+      let code = '';
+      try{ code = await scanDecode(c); }catch(e){}
+      if(code && S.sc.open){ S.sc.busy = true; scanBeep(); await scanHandle(normBarcode(code)); }
+    }
+    await new Promise(r => requestAnimationFrame(r));
+  }
+}
+let _actx = null;
+function scanBeep(){
+  try{
+    _actx = _actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = _actx.createOscillator(), g = _actx.createGain();
+    o.frequency.value = 1500; g.gain.value = 0.15; o.connect(g); g.connect(_actx.destination);
+    o.start(); o.stop(_actx.currentTime + 0.09);
+  }catch(e){}
+  if(navigator.vibrate) navigator.vibrate(60);
+  $('scFrame').classList.add('hit'); setTimeout(() => $('scFrame').classList.remove('hit'), 400);
+}
+function scanResume(msg){
+  $('scTxt').textContent = msg || 'Arahkan barcode ke dalam kotak';
+  setTimeout(() => { S.sc.busy = false; }, 1200);
+}
+
+/* barang yang bisa dipilih di layar sekarang */
+function scanCandidates(){
+  if(S.sc.ctx === 'harian') return S.daily.products.map(p => ({ code: String(p.product_code), name: p.product_name, divisi: p.divisi || '', ref: p }));
+  if(S.sc.ctx === 'bulanan') return S.products.map(p => ({ code: String(p.product_code), name: p.product_name, divisi: S.doc.divisi, ref: p }));
+  return null; // rusak: cari ke server
+}
+function scanMatch(hit){
+  const list = scanCandidates();
+  if(!list) return null;
+  return list.find(x => x.code === hit.sku && (!hit.divisi || !x.divisi || x.divisi === hit.divisi)) || null;
+}
+
+async function scanHandle(code){
+  $('scTxt').textContent = `Barcode ${code}, mencari…`;
+  let hit = null;
+  try{ hit = await rpc('find_barcode', { p_barcode: code }); }
+  catch(e){ scanResume(e.message); return; }
+
+  if(!hit || !hit.sku){ scanClose(); bcOpen(code); return; }
+
+  if(S.sc.ctx === 'rusak'){
+    if(S.mode !== 'harian' && hit.divisi && hit.divisi !== S.doc.divisi){
+      scanResume(`${hit.name} bukan divisi ${S.doc.divisi}`); return;
+    }
+    scanClose(); rkPick({ code: hit.sku, name: hit.name, divisi: hit.divisi || '' }); return;
+  }
+
+  const m = scanMatch(hit);
+  if(!m){
+    const where = S.sc.ctx === 'harian' ? `list harian ${S.daily.lokasi}` : `divisi ${S.doc.divisi}`;
+    if(confirm(`Barcode ${code} terdaftar sebagai:\n${hit.name} (${hit.sku}${hit.divisi ? ', ' + hit.divisi : ''})\n\nBarang ini tidak ada di ${where}.\nKalau barcode ini salah barang, tekan OK untuk menggantinya.`)){
+      scanClose(); bcOpen(code); return;
+    }
+    scanResume(); return;
+  }
+  scanClose();
+  scanGo(m.ref);
+}
+function scanGo(p){
+  if(S.sc.ctx === 'harian'){
+    if(!S.daily.editable){ toast(S.daily.lockMsg || 'Tanggal ini hanya bisa dilihat.'); return; }
+  }else{
+    const why = lockReason(p);
+    if(why){ toast(why); return; }
+  }
+  S.product = p;
+  openInput(true);
+}
+
+/* hubungkan barcode baru ke barang (sekali saja) */
+S.bc = { code: '', timer: null };
+function bcOpen(code){
+  S.bc.code = code;
+  $('bcCode').textContent = code;
+  $('bcSearch').value = '';
+  $('bcView').classList.remove('hidden');
+  bcRender();
+}
+function bcClose(){ $('bcView').classList.add('hidden'); }
+function bcRow(x){
+  return `<button class="row" data-code="${esc(x.code)}" data-name="${esc(x.name)}" data-div="${esc(x.divisi || '')}"><div class="main"><div class="name">${esc(x.name)}</div><div class="sub">${esc(x.code)}${x.divisi ? ' · ' + esc(x.divisi) : ''}</div></div></button>`;
+}
+async function bcRender(){
+  const q = $('bcSearch').value.trim().toLowerCase();
+  const list = S.sc.ctx === 'rusak' ? null : scanCandidates();
+  let rows = [];
+  if(list){
+    rows = list.filter(x => !q || x.name.toLowerCase().includes(q) || x.code.toLowerCase().includes(q)).slice(0, 60);
+  }else{
+    if(q.length < 2){ $('bcList').innerHTML = '<div class="empty">Ketik minimal 2 huruf untuk mencari barang.</div>'; return; }
+    try{
+      const r = await rpc('search_rusak_product', { p_q: q, p_header_id: S.mode === 'harian' ? null : S.doc.id }) || [];
+      if($('bcSearch').value.trim().toLowerCase() !== q) return;
+      rows = r.map(x => ({ code: String(x.sku), name: x.name, divisi: x.category || '' }));
+    }catch(e){ $('bcList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+  }
+  $('bcList').innerHTML = rows.length ? rows.map(bcRow).join('') : '<div class="empty">Barang tidak ditemukan.</div>';
+  $('bcList').querySelectorAll('.row').forEach(b => b.addEventListener('click', () => bcLink({ code: b.dataset.code, name: b.dataset.name, divisi: b.dataset.div })));
+}
+$('bcSearch').addEventListener('input', () => { clearTimeout(S.bc.timer); S.bc.timer = setTimeout(bcRender, S.sc.ctx === 'rusak' ? 300 : 0); });
+async function bcLink(x){
+  if(!confirm(`Hubungkan barcode ${S.bc.code} ke:\n${x.name} (${x.code})?`)) return;
+  loading(true, 'Menyimpan barcode…');
+  try{
+    await rpc('link_barcode', { p_barcode: S.bc.code, p_sku: x.code, p_divisi: x.divisi || null });
+    loading(false); bcClose(); toast('Barcode tersimpan');
+    if(S.sc.ctx === 'rusak'){ rkPick(x); return; }
+    const m = (scanCandidates() || []).find(c => c.code === x.code && c.divisi === x.divisi);
+    if(m) scanGo(m.ref);
+  }catch(e){ loading(false); toast(e.message, true); }
+}
+$('bcClose').addEventListener('click', bcClose);
+
+$('btnScanH').addEventListener('click', () => scanOpen('harian'));
+$('btnScanB').addEventListener('click', () => scanOpen('bulanan'));
+$('btnScanR').addEventListener('click', () => scanOpen('rusak'));
+$('scClose').addEventListener('click', scanClose);
+$('scManual').addEventListener('click', () => {
+  const ctx = S.sc.ctx; scanClose();
+  const el = ctx === 'harian' ? $('dSearch') : ctx === 'bulanan' ? $('search') : $('rkSearch');
+  el.focus();
+});
+$('scTorch').addEventListener('click', async () => {
+  if(!S.sc.track) return;
+  try{ S.sc.torch = !S.sc.torch; await S.sc.track.applyConstraints({ advanced: [{ torch: S.sc.torch }] }); $('scTorch').classList.toggle('on', S.sc.torch); }
+  catch(e){ S.sc.torch = false; }
+});
+/* alur scan: setelah simpan langsung kembali ke kamera untuk barang berikutnya */
+async function scanNext(){
+  const ctx = S.mode === 'harian' ? 'harian' : 'bulanan';
+  try{ await loadItems(); }catch(e){}
+  S.scanFlow = false;
+  history.back();
+  setTimeout(() => scanOpen(ctx), 250);
+}
+$('btnScanNext').addEventListener('click', scanNext);
+document.addEventListener('visibilitychange', () => { if(document.hidden && S.sc.open) scanClose(); });
+
 /* ================= ITEM RUSAK (harian & bulanan, laporan terpisah) ================= */
 S.rk = { items: [], sel: null, photo: null, timer: null, editable: false, lock: '' };
 function rkCtx(){
@@ -1998,14 +2271,18 @@ $('rkSearch').addEventListener('input', () => {
         <button class="row" data-sku="${esc(x.sku)}" data-name="${esc(x.name)}" data-cat="${esc(x.category || '')}"><div class="main"><div class="name">${esc(x.name)}</div><div class="sub">${esc(x.sku)} · ${esc(x.category || '-')}</div></div></button>`).join('')
         : '<div class="empty">Barang tidak ditemukan.</div>';
       $('rkResult').querySelectorAll('[data-sku]').forEach(b => b.addEventListener('click', () => {
-        S.rk.sel = { code: b.dataset.sku, name: b.dataset.name, divisi: b.dataset.cat };
-        $('rkSelName').textContent = S.rk.sel.name; $('rkSelCode').textContent = S.rk.sel.code;
-        $('rkPickWrap').classList.add('hidden'); $('rkSel').classList.remove('hidden');
-        $('rkResult').classList.add('hidden');
+        rkPick({ code: b.dataset.sku, name: b.dataset.name, divisi: b.dataset.cat });
       }));
     }catch(e){ toast(e.message, true); }
   }, 300);
 });
+function rkPick(x){
+  S.rk.sel = { code: x.code, name: x.name, divisi: x.divisi || '' };
+  $('rkSelName').textContent = S.rk.sel.name; $('rkSelCode').textContent = S.rk.sel.code;
+  $('rkPickWrap').classList.add('hidden'); $('rkSel').classList.remove('hidden');
+  $('rkResult').classList.add('hidden');
+  $('rkKrt').focus();
+}
 $('rkSelClear').addEventListener('click', () => {
   S.rk.sel = null; $('rkSearch').value = '';
   $('rkSel').classList.add('hidden'); $('rkPickWrap').classList.remove('hidden'); $('rkSearch').focus();
