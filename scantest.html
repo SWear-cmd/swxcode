@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tes Scan Barcode</title>
+<style>
+:root{
+  --bg:#14191E; --surface:#1C232A; --line:#2A333C; --ink:#E9EEF2; --muted:#93A1AE;
+  --kraft:#D19A5B; --ok:#3FAE6E; --danger:#E06C6C;
+}
+*{box-sizing:border-box}
+html,body{margin:0; background:var(--bg); color:var(--ink); font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
+.bar{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 16px; background:#E6EAEE; color:#18222B}
+.bar b{font-size:17px}
+.bar small{display:block; color:#56626E; font-size:12.5px}
+.wrap{max-width:560px; margin:0 auto; padding:12px 14px 40px}
+.cam{position:relative; background:#000; border-radius:14px; overflow:hidden; aspect-ratio:4/3}
+.cam video{width:100%; height:100%; object-fit:cover; display:block}
+.frame{position:absolute; left:10%; right:10%; top:30%; bottom:30%; border:3px solid rgba(255,255,255,.85); border-radius:10px; box-shadow:0 0 0 999px rgba(0,0,0,.35); pointer-events:none; transition:border-color .15s}
+.frame.hit{border-color:var(--ok)}
+.frame::after{content:""; position:absolute; left:6px; right:6px; top:50%; height:2px; background:var(--danger); opacity:.8}
+.camidle{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; padding:20px; color:var(--muted); font-size:14px}
+.row{display:flex; gap:8px; margin-top:10px}
+.btn{flex:1; border:1.5px solid var(--line); background:var(--surface); color:var(--ink); border-radius:10px; padding:13px 10px; font-size:15px; font-weight:700; cursor:pointer}
+.btn.main{background:var(--kraft); border-color:var(--kraft); color:#1A1410}
+.btn.warn{color:var(--danger); border-color:var(--danger); background:transparent}
+.btn:disabled{opacity:.4; cursor:default}
+.btn.on{background:var(--ink); color:var(--bg); border-color:var(--ink)}
+select{flex:1; background:var(--surface); color:var(--ink); border:1.5px solid var(--line); border-radius:10px; padding:11px 10px; font-size:14px}
+.result{margin-top:12px; background:var(--surface); border:1.5px solid var(--line); border-radius:12px; padding:14px}
+.result .code{font-size:26px; font-weight:800; letter-spacing:1px; overflow-wrap:anywhere}
+.result .meta{color:var(--muted); font-size:13px; margin-top:4px}
+.result .ms{font-size:34px; font-weight:800; color:var(--ok); font-variant-numeric:tabular-nums}
+.result .ms.slow{color:#F2C230}
+.result .ms.bad{color:var(--danger)}
+.waiting{color:var(--muted); font-size:14px}
+.stats{display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:12px}
+.stats div{background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:8px 6px; text-align:center; font-size:11.5px; color:var(--muted)}
+.stats b{display:block; font-size:18px; color:var(--ink); font-variant-numeric:tabular-nums}
+h3{font-size:14px; color:var(--muted); margin:18px 2px 6px; font-weight:700}
+.log{background:var(--surface); border:1px solid var(--line); border-radius:12px; overflow:hidden}
+.log .it{display:flex; justify-content:space-between; gap:10px; padding:9px 12px; border-top:1px solid var(--line); font-size:13.5px}
+.log .it:first-child{border-top:0}
+.log .it span{color:var(--muted)}
+.log .it.fail b{color:var(--danger)}
+.empty{padding:14px; color:var(--muted); font-size:13.5px; text-align:center}
+.info{font-size:12.5px; color:var(--muted); margin-top:10px; line-height:1.5}
+.err{background:#3A2222; border:1px solid var(--danger); color:#F3C2C2; border-radius:10px; padding:10px 12px; font-size:13.5px; margin-top:10px}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<header class="bar">
+  <div><b>Tes Scan Barcode</b><small id="dev"></small></div>
+</header>
+
+<div class="wrap">
+  <div class="cam">
+    <video id="video" playsinline muted></video>
+    <div class="frame hidden" id="frame"></div>
+    <div class="camidle" id="idle">Tekan "Mulai kamera", lalu arahkan barcode ke dalam kotak.</div>
+  </div>
+
+  <div class="row">
+    <select id="engine" aria-label="Mesin pembaca">
+      <option value="auto">Mesin: otomatis</option>
+      <option value="native">Mesin: bawaan HP</option>
+      <option value="zxing">Mesin: ZXing</option>
+    </select>
+    <button class="btn" id="btnTorch" disabled>🔦 Senter</button>
+  </div>
+  <div class="row">
+    <button class="btn main" id="btnStart">Mulai kamera</button>
+    <button class="btn" id="btnStop" disabled>Stop</button>
+  </div>
+  <div id="err" class="err hidden"></div>
+
+  <div class="result" id="result"><div class="waiting">Belum ada hasil.</div></div>
+  <div class="row">
+    <button class="btn warn" id="btnFail" disabled>Tidak terbaca</button>
+  </div>
+
+  <div class="stats">
+    <div><b id="stN">0</b>Berhasil</div>
+    <div><b id="stF">0</b>Gagal</div>
+    <div><b id="stMed">-</b>Median ms</div>
+    <div><b id="stMax">-</b>Terlama ms</div>
+  </div>
+
+  <h3>Riwayat scan</h3>
+  <div class="log" id="log"><div class="empty">Belum ada scan.</div></div>
+  <div class="row">
+    <button class="btn" id="btnCopy">Salin hasil tes</button>
+    <button class="btn" id="btnReset">Reset</button>
+  </div>
+
+  <p class="info">
+    Waktu baca dihitung sejak kamera siap (atau sejak scan sebelumnya) sampai barcode terbaca.
+    Hijau di bawah 1 detik, kuning 1 sampai 3 detik, merah di atas 3 detik.
+    Kalau barcode tidak terbaca setelah dicoba sekitar 10 detik, tekan "Tidak terbaca" untuk mencatatnya.
+    Format yang dibaca: EAN-13, EAN-8, UPC-A, UPC-E, Code128.
+  </p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const S = {
+  stream: null, track: null, running: false, engine: null, detector: null, zx: null,
+  armedAt: 0, lastCode: '', lastAt: 0, cooldownUntil: 0, torch: false,
+  log: [], canvas: document.createElement('canvas')
+};
+const NATIVE_FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128'];
+const COOLDOWN = 1200;   // jeda setelah berhasil
+const SAME_CODE = 2500;  // abaikan barcode yang sama dalam waktu ini
+
+/* ---------- info perangkat ---------- */
+(function(){
+  const ua = navigator.userAgent;
+  let os = /iPhone|iPad/.test(ua) ? 'iPhone/iPad' : /Android ([\d.]+)/.test(ua) ? 'Android ' + RegExp.$1 : 'Desktop';
+  let br = /CriOS|Chrome\/(\d+)/.test(ua) ? 'Chrome' : /Safari/.test(ua) ? 'Safari' : /Firefox/.test(ua) ? 'Firefox' : 'Browser';
+  $('dev').textContent = `${os}, ${br}, bawaan HP: ${'BarcodeDetector' in window ? 'ada' : 'tidak ada'}`;
+})();
+
+/* ---------- mesin pembaca ---------- */
+async function pickEngine(){
+  const want = $('engine').value;
+  if(want !== 'zxing' && 'BarcodeDetector' in window){
+    try{
+      const sup = await BarcodeDetector.getSupportedFormats();
+      const f = NATIVE_FORMATS.filter(x => sup.includes(x));
+      if(f.length){
+        S.detector = new BarcodeDetector({ formats: f });
+        return 'native';
+      }
+    }catch(e){}
+  }
+  if(want === 'native') throw new Error('Pembaca bawaan tidak tersedia di HP/browser ini. Pilih ZXing.');
+  if(!window.ZXing) throw new Error('Library ZXing gagal dimuat. Cek koneksi internet.');
+  const Z = window.ZXing;
+  const hints = new Map();
+  hints.set(Z.DecodeHintType.POSSIBLE_FORMATS, [
+    Z.BarcodeFormat.EAN_13, Z.BarcodeFormat.EAN_8, Z.BarcodeFormat.UPC_A, Z.BarcodeFormat.UPC_E, Z.BarcodeFormat.CODE_128
+  ]);
+  hints.set(Z.DecodeHintType.TRY_HARDER, true);
+  S.zx = new Z.MultiFormatReader();
+  S.zx.setHints(hints);
+  return 'zxing';
+}
+
+/* ---------- kamera ---------- */
+async function start(){
+  hideErr();
+  if(!window.isSecureContext){ showErr('Kamera hanya bisa dipakai lewat HTTPS. Buka halaman ini dari alamat https://'); return; }
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ showErr('Browser ini tidak mendukung kamera.'); return; }
+  $('btnStart').disabled = true;
+  try{
+    S.engine = await pickEngine();
+    S.stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    S.track = S.stream.getVideoTracks()[0];
+    try{ await S.track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); }catch(e){}
+    const v = $('video');
+    v.srcObject = S.stream;
+    await v.play();
+    const caps = S.track.getCapabilities ? S.track.getCapabilities() : {};
+    $('btnTorch').disabled = !caps.torch;
+    $('btnTorch').title = caps.torch ? '' : 'Senter tidak didukung di HP/browser ini';
+    $('idle').classList.add('hidden'); $('frame').classList.remove('hidden');
+    $('btnStop').disabled = false; $('btnFail').disabled = false; $('engine').disabled = true;
+    S.running = true; S.armedAt = performance.now(); S.cooldownUntil = 0;
+    setWaiting();
+    loop();
+  }catch(e){
+    stop();
+    if(e && e.name === 'NotAllowedError') showErr('Izin kamera ditolak. Izinkan kamera untuk situs ini di pengaturan browser, lalu coba lagi.');
+    else if(e && e.name === 'NotFoundError') showErr('Kamera tidak ditemukan di perangkat ini.');
+    else showErr(e.message || String(e));
+  }
+}
+function stop(){
+  S.running = false;
+  if(S.stream) S.stream.getTracks().forEach(t => t.stop());
+  S.stream = null; S.track = null; S.torch = false;
+  $('video').srcObject = null;
+  $('idle').classList.remove('hidden'); $('frame').classList.add('hidden');
+  $('btnStart').disabled = false; $('btnStop').disabled = true; $('btnFail').disabled = true;
+  $('btnTorch').disabled = true; $('btnTorch').classList.remove('on'); $('engine').disabled = false;
+}
+async function toggleTorch(){
+  if(!S.track) return;
+  try{
+    S.torch = !S.torch;
+    await S.track.applyConstraints({ advanced: [{ torch: S.torch }] });
+    $('btnTorch').classList.toggle('on', S.torch);
+  }catch(e){ S.torch = false; showErr('Senter tidak bisa dinyalakan di HP ini.'); }
+}
+
+/* ---------- loop baca: hanya area kotak tengah ---------- */
+async function loop(){
+  const v = $('video');
+  while(S.running){
+    const now = performance.now();
+    if(now >= S.cooldownUntil && v.readyState >= 2 && v.videoWidth){
+      const vw = v.videoWidth, vh = v.videoHeight;
+      const sx = vw * 0.08, sy = vh * 0.25, sw = vw * 0.84, sh = vh * 0.5;
+      const c = S.canvas;
+      c.width = Math.round(sw); c.height = Math.round(sh);
+      const ctx = c.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(v, sx, sy, sw, sh, 0, 0, c.width, c.height);
+      let hit = null;
+      try{
+        if(S.engine === 'native'){
+          const r = await S.detector.detect(c);
+          if(r && r.length) hit = { code: r[0].rawValue, fmt: r[0].format };
+        }else{
+          const Z = window.ZXing;
+          const src = new Z.HTMLCanvasElementLuminanceSource(c);
+          const bmp = new Z.BinaryBitmap(new Z.HybridBinarizer(src));
+          const r = S.zx.decodeWithState(bmp);
+          hit = { code: r.getText(), fmt: Z.BarcodeFormat[r.getBarcodeFormat()] };
+        }
+      }catch(e){ /* tidak ketemu di frame ini */ }
+      if(hit) onHit(hit);
+    }
+    await new Promise(r => requestAnimationFrame(r));
+  }
+}
+
+function onHit(hit){
+  const now = performance.now();
+  if(hit.code === S.lastCode && now - S.lastAt < SAME_CODE){ S.lastAt = now; S.armedAt = now; return; }
+  const ms = Math.round(now - S.armedAt);
+  S.lastCode = hit.code; S.lastAt = now;
+  S.cooldownUntil = now + COOLDOWN;
+  S.armedAt = now + COOLDOWN;
+  feedback();
+  add({ ok: true, code: hit.code, fmt: String(hit.fmt).toUpperCase().replace('_', '-'), ms, engine: S.engine });
+}
+
+function failNow(){
+  if(!S.running) return;
+  const now = performance.now();
+  add({ ok: false, code: '-', fmt: '', ms: Math.round(now - S.armedAt), engine: S.engine });
+  S.armedAt = now;
+}
+
+/* ---------- bunyi + getar ---------- */
+let actx = null;
+function feedback(){
+  try{
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.frequency.value = 1500; g.gain.value = 0.15;
+    o.connect(g); g.connect(actx.destination);
+    o.start(); o.stop(actx.currentTime + 0.09);
+  }catch(e){}
+  if(navigator.vibrate) navigator.vibrate(60);
+  $('frame').classList.add('hit');
+  setTimeout(() => $('frame').classList.remove('hit'), 400);
+}
+
+/* ---------- tampilan ---------- */
+const msCls = ms => ms < 1000 ? '' : ms <= 3000 ? ' slow' : ' bad';
+function setWaiting(){
+  if(!S.log.length) $('result').innerHTML = '<div class="waiting">Arahkan barcode ke dalam kotak.</div>';
+}
+function add(x){
+  S.log.unshift(x);
+  if(x.ok){
+    $('result').innerHTML = `<div class="ms${msCls(x.ms)}">${x.ms} ms</div><div class="code">${esc(x.code)}</div><div class="meta">${esc(x.fmt)}, mesin ${x.engine === 'native' ? 'bawaan HP' : 'ZXing'}</div>`;
+  }else{
+    $('result').innerHTML = `<div class="ms bad">Tidak terbaca</div><div class="meta">Dicoba ${(x.ms / 1000).toFixed(1)} detik</div>`;
+  }
+  render();
+}
+function render(){
+  const ok = S.log.filter(x => x.ok), fail = S.log.filter(x => !x.ok);
+  const ms = ok.map(x => x.ms).sort((a, b) => a - b);
+  $('stN').textContent = ok.length;
+  $('stF').textContent = fail.length;
+  $('stMed').textContent = ms.length ? ms[Math.floor((ms.length - 1) / 2)] : '-';
+  $('stMax').textContent = ms.length ? ms[ms.length - 1] : '-';
+  $('log').innerHTML = S.log.length ? S.log.map(x => x.ok
+    ? `<div class="it"><b>${esc(x.code)}</b><span>${esc(x.fmt)}, ${x.ms} ms</span></div>`
+    : `<div class="it fail"><b>Tidak terbaca</b><span>${(x.ms / 1000).toFixed(1)} detik</span></div>`).join('')
+    : '<div class="empty">Belum ada scan.</div>';
+}
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c])); }
+function showErr(m){ $('err').textContent = m; $('err').classList.remove('hidden'); }
+function hideErr(){ $('err').classList.add('hidden'); }
+
+async function copyLog(){
+  const ok = S.log.filter(x => x.ok), ms = ok.map(x => x.ms).sort((a, b) => a - b);
+  const lines = [
+    'Tes Scan Barcode',
+    $('dev').textContent,
+    `Mesin: ${S.engine ? (S.engine === 'native' ? 'bawaan HP' : 'ZXing') : $('engine').value}`,
+    `Berhasil ${ok.length}, gagal ${S.log.length - ok.length}, median ${ms.length ? ms[Math.floor((ms.length - 1) / 2)] : '-'} ms, terlama ${ms.length ? ms[ms.length - 1] : '-'} ms`,
+    '',
+    ...S.log.slice().reverse().map((x, i) => x.ok ? `${i + 1}. ${x.code} (${x.fmt}) ${x.ms} ms` : `${i + 1}. TIDAK TERBACA ${(x.ms / 1000).toFixed(1)} detik`)
+  ].join('\n');
+  try{ await navigator.clipboard.writeText(lines); $('btnCopy').textContent = 'Tersalin'; }
+  catch(e){ prompt('Salin teks ini:', lines); }
+  setTimeout(() => $('btnCopy').textContent = 'Salin hasil tes', 1500);
+}
+
+$('btnStart').addEventListener('click', start);
+$('btnStop').addEventListener('click', stop);
+$('btnTorch').addEventListener('click', toggleTorch);
+$('btnFail').addEventListener('click', failNow);
+$('btnCopy').addEventListener('click', copyLog);
+$('btnReset').addEventListener('click', () => {
+  if(S.log.length && !confirm('Hapus semua riwayat tes?')) return;
+  S.log = []; S.lastCode = ''; render();
+  $('result').innerHTML = '<div class="waiting">Belum ada hasil.</div>';
+  if(S.running) S.armedAt = performance.now();
+});
+document.addEventListener('visibilitychange', () => { if(document.hidden && S.running) stop(); });
+</script>
+</body>
+</html>
