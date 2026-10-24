@@ -231,6 +231,16 @@ td.bad{color:var(--danger); font-weight:800}
 #rkResult .row:first-child{border-top:0}
 .batch.rk{border-left-color:var(--danger)}
 .scanbtn{margin-top:8px}
+.bclist{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px}
+.bcchip{display:inline-flex; align-items:center; gap:6px; background:var(--bg); border:1px solid var(--line); border-radius:20px; padding:4px 6px 4px 11px; font-size:13px; font-variant-numeric:tabular-nums}
+.bcchip small{color:var(--muted)}
+.duprow{padding:12px 14px; border-top:1px solid var(--line)}
+.duprow:first-child{border-top:0}
+.duprow .name{font-weight:600}
+.duprow .sub{font-size:13px; color:var(--muted); margin-top:2px}
+.duptitle{color:var(--danger)}
+.bcchip button{background:transparent; border:0; color:var(--danger); font-size:15px; line-height:1; padding:2px 5px; cursor:pointer}
+.bcchip.none{color:var(--muted); padding-right:11px}
 .scanv{position:fixed; inset:0; z-index:47; background:#000; display:flex; flex-direction:column}
 .scanv .cam{position:relative; flex:1; overflow:hidden}
 .scanv video{position:absolute; inset:0; width:100%; height:100%; object-fit:cover}
@@ -284,6 +294,10 @@ td.bad{color:var(--danger); font-weight:800}
     <div class="modes">
       <button class="modebtn" id="btnModeH"><b>OPNAME HARIAN</b><span>Item wajib stock setiap hari, per tanggal</span></button>
       <button class="modebtn" id="btnModeB"><b>OPNAME BULANAN</b><span>Opname per divisi, Tim A dan Tim B</span></button>
+    </div>
+    <div id="dupBox" class="hidden">
+      <div class="sec duptitle" id="dupTitle"></div>
+      <div class="list" id="dupList"></div>
     </div>
   </div>
 </section>
@@ -516,7 +530,8 @@ td.bad{color:var(--danger); font-weight:800}
     <div class="prod">
       <div class="name" id="iName"></div>
       <div class="code" id="iCode"></div>
-      <div class="sysline"><span style="color:var(--muted)">Stock system</span><b class="num" id="iSys"></b></div>
+      <div class="bclist" id="iBarcodes"></div>
+      <div class="sysline" id="iSysRow"><span style="color:var(--muted)">Stock system</span><b class="num" id="iSys"></b></div>
       <div class="sysline"><span style="color:var(--muted)">Total fisik</span><b class="num" id="iFis"></b></div>
       <div class="sysline" id="iDiffRow"><span class="dlbl">Selisih (fisik − system) <em id="iDiffTag" class="hidden">SELISIH</em></span><b class="num" id="iDiff"></b></div>
       <div class="sysline"><span style="color:var(--muted)">Keterangan</span><b id="iNote" style="text-align:right;overflow-wrap:anywhere"></b></div>
@@ -575,6 +590,7 @@ td.bad{color:var(--danger); font-weight:800}
       <button class="tab on" data-t="lap">Laporan</button>
       <button class="tab" data-t="csv">Export CSV</button>
       <button class="tab" data-t="adj">Cek Adjust</button>
+      <button class="tab" data-t="ned">ED ≤ 6 bln</button>
     </div>
 
     <div id="t-lap">
@@ -586,6 +602,17 @@ td.bad{color:var(--danger); font-weight:800}
         </table>
       </div>
       <button class="btn" id="btnPdf">Export PDF</button>
+    </div>
+
+    <div id="t-ned" class="hidden">
+      <div class="banner" id="nedInfo" style="margin-top:0"></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>NAMA BARANG</th><th class="r">KRT</th><th class="r">PAK/RCG</th><th class="r">PCS</th><th class="c">EXPIRE DATE</th><th class="c">SISA</th></tr></thead>
+          <tbody id="nedBody"></tbody>
+        </table>
+      </div>
+      <button class="btn" id="btnNedPdf">Export PDF</button>
     </div>
 
     <div id="t-adj" class="hidden">
@@ -862,6 +889,8 @@ async function goHome(push = true){
 $('btnNew').addEventListener('click', openDivisi);
 
 function canFinalize(){ return ['FULL ACCESS','SPVADMIN'].includes(String(S.label || '').trim().toUpperCase()); }
+/* blind count: penghitung tidak melihat stock system / selisih / angka tim lain */
+function canSeeSystem(){ return canFinalize(); }
 function isFullAccess(){ return String(S.label || '').trim().toLowerCase() === 'full access'; }
 async function deleteDoc(d){
   if(!d) return;
@@ -1023,6 +1052,7 @@ function sysTxt(p){
   return { a: '-', b: 'tidak ada data' };
 }
 function isSelisih(p){
+  if(!canSeeSystem()) return false;
   if(!(p.batch_count > 0)) return false;
   const sys = parseSys(p);
   return !!sys && (Number(p.fis_krt) || 0) - sys[0] < 0;
@@ -1047,7 +1077,7 @@ function renderProducts(){
     return `<button class="row${bad ? ' selisih' : ''}${locked ? ' locked' : ''}" data-c="${esc(p.product_code)}">
       <span class="tick ${p.batch_count > 0 ? '' : 'zero'}">${p.batch_count > 0 ? '✓' + (p.batch_count > 1 ? ' ' + p.batch_count : '') : ''}</span>
       <div class="main"><div class="name">${esc(p.product_name)}</div><div class="sub">${esc(p.product_code)}${p.recount ? '<span class="utag">HITUNG ULANG</span>' : ''}${p.cmp === 'diff' && S.doc.status === 'OPEN' ? '<span class="btag">BEDA</span>' : ''}${bad ? '<span class="stag">SELISIH</span>' : ''}</div></div>
-      <div class="sys num"><b>${s.a}</b>${s.b}</div>
+      ${canSeeSystem() ? `<div class="sys num"><b>${s.a}</b>${s.b}</div>` : ''}
     </button>`;
   }).join('');
   $('prodList').querySelectorAll('.row').forEach(el => el.addEventListener('click', () => {
@@ -1171,8 +1201,29 @@ async function openInput(fromScan = false){
   $('iCode').textContent = p.product_code + (p.uom_conversion ? `, konversi ${p.uom_conversion}` : '');
   $('iNote').textContent = p.stapel ? p.stapel : '-';
   $('iSys').textContent = s.a === '-' ? 'Tidak ada data' : `${s.a.replace(/&amp;/g,'&')} (${s.b})`;
+  $('iSysRow').classList.toggle('hidden', !canSeeSystem());
+  $('iDiffRow').classList.toggle('hidden', !canSeeSystem());
   resetForm();
+  loadBarcodes();
   await loadItems();
+}
+/* barcode yang terhubung ke barang ini (FULL ACCESS bisa hapus) */
+const bcDivisi = () => S.mode === 'harian' ? (S.product.divisi || null) : S.doc.divisi;
+async function loadBarcodes(){
+  const box = $('iBarcodes'), code = S.product.product_code;
+  box.innerHTML = '';
+  try{
+    const r = await rpc('get_product_barcodes', { p_sku: code, p_divisi: bcDivisi() }) || [];
+    if(!S.product || S.product.product_code !== code) return;
+    box.innerHTML = r.length
+      ? r.map(b => `<span class="bcchip">▮ ${esc(b.barcode)}${b.barcode.length === 14 ? ' <small>karton</small>' : ''}${isFullAccess() ? `<button data-bc="${esc(b.barcode)}" aria-label="Hapus barcode" title="Hapus barcode">✕</button>` : ''}</span>`).join('')
+      : '<span class="bcchip none">Belum ada barcode</span>';
+    box.querySelectorAll('[data-bc]').forEach(x => x.addEventListener('click', async () => {
+      if(!confirm(`Hapus barcode ${x.dataset.bc} dari ${S.product.product_name}?`)) return;
+      try{ await rpc('delete_barcode', { p_barcode: x.dataset.bc }); toast('Barcode dihapus'); loadBarcodes(); }
+      catch(e){ toast(e.message, true); }
+    }));
+  }catch(e){ box.innerHTML = ''; }
 }
 async function loadItems(){
   $('batchList').innerHTML = '<div class="empty">Memuat…</div>';
@@ -1198,6 +1249,7 @@ function renderSelisih(){
   const f = [0, 0, 0];
   S.items.forEach(d => { f[0] += Number(d.krt) || 0; f[1] += Number(d.pak) || 0; f[2] += Number(d.pcs) || 0; });
   $('iFis').textContent = `${fmt(f[0])} / ${fmt(f[1])} / ${fmt(f[2])}`;
+  if(!canSeeSystem()) return;
   const sys = parseSys(S.product);
   $('iDiffRow').classList.remove('bad'); $('iDiffTag').classList.add('hidden');
   if(!sys){ $('iDiff').textContent = 'Tidak ada stock system'; return; }
@@ -1714,9 +1766,64 @@ function setTab(t){
   $('t-lap').classList.toggle('hidden', t !== 'lap');
   $('t-csv').classList.toggle('hidden', t !== 'csv');
   $('t-adj').classList.toggle('hidden', t !== 'adj');
+  $('t-ned').classList.toggle('hidden', t !== 'ned');
   if(t === 'csv') csvInfo();
+  if(t === 'ned') renderNearEd();
 }
 document.querySelectorAll('.tab').forEach(x => x.addEventListener('click', () => setTab(x.dataset.t)));
+
+/* barang yang ED-nya <= 6 bulan dari bulan ini (termasuk yang sudah lewat ED) */
+const NEAR_ED_MONTHS = 6;
+function nearEdRows(){
+  const now = new Date(), cur = now.getFullYear() * 12 + now.getMonth() + 1;
+  return ((S.report && S.report.rows) || [])
+    .filter(x => Number(x.exp_month) && Number(x.exp_year))
+    .map(x => ({ ...x, sisa: Number(x.exp_year) * 12 + Number(x.exp_month) - cur }))
+    .filter(x => x.sisa <= NEAR_ED_MONTHS && x.exp_year < 2050)
+    .sort((a, b) => a.sisa - b.sisa || String(a.product_name).localeCompare(String(b.product_name)));
+}
+const sisaTxt = n => n < 0 ? 'Sudah ED' : n === 0 ? 'Bulan ini' : `${n} bln`;
+function renderNearEd(){
+  const rows = nearEdRows(), lewat = rows.filter(x => x.sisa < 0).length;
+  $('nedInfo').textContent = rows.length
+    ? `${rows.length} baris barang dengan expire date ≤ ${NEAR_ED_MONTHS} bulan dari sekarang${lewat ? `, ${lewat} di antaranya sudah lewat ED` : ''}.`
+    : `Tidak ada barang dengan expire date ≤ ${NEAR_ED_MONTHS} bulan.`;
+  $('nedBody').innerHTML = rows.map(x => `<tr class="${x.sisa < 0 ? 'mis' : ''}">
+    <td>${esc(x.product_name)}</td><td class="r num">${fmt(x.krt)}</td><td class="r num">${fmt(x.pak)}</td><td class="r num">${fmt(x.pcs)}</td>
+    <td class="c num">${expTxt(x.exp_month, x.exp_year)}</td>
+    <td class="c num${x.sisa <= 2 ? ' bad' : ''}" style="white-space:nowrap">${sisaTxt(x.sisa)}</td></tr>`).join('')
+    || '<tr><td colspan="6" class="empty">Tidak ada data.</td></tr>';
+  $('btnNedPdf').disabled = !rows.length;
+}
+$('btnNedPdf').addEventListener('click', async () => {
+  const rows = nearEdRows(); if(!rows.length) return;
+  loading(true, 'Membuat PDF…');
+  try{
+    await loadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js');
+    await loadScript('https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js');
+    const { jsPDF } = window.jspdf;
+    const h = (S.report && S.report.header) || {};
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
+    const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight();
+    pdf.setFontSize(14); pdf.setFont(undefined, 'bold');
+    pdf.text(`LAPORAN BARANG MENDEKATI EXPIRE DATE (≤ ${NEAR_ED_MONTHS} BULAN)`.replace('≤', '<='), 14, 16);
+    pdf.setFontSize(10); pdf.setFont(undefined, 'normal');
+    [['No. Dokumen', h.doc_no], ['Divisi', h.divisi], ['Tanggal opname', fmtDate(h.finished_at || h.created_at)], ['Dicetak', fmtDate(new Date())]]
+      .forEach(([k, v], i) => { pdf.text(k, 14, 24 + i * 5); pdf.text(`: ${v || '-'}`, 46, 24 + i * 5); });
+    pdf.autoTable({
+      startY: 46,
+      head: [['NO', 'KODE', 'NAMA BARANG', 'KRT', 'PAK/RCG', 'PCS', 'ED', 'SISA']],
+      body: rows.map((x, i) => [i + 1, String(x.product_code || '').startsWith('NL-') ? '-' : x.product_code, x.product_name, fmt(x.krt), fmt(x.pak), fmt(x.pcs), expTxt(x.exp_month, x.exp_year), sisaTxt(x.sisa)]),
+      styles: { fontSize: 9, cellPadding: 2 },
+      headStyles: { fillColor: [60, 72, 84], textColor: 255 },
+      columnStyles: { 0: { halign: 'center', cellWidth: 10 }, 1: { cellWidth: 20 }, 3: { halign: 'right', cellWidth: 13 }, 4: { halign: 'right', cellWidth: 17 }, 5: { halign: 'right', cellWidth: 13 }, 6: { halign: 'center', cellWidth: 18 }, 7: { halign: 'center', cellWidth: 20 } },
+      didParseCell: d => { if(d.section === 'body' && rows[d.row.index].sisa < 0){ d.cell.styles.textColor = [180, 40, 40]; d.cell.styles.fontStyle = 'bold'; } },
+      didDrawPage: () => { pdf.setFontSize(8); pdf.text(`Hal. ${pdf.internal.getNumberOfPages()}`, pw - 14, ph - 8, { align: 'right' }); }
+    });
+    pdf.save(`NEAR-ED-${h.doc_no || 'opname'}.pdf`);
+    loading(false);
+  }catch(e){ loading(false); toast(e.message, true); }
+});
 
 function loadScript(src){
   return new Promise((res, rej) => {
@@ -1786,6 +1893,28 @@ async function openDiff(code){
     const hasExp = rows.some(x => x.diff === 'only_a' || x.diff === 'only_b');
     const hasQty = rows.some(x => x.diff === 'qty');
     const cell = (v, bad) => `<td class="r num${bad ? ' bad' : ''}">${v == null ? '-' : fmt(v)}</td>`;
+    if(!canSeeSystem()){
+      const me = S.tim === 'A' || S.tim === 'B' ? S.tim : '';
+      const k = me.toLowerCase();
+      const mine = me ? rows.filter(x => x.diff !== (me === 'A' ? 'only_b' : 'only_a')) : [];
+      const other = rows.filter(x => x.diff === (me === 'A' ? 'only_b' : 'only_a')).length;
+      const bad = rows.some(x => x.diff !== 'ok');
+      $('dvBody').innerHTML = `
+        <div class="dsum">${bad ? '<span>Hasil kedua tim beda, hitung ulang</span>' : '<span style="background:var(--ok-soft);color:var(--ok)">Sudah sama</span>'}</div>
+        ${me ? `<div class="tbl-wrap">
+          <table>
+            <thead><tr><th>EXP</th><th class="r">KRT</th><th class="r">PAK</th><th class="r">PCS</th><th>STATUS</th></tr></thead>
+            <tbody>${mine.map(x => `<tr class="${x.diff === 'ok' ? '' : 'mis'}">
+              <td class="c num">${expTxt(x.exp_month, x.exp_year)}</td>
+              ${cell(x[k + '_krt'])}${cell(x[k + '_pak'])}${cell(x[k + '_pcs'])}
+              <td class="${x.diff === 'ok' ? '' : 'bad'}" style="white-space:nowrap">${x.diff === 'ok' ? 'Sama' : 'Beda'}</td>
+            </tr>`).join('') || '<tr><td colspan="5" class="empty">Tim kamu belum input barang ini.</td></tr>'}</tbody>
+          </table>
+        </div>
+        <p style="color:var(--muted);font-size:13.5px;margin:10px 2px 0">Kolom di atas hasil hitung Tim ${me}. ${other ? `Ada ${other} batch expire date di tim lain yang tidak ada di hitungan kamu. ` : ''}Hitung ulang fisik barang ini, angka tim lain tidak ditampilkan.</p>`
+        : '<p style="color:var(--muted);font-size:14px">Pilih tim dulu untuk melihat hasil hitung tim kamu. Angka tim lain tidak ditampilkan.</p>'}`;
+      return;
+    }
     const ket = x => x.diff === 'ok' ? 'Sama' : x.diff === 'qty' ? 'Qty beda' : x.diff === 'only_a' ? 'Exp hanya di Tim A' : 'Exp hanya di Tim B';
     $('dvBody').innerHTML = `
       <div class="dsum">${hasExp ? '<span>Expire date beda</span>' : ''}${hasQty ? '<span>Qty beda</span>' : ''}${!hasExp && !hasQty ? '<span style="background:var(--ok-soft);color:var(--ok)">Sudah sama</span>' : ''}</div>
@@ -1817,6 +1946,27 @@ $('pvClose').addEventListener('click', () => { $('photoView').classList.add('hid
 function goMode(push = true){
   show('mode', push);
   $('whoami2').textContent = S.label;
+  loadDupBarcodes();
+}
+/* barang yang punya lebih dari 1 barcode (aturan: 1 barang = 1 barcode) */
+async function loadDupBarcodes(){
+  const box = $('dupBox');
+  try{
+    const r = await rpc('get_dup_barcodes') || [];
+    if(!r.length){ box.classList.add('hidden'); return; }
+    $('dupTitle').textContent = `⚠ Barang dengan lebih dari 1 barcode (${r.length})`;
+    $('dupList').innerHTML = r.map(x => `<div class="duprow">
+      <div class="name">${esc(x.name || x.sku)}</div>
+      <div class="sub">${esc(x.sku)}${x.divisi ? ' · ' + esc(x.divisi) : ''}</div>
+      <div class="bclist">${(x.barcodes || []).map(b => `<span class="bcchip">▮ ${esc(b.barcode)}${b.created_by ? ` <small>${esc(b.created_by)}</small>` : ''}${isFullAccess() ? `<button data-bc="${esc(b.barcode)}" data-nm="${esc(x.name || x.sku)}" aria-label="Hapus barcode" title="Hapus barcode">✕</button>` : ''}</span>`).join('')}</div>
+    </div>`).join('');
+    $('dupList').querySelectorAll('[data-bc]').forEach(b => b.addEventListener('click', async () => {
+      if(!confirm(`Hapus barcode ${b.dataset.bc} dari ${b.dataset.nm}?`)) return;
+      try{ await rpc('delete_barcode', { p_barcode: b.dataset.bc }); toast('Barcode dihapus'); loadDupBarcodes(); }
+      catch(e){ toast(e.message, true); }
+    }));
+    box.classList.remove('hidden');
+  }catch(e){ box.classList.add('hidden'); }
 }
 $('btnModeB').addEventListener('click', () => goHome(true));
 $('btnModeH').addEventListener('click', () => { S.mode = 'harian'; openDCal(true); });
@@ -1943,7 +2093,7 @@ function renderDProd(){
     return `<button class="row${bad ? ' selisih' : ''}${S.daily.editable ? '' : ' locked'}" data-c="${esc(p.product_code)}">
       <span class="tick ${p.batch_count > 0 ? '' : 'zero'}">${p.batch_count > 0 ? '✓' + (p.batch_count > 1 ? ' ' + p.batch_count : '') : ''}</span>
       <div class="main"><div class="name">${esc(p.product_name)}</div><div class="sub">${esc(p.product_code)}${p.divisi ? ' · ' + esc(p.divisi) : ''}${fis ? `<br>Fisik: <b>${fis}</b>` : ''}${bad ? '<span class="stag">SELISIH</span>' : ''}</div></div>
-      <div class="sys num"><b>${s.a}</b>${s.b}</div>
+      ${canSeeSystem() ? `<div class="sys num"><b>${s.a}</b>${s.b}</div>` : ''}
     </button>`;
   }).join('');
   $('dProdList').querySelectorAll('.row').forEach(el => el.addEventListener('click', () => {
