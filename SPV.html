@@ -56,6 +56,7 @@ button{cursor:pointer;border:0;background:none}
   display:grid;place-items:center;flex-shrink:0;
 }
 .btn-x svg{width:22px;height:22px}
+[hidden]{display:none!important}
 .btn-back{
   display:flex;align-items:center;gap:6px;height:44px;padding:0 14px 0 10px;border-radius:12px;
   background:var(--mist);color:var(--sea);font-weight:700;flex-shrink:0;
@@ -72,6 +73,74 @@ button{cursor:pointer;border:0;background:none}
 .ann img{display:block;width:100%;height:auto;margin-top:12px;border-radius:14px;border:1px solid var(--line);cursor:zoom-in}
 .ann .body{margin-top:10px;white-space:pre-wrap;word-wrap:break-word}
 .empty{padding:48px 0;color:var(--muted);text-align:center}
+
+/* ---------- Piutang alert ---------- */
+.pa{padding:18px 0 4px;border-top:2px solid var(--sea)}
+.pa h3{font-size:1.1rem;font-weight:800;color:var(--sea)}
+.pa-sum{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 10px}
+.pa-chip{padding:6px 10px;border-radius:999px;border:1.5px solid var(--line);font-size:.8rem;font-weight:700;background:var(--white)}
+.pa-chip.on{background:var(--sea);border-color:var(--sea);color:var(--white)}
+.pa-chip .d{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:1px}
+.pa-cust{margin-top:10px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.pa-cust .cn{padding:7px 10px;background:var(--mist);font-weight:700;font-size:.86rem;line-height:1.3;display:flex;gap:6px;align-items:baseline}
+.pa-cust .cn small{margin-left:auto;color:var(--muted);font-weight:600;white-space:nowrap}
+.pa-br{font-size:.66rem;font-weight:800;padding:1px 5px;border-radius:4px;color:#111;flex-shrink:0}
+.pa-br.DAF{background:#86efac}.pa-br.ABP{background:#93c5fd}.pa-br.KSI{background:#fdba74}
+.pa-t{width:100%;border-collapse:collapse;font-size:.75rem;table-layout:fixed}
+.pa-t td{padding:5px 6px;border-top:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pa-t .inv{font-family:ui-monospace,Menlo,Consolas,monospace;width:31%}
+.pa-t .sm{width:23%;color:var(--muted)}
+.pa-t .ss{width:20%;text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.pa-t .um{width:10%;text-align:right;font-variant-numeric:tabular-nums}
+.pa-t .st{width:16%;text-align:center}
+.pa-b{display:inline-block;font-size:.62rem;font-weight:800;padding:2px 5px;border-radius:4px}
+.pa-b.U{background:#F8D9D5;color:var(--red)}.pa-b.W{background:#FBEBC6;color:#8A5A00}
+.pa-rng{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:6px 0 2px;font-size:.8rem;color:var(--muted)}
+.pa-rng input{height:34px;border:1.5px solid var(--line);border-radius:8px;padding:0 6px;font-size:.8rem;background:var(--white);max-width:140px}
+.pa-rng button{height:34px;padding:0 12px;border-radius:8px;background:var(--sea);color:var(--white);font-weight:700;font-size:.8rem}
+.pa-t tr.U .um{color:var(--red);font-weight:700}.pa-t tr.W .um{color:#8A5A00;font-weight:700}
+
+
+/* ---------- Ack & absensi ---------- */
+.ack-foot{position:sticky;bottom:0;z-index:2;background:var(--white);border-top:1.5px solid var(--line);padding:12px var(--pad) calc(12px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px}
+.ack-chk{display:flex;gap:10px;align-items:flex-start;font-weight:700;font-size:.92rem;line-height:1.35;color:var(--sea-ink)}
+.ack-chk.lock{opacity:.45}
+.ack-chk input{width:24px;height:24px;flex-shrink:0;accent-color:var(--sea);margin-top:1px}
+.ab-wrap{overflow-x:auto;margin-top:14px}
+.ab{border-collapse:separate;border-spacing:0;font-size:.7rem}
+.ab th,.ab td{width:24px;min-width:24px;height:28px;text-align:center;border-bottom:1px solid var(--line);padding:0}
+.ab th{font-weight:700;color:var(--muted);line-height:1.1}
+.ab th.sun{color:#c9c9c9}
+.ab .lb{position:sticky;left:0;background:var(--white);text-align:left;min-width:96px;width:96px;padding:0 6px;font-weight:700;font-size:.75rem;border-right:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ab td.ok{color:#1F8A4C;font-weight:800}
+.ab td.no{color:var(--red);font-weight:800;background:#FBEAE7}
+.ab td.sun{color:#c9c9c9}
+.ab-miss{margin-top:16px;display:flex;flex-direction:column;gap:10px}
+.ab-miss div{font-size:.85rem;line-height:1.4}
+.ab-miss b{color:var(--sea)}
+.ab-miss .bad{color:var(--red);font-weight:700}
+.ab-miss .good{color:#1F8A4C;font-weight:700}
+
+
+/* ---------- Cek harian ---------- */
+.tile{position:relative}
+.tile .ck-badge{position:absolute;top:12px;right:12px;font-size:.68rem;font-weight:800;padding:3px 7px;border-radius:999px;line-height:1.2}
+.tile .ck-badge.no{background:#F8D9D5;color:var(--red)}
+.tile .ck-badge.ok{background:#D4F0DF;color:#1F8A4C}
+.ck-prog{margin-top:18px;padding:12px 14px;border-radius:14px;background:var(--white);border:1.5px solid var(--line);font-size:.85rem}
+.ck-prog b{color:var(--sea);font-size:1rem}
+.ck-prog.done{border-color:#1F8A4C}
+.ck-prog .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.ck-prog .chips span{padding:3px 9px;border-radius:999px;font-weight:700;font-size:.75rem}
+.ck-prog .chips .ok{background:#D4F0DF;color:#1F8A4C}
+.ck-prog .chips .no{background:#F8D9D5;color:var(--red)}
+.ck-hint{font-size:.78rem;color:var(--muted);text-align:center}
+.ck-list{margin-top:8px;display:flex;flex-direction:column;gap:4px}
+.ck-row{display:flex;justify-content:space-between;align-items:center;font-weight:600}
+.ck-n{padding:2px 9px;border-radius:999px;font-weight:800;font-size:.75rem}
+.ck-n.ok{background:#D4F0DF;color:#1F8A4C}.ck-n.part{background:#FBEBC6;color:#8A5A00}.ck-n.no{background:#F8D9D5;color:var(--red)}
+.ck-open{margin-top:10px;color:var(--sea);font-weight:700;text-decoration:underline;padding:4px 0}
+.ab td.part{color:#8A5A00;font-weight:800;background:#FBEBC6}
 
 /* ---------- Home ---------- */
 #home{padding:28px var(--pad) 24px}
@@ -262,6 +331,25 @@ select{height:52px;border-radius:12px;border:1.5px solid var(--line);background:
     </button>
   </div>
   <div class="ann-list" id="annList"></div>
+  <div class="ack-foot" id="annFoot">
+    <label class="ack-chk" id="ackLbl"><input type="checkbox" id="ackChk" disabled> Saya sudah review nota piutang ini dan akan follow up penagihan.</label>
+    <div class="ck-hint" id="ackHint"></div>
+    <button class="btn-main" id="ackBtn" disabled>Lanjut ke Menu</button>
+  </div>
+</section>
+
+<!-- ABSENSI BACA PIUTANG (Full Access) -->
+<section id="absen" class="screen page">
+  <div class="bar">
+    <button class="btn-back" data-back aria-label="Kembali ke menu utama">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>Menu
+    </button>
+    <h2>Absensi cek harian</h2>
+  </div>
+  <div class="page-body">
+    <div class="ctl"><select id="abBulan"></select></div>
+    <div id="abResult"></div>
+  </div>
 </section>
 
 <!-- HOME / MAIN MENU -->
@@ -273,10 +361,12 @@ select{height:52px;border-radius:12px;border:1.5px solid var(--line);background:
     </div>
     <button class="btn-ghost" id="logoutBtn">Keluar</button>
   </div>
+  <div class="ck-prog" id="ckProg" hidden></div>
   <div class="grid" id="menuGrid"></div>
   <div class="home-foot">
     <button class="link-btn" id="reopenAnn">Lihat pengumuman lagi</button>
     <button class="link-btn" id="adminBtn" hidden>Kelola pengumuman</button>
+    <button class="link-btn" id="absenBtn" hidden>Absensi cek harian</button>
   </div>
 </section>
 
@@ -462,22 +552,30 @@ $('loginForm').addEventListener('submit', async e => {
 });
 
 function logout(){
-  PIN = ''; LABEL = ''; annLoaded = null; CP_GROUPS = null; OA_CUST = null;
+  PIN = ''; LABEL = ''; annLoaded = null; paLoaded = null; ckToday = {}; CP_GROUPS = null; OA_CUST = null;
   if (inSubPage){ inSubPage = false; history.back(); }
   show('login');
 }
-$('logoutBtn').onclick = logout;
+$('logoutBtn').onclick = () => {
+  const miss = needCheck() ? ckMissing() : [];
+  if (miss.length && !confirm('Masih ada yang belum dicek hari ini: ' + miss.map(x => x[1]).join(', ') + '.\nTetap keluar?')) return;
+  logout();
+};
 
 /* ================= ANNOUNCEMENTS ================= */
 async function openAnnouncements(fresh){
   const list = $('annList');
   show('announce');
+  $('closeAnn').hidden = !annFree();                // selain label CHECK_EXEMPT wajib centang
+  $('annFoot').hidden = annFree();
+  $('ackChk').checked = false; $('ackBtn').disabled = true; lockAck();
   if (fresh || !annLoaded){
     list.innerHTML = '<div class="empty">Memuat…</div>';
+    paLoaded = null;
     try{ annLoaded = await rpc('get_active_announcements') || []; }
     catch(err){ list.innerHTML = '<div class="empty">Gagal memuat pengumuman. ' + esc(err.message) + '</div>'; return; }
   }
-  list.innerHTML = annLoaded.length
+  list.innerHTML = (annLoaded.length
     ? annLoaded.map(a => {
         const img = safeImg(a.image);
         return `
@@ -488,10 +586,296 @@ async function openAnnouncements(fresh){
           ${a.body ? `<div class="body">${esc(a.body)}</div>` : ''}
         </article>`;
       }).join('')
-    : '<div class="empty">Tidak ada pengumuman saat ini.</div>';
-  $('closeAnn').focus();
+    : '<div class="empty">Tidak ada pengumuman saat ini.</div>') + '<section class="pa" id="paBox"><h3>Piutang Urgent &amp; Warning</h3><div class="empty">Memuat…</div></section>';
+  loadPiutangAlert();
 }
-$('closeAnn').onclick = () => openHome();
+
+/* ================= PIUTANG ALERT (otomatis) ================= */
+// nama toko tanpa (CSTxxx); kunci gabung: abaikan tanda baca, spasi & huruf besar/kecil
+const tokoNama = c => String(c || '').replace(/\s*\(\s*CST[^)]*\)\s*/gi, ' ').replace(/\s+/g, ' ').trim();
+const tokoKey  = c => tokoNama(c).toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim();
+let paLoaded = null, paFilter = '', paRange = { from: '', to: '' };
+const BLN_S = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+const ymTxt = ym => { const m = /^(\d{4})-(\d{2})$/.exec(ym || ''); return m ? BLN_S[+m[2] - 1] + ' ' + m[1] : ''; };
+function paDate(v){
+  if (!v) return null;
+  const s = String(v).trim();
+  let m = s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})$/);
+  if (m){ let [, d, mo, y] = m.map(Number); if (y < 100) y += 2000; return new Date(y, mo - 1, d); }
+  m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+  const d = new Date(s); return isNaN(d) ? null : new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+async function loadPiutangAlert(){
+  const box = $('paBox'); if (!box) return;
+  if (!paLoaded){
+    try{
+      const [rows, sms, rng] = await Promise.all([
+        rpc('get_piutang_alert'),
+        seesAll() ? Promise.resolve(null) : rpc('get_portal_salesmen'),
+        rpc('get_piutang_alert_range')
+      ]);
+      const rg = (typeof rng === 'string' ? JSON.parse(rng) : rng) || {};
+      paRange = { from: rg.from_ym || '', to: rg.to_ym || '' };
+      const t = new Date(), t0 = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+      const names = sms ? sms.map(r => String(r.name || '').trim().toUpperCase()).filter(Boolean) : null;
+      paLoaded = (typeof rows === 'string' ? JSON.parse(rows) : (rows || [])).map(r => {
+        const td = paDate(r.tracking_date);
+        const days = td ? Math.round((t0 - td) / 86400000) : null;
+        const idt = paDate(r.print_date) || td;
+        return { ym: idt ? idt.getFullYear() + '-' + String(idt.getMonth() + 1).padStart(2, '0') : '', branch: String(r.branch || '').trim().toUpperCase(), inv: r.invoice_no, cust: r.customer || '', sm: r.salesman || '',
+                 sisa: Number(r.sisa || 0), days, st: days > 60 ? 'U' : days > 32 ? 'W' : '' };
+      }).filter(r => r.st && (!names || names.some(n => r.sm.toUpperCase().includes(n))));
+    }catch(err){ box.innerHTML = '<h3>Piutang Urgent &amp; Warning</h3><div class="empty">Gagal memuat: ' + esc(err.message) + '</div>'; return; }
+  }
+  renderPiutangAlert();
+}
+function renderPiutangAlert(){
+  const box = $('paBox'); if (!box || !paLoaded) return;
+  const all = paVisible();
+  const u = all.filter(r => r.st === 'U'), w = all.filter(r => r.st === 'W');
+  const list = paFilter ? all.filter(r => r.st === paFilter) : all;
+  const sum = a => a.reduce((x, r) => x + r.sisa, 0);
+  const groups = new Map();
+  list.forEach(r => { const k = tokoKey(r.cust); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); });
+  const gs = [...groups.values()].map(g => g.sort((a, b) => b.days - a.days))
+    .sort((a, b) => b[0].days - a[0].days || sum(b) - sum(a));
+  const chip = (f, label, n, dot) => `<button class="pa-chip ${paFilter === f ? 'on' : ''}" data-pf="${f}">${dot ? `<span class="d" style="background:${dot}"></span>` : ''}${label} ${n}</button>`;
+  const rngTxt = paRange.from || paRange.to ? `Invoice ${ymTxt(paRange.from) || 'awal'} – ${ymTxt(paRange.to) || 'sekarang'}` : 'Invoice semua bulan';
+  box.innerHTML = `<h3>Piutang Urgent &amp; Warning</h3>
+    ${isFull()
+      ? `<div class="pa-rng">Bulan invoice <input type="month" id="paFrom" value="${esc(paRange.from)}"> s/d <input type="month" id="paTo" value="${esc(paRange.to)}"><button id="paSave">Simpan</button></div>
+         <div style="font-size:.72rem;color:var(--muted)">Kosongkan untuk semua bulan. Berlaku untuk semua SPV.</div>`
+      : `<div style="font-size:.8rem;color:var(--muted);margin-top:2px">${rngTxt}</div>`}
+    <div class="pa-sum">${chip('', 'Semua', all.length)}${chip('U', 'Urgent', u.length, 'var(--red)')}${chip('W', 'Warning', w.length, 'var(--ochre)')}</div>
+    <div style="font-size:.8rem;color:var(--muted)">Total sisa <b style="color:var(--ink)">Rp ${fmtRp(sum(list))}</b> · ${gs.length} customer</div>
+    ${gs.length ? gs.map(g => `
+      <div class="pa-cust">
+        <div class="cn"><span>${esc(tokoNama(g[0].cust))}</span><small>${fmtRp(sum(g))}</small></div>
+        <table class="pa-t"><tbody>${g.map(r => `
+          <tr class="${r.st}"><td class="inv">${esc(r.inv)}</td><td class="sm">${esc(r.sm)}</td><td class="ss">${fmtRp(r.sisa)}</td>
+          <td class="um">${r.days}d</td><td class="st"><span class="pa-b ${r.st}">${r.st === 'U' ? 'URGENT' : 'WARNING'}</span></td></tr>`).join('')}
+        </tbody></table>
+      </div>`).join('') : '<div class="empty">Tidak ada faktur urgent / warning.</div>'}`;
+  box.querySelectorAll('[data-pf]').forEach(b => b.onclick = () => { paFilter = b.dataset.pf; renderPiutangAlert(); });
+  const sv = $('paSave');
+  if (sv) sv.onclick = async () => {
+    const f = $('paFrom').value, t = $('paTo').value;
+    if (f && t && f > t){ toast('Bulan awal lebih besar dari bulan akhir.'); return; }
+    sv.disabled = true;
+    try{ await rpc('set_piutang_alert_range', { p_from_ym: f || null, p_to_ym: t || null }); paRange = { from: f, to: t }; toast('Rentang bulan disimpan.'); renderPiutangAlert(); }
+    catch(err){ toast(err.message || 'Gagal simpan.'); sv.disabled = false; }
+  };
+}
+$('closeAnn').onclick = () => { if (annFree()) openHome(); };
+/* ================= ACK pengumuman piutang ================= */
+function paVisible(){
+  return (paLoaded || []).filter(r => (!paRange.from || (r.ym && r.ym >= paRange.from)) && (!paRange.to || (r.ym && r.ym <= paRange.to)));
+}
+$('ackChk').onchange = () => { $('ackBtn').disabled = !$('ackChk').checked; };
+// centang baru bisa setelah daftar piutang selesai dimuat & di-scroll sampai bawah
+let ackWatch = null;
+function lockAck(){
+  clearInterval(ackWatch);
+  const chk = $('ackChk');
+  const paint = () => {
+    const loaded = !!paLoaded || /gagal memuat/i.test(($('paBox') || {}).textContent || '');
+    const doc = document.documentElement;
+    const bottom = window.innerHeight + window.scrollY >= doc.scrollHeight - 40;
+    const ok = loaded && bottom;
+    if (ok){ chk.disabled = false; $('ackLbl').classList.remove('lock'); $('ackHint').textContent = ''; clearInterval(ackWatch); return; }
+    chk.disabled = true; $('ackLbl').classList.add('lock');
+    $('ackHint').textContent = loaded ? 'Scroll sampai bawah daftar piutang untuk bisa centang.' : 'Memuat daftar piutang…';
+  };
+  paint();
+  ackWatch = setInterval(() => { if (!$('announce').classList.contains('on')) return clearInterval(ackWatch); paint(); }, 300);
+}
+$('ackBtn').onclick = async () => {
+  if (!$('ackChk').checked) return;
+  const btn = $('ackBtn'); btn.disabled = true; btn.textContent = 'Menyimpan…';
+  try{
+    const v = paVisible();
+    await rpc('ack_piutang_alert', {
+      p_label: LABEL,
+      p_urgent: v.filter(r => r.st === 'U').length,
+      p_warning: v.filter(r => r.st === 'W').length,
+      p_sisa: Math.round(v.reduce((a, r) => a + r.sisa, 0))
+    });
+    ckToday.ann = ckToday.ann || new Date().toISOString();
+    openHome();
+  }catch(err){ toast('Gagal simpan: ' + (err.message || err)); btn.disabled = false; }
+  finally{ btn.textContent = 'Lanjut ke Menu'; }
+};
+
+
+/* ================= CEK HARIAN (Pengumuman, Sales, OA, EC) ================= */
+const CHECK_ITEMS = [['ann', 'Pengumuman'], ['sales', 'Sales'], ['oa', 'OA'], ['ec', 'EC harian']];
+const CHECK_NAME = Object.fromEntries(CHECK_ITEMS);
+const CHECK_EXEMPT = ['FULL ACCESS', 'SPV PHILIPS'];   // label yang tidak wajib cek harian
+const isExempt = l => CHECK_EXEMPT.includes(normLabel(l));
+const needCheck = () => !isExempt(LABEL);
+function annFree(){ return isExempt(LABEL); }   // Full Access & SPV PHILIPS: pengumuman bisa ditutup X tanpa centang
+let ckToday = {};                       // item -> first_at
+const jamOf = ts => { try{ return new Date(ts).toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }); }catch(e){ return ''; } };
+async function loadCheckToday(){
+  try{
+    let r = await rpc('get_daily_check_today', { p_label: LABEL });
+    if (typeof r === 'string') r = JSON.parse(r);
+    ckToday = {}; (r || []).forEach(x => { ckToday[x.item] = x.first_at; });
+  }catch(e){ /* biarkan tampil belum cek */ }
+  renderCheckHome();
+}
+function ckMissing(){ return CHECK_ITEMS.filter(([k]) => !ckToday[k]); }
+function renderCheckHome(){
+  const box = $('ckProg');
+  document.querySelectorAll('#menuGrid .tile').forEach(t => {
+    t.querySelector('.ck-badge')?.remove();
+    const k = t.dataset.key; if (!needCheck() || !CHECK_NAME[k]) return;
+    t.insertAdjacentHTML('beforeend', ckToday[k]
+      ? `<span class="ck-badge ok">✓ Dicek ${jamOf(ckToday[k]).replace('.', ':')}</span>` : '<span class="ck-badge no">Belum cek</span>');
+  });
+  if (!needCheck()){ if (isFull()) renderCheckAdmin(); else box.hidden = true; return; }
+  const done = CHECK_ITEMS.length - ckMissing().length;
+  box.hidden = false;
+  box.className = 'ck-prog' + (done === CHECK_ITEMS.length ? ' done' : '');
+  box.innerHTML = `Cek harian <b>${done}/${CHECK_ITEMS.length}</b>${done === CHECK_ITEMS.length ? ' · lengkap ✓' : ''}
+    <div class="chips">${CHECK_ITEMS.map(([k, n]) => `<span class="${ckToday[k] ? 'ok' : 'no'}">${ckToday[k] ? '✓' : '✗'} ${n}</span>`).join('')}</div>`;
+}
+
+// Full Access: ringkasan cek harian semua PIN hari ini
+let ckAdmin = null;
+async function renderCheckAdmin(){
+  const box = $('ckProg');
+  box.hidden = false; box.className = 'ck-prog';
+  const draw = () => {
+    const rows = ckAdmin ? ckAdmin.labels.map(lb => {
+      const got = CHECK_ITEMS.filter(([k]) => ckAdmin.set.has(lb + '|' + k));
+      const cls = got.length === CHECK_ITEMS.length ? 'ok' : got.length ? 'part' : 'no';
+      return `<div class="ck-row"><span>${esc(lb)}</span><span class="ck-n ${cls}">${got.length}/${CHECK_ITEMS.length}</span></div>`;
+    }).join('') : '<div class="ck-hint" style="text-align:left">Memuat…</div>';
+    box.innerHTML = `Cek harian hari ini <b>(semua PIN)</b>
+      <div class="ck-list">${rows || '<div class="ck-hint" style="text-align:left">Belum ada data.</div>'}</div>
+      <button class="ck-open" id="ckOpenAbsen">Lihat absensi lengkap →</button>`;
+    $('ckOpenAbsen').onclick = openAbsen;
+  };
+  draw();
+  try{
+    const t = new Date();
+    let r = await rpc('get_piutang_ack_report', { p_year: t.getFullYear(), p_month: t.getMonth() + 1 });
+    if (typeof r === 'string') r = JSON.parse(r);
+    const iso = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+    ckAdmin = { labels: ((r && r.labels) || []).filter(l => !isExempt(l)), set: new Set(((r && r.acks) || []).filter(a => a.tgl === iso).map(a => a.label + '|' + (a.item || 'ann'))) };
+  }catch(e){ ckAdmin = { labels: [], set: new Set() }; }
+  if ($('home').classList.contains('on')) draw();
+}
+
+// tombol "Sudah cek" di halaman Sales / OA / EC: aktif setelah data dimuat & scroll sampai bawah
+let ckWatch = null;
+const OA_FREE_LABELS = ['HEAD SALES'];   // OA: tidak wajib baca semua halaman / scroll sampai bawah
+function pageReady(key){
+  const body = $('body-' + key); if (!body) return false;
+  if ([...body.querySelectorAll('.empty')].some(e => /memuat/i.test(e.textContent))) return false;
+  if (!body.querySelector('table, .sum')) return false;                  // data belum tampil
+  const doc = document.documentElement;
+  const bottom = window.innerHeight + window.scrollY >= doc.scrollHeight - 60;
+  if (key === 'oa'){
+    if (OA_FREE_LABELS.includes(normLabel(LABEL))) return true;   // cukup data tampil
+    if (bottom && oaFull) oaRead.add(oaPage);
+    return oaReadState().done && bottom;
+  }
+  return bottom;
+}
+function setupPageCheck(key){
+  clearInterval(ckWatch);
+  const foot = $('ckFoot-' + key); if (!foot) return;
+  if (!needCheck()){ foot.hidden = true; return; }
+  foot.hidden = false;
+  const btn = foot.querySelector('button'), hint = foot.querySelector('.ck-hint');
+  const paint = () => {
+    if (ckToday[key]){ btn.disabled = true; btn.textContent = `✓ Sudah cek ${CHECK_NAME[key]} (${jamOf(ckToday[key])})`; hint.textContent = ''; return true; }
+    btn.textContent = `✓ Sudah cek ${CHECK_NAME[key]} hari ini`;
+    const ok = pageReady(key);
+    btn.disabled = !ok;
+    if (key === 'oa' && !ok){
+      const st = oaReadState();
+      hint.textContent = !st.full ? 'Kosongkan pencarian & filter "Hanya customer yang belanja" untuk menghitung halaman.'
+        : st.done ? 'Scroll sampai bawah.'
+        : `Baca semua halaman sampai bawah: ${st.read}/${st.pages} halaman.`;
+    } else hint.textContent = ok ? '' : 'Tunggu data selesai dimuat dan scroll sampai bawah.';
+    return false;
+  };
+  if (paint()) return;
+  ckWatch = setInterval(() => { if (!$('page-' + key).classList.contains('on') || paint()) clearInterval(ckWatch); }, 400);
+  btn.onclick = async () => {
+    btn.disabled = true;
+    try{
+      let r = await rpc('save_daily_check', { p_label: LABEL, p_item: key });
+      if (typeof r === 'string') r = JSON.parse(r);
+      ckToday[key] = (r && r.first_at) || new Date().toISOString();
+      paint(); renderCheckHome(); toast(CHECK_NAME[key] + ' tercatat sudah dicek.');
+    }catch(err){ toast('Gagal simpan: ' + (err.message || err)); btn.disabled = false; }
+  };
+}
+
+/* ================= ABSENSI cek harian (Full Access) ================= */
+const HARI_S = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+function openAbsen(){
+  const sel = $('abBulan');
+  if (!sel.options.length){
+    const t = new Date();
+    for (let i = 0; i < 12; i++){
+      const d = new Date(t.getFullYear(), t.getMonth() - i, 1);
+      const o = document.createElement('option');
+      o.value = d.getFullYear() + '-' + (d.getMonth() + 1);
+      o.textContent = BULAN[d.getMonth()] + ' ' + d.getFullYear();
+      sel.appendChild(o);
+    }
+    sel.onchange = absenLoad;
+  }
+  enterSubPage('absen');
+  absenLoad();
+}
+async function absenLoad(){
+  const [y, m] = $('abBulan').value.split('-').map(Number);
+  const box = $('abResult');
+  box.innerHTML = '<div class="empty">Memuat…</div>';
+  let res;
+  try{ res = await rpc('get_piutang_ack_report', { p_year: y, p_month: m }); if (typeof res === 'string') res = JSON.parse(res); }
+  catch(err){ box.innerHTML = '<div class="empty">' + esc(err.message) + '</div>'; return; }
+  const labels = ((res && res.labels) || []).filter(l => !isExempt(l)), acks = (res && res.acks) || [];
+  if (!labels.length){ box.innerHTML = '<div class="empty">Belum ada data.</div>'; return; }
+  const ack = new Map(acks.map(a => [a.label + '|' + a.tgl + '|' + (a.item || 'ann'), a]));
+  const max = new Date(y, m, 0).getDate();
+  const t = new Date(), today = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+  const days = Array.from({ length: max }, (_, i) => {
+    const d = new Date(y, m - 1, i + 1);
+    return { n: i + 1, d, iso: `${y}-${String(m).padStart(2,'0')}-${String(i + 1).padStart(2,'0')}`, sun: d.getDay() === 0, future: d > today };
+  });
+  const head = `<tr><th class="lb">PIN</th>${days.map(x => `<th class="${x.sun ? 'sun' : ''}">${HARI_S[x.d.getDay()].slice(0,2)}<br>${x.n}</th>`).join('')}</tr>`;
+  const body = labels.map(lb => `<tr><td class="lb">${esc(lb)}</td>${days.map(x => {
+    if (x.future) return '<td></td>';
+    const got = CHECK_ITEMS.map(([k, n]) => ({ k, n, a: ack.get(lb + '|' + x.iso + '|' + k) }));
+    const done = got.filter(g => g.a);
+    const tip = `${lb} · ${HARI_S[x.d.getDay()]} ${x.n} ${BULAN[m-1]}\n` + got.map(g => (g.a ? '✓ ' : '✗ ') + g.n + (g.a ? ' ' + jamOf(g.a.first_at) : '')).join('\n');
+    if (done.length === CHECK_ITEMS.length) return `<td class="ok" data-tip="${esc(tip)}">✓</td>`;
+    if (done.length) return `<td class="part" data-tip="${esc(tip)}">${done.length}</td>`;
+    if (x.sun) return '<td class="sun">·</td>';
+    return `<td class="no" data-tip="${esc(tip)}">✗</td>`;
+  }).join('')}</tr>`).join('');
+  const miss = labels.map(lb => {
+    const parts = CHECK_ITEMS.map(([k, n]) => {
+      const md = days.filter(x => !x.future && !x.sun && !ack.has(lb + '|' + x.iso + '|' + k));
+      return md.length ? `<span class="bad">${n}: ${md.length} hari</span> (${md.map(x => HARI_S[x.d.getDay()] + ' ' + x.n).join(', ')})` : `<span class="good">${n}: lengkap</span>`;
+    });
+    return `<div><b>${esc(lb)}</b><br>${parts.join('<br>')}</div>`;
+  }).join('');
+  box.innerHTML = `<div style="font-size:.78rem;color:var(--muted);margin-top:10px">✓ semua dicek · angka = jumlah yang dicek (dari ${CHECK_ITEMS.length}) · ✗ tidak cek sama sekali · ketuk sel untuk detail</div>
+    <div class="ab-wrap"><table class="ab"><thead>${head}</thead><tbody>${body}</tbody></table></div>
+    <div class="ab-miss">${miss}</div>`;
+  box.querySelectorAll('td[data-tip]').forEach(td => td.onclick = () => alert(td.dataset.tip));
+}
+$('absenBtn').onclick = openAbsen;
+
 $('reopenAnn').onclick = () => openAnnouncements(false);
 
 /* Lightbox */
@@ -506,7 +890,9 @@ $('lightbox').addEventListener('click', e => { if (e.target.id === 'lightbox') $
 function openHome(){
   $('whoami').textContent = LABEL ? 'Masuk sebagai ' + LABEL : '';
   $('adminBtn').hidden = normLabel(LABEL) !== normLabel(FULL_ACCESS_LABEL);
+  $('absenBtn').hidden = normLabel(LABEL) !== normLabel(FULL_ACCESS_LABEL);
   show('home');
+  renderCheckHome(); if (needCheck()) loadCheckToday();
 }
 
 $('menuGrid').innerHTML = MENU.map(m => `
@@ -524,6 +910,7 @@ $('pages').innerHTML = MENU.map(m => `
     <div class="page-body" id="body-${m.key}">
       <div class="empty">Halaman ${esc(m.name)} belum ada isinya.</div>
     </div>
+    ${CHECK_NAME[m.key] ? `<div class="ack-foot" id="ckFoot-${m.key}" hidden><button class="btn-main" disabled></button><div class="ck-hint"></div></div>` : ''}
   </section>`).join('');
 
 $('menuGrid').addEventListener('click', e => {
@@ -538,6 +925,15 @@ const fmtJt  = n => (Number(n || 0) / 1000000).toFixed(1);
 const fmtRp  = n => Number(n || 0).toLocaleString('id-ID', { maximumFractionDigits: 0 });
 let CP_GROUPS = null;                 // [{code, name, urut}]
 const cpCodes = () => (CP_GROUPS || []).map(g => g.code);
+// menu Sales: grup yang boleh dilihat per label (cocok ke kode atau nama grup, abaikan spasi/huruf)
+const SALES_GROUPS = { 'HEAD SALES': ['ARTASPM', 'PERFETTI', 'PHILIPS', 'CP1', 'CP2'] };
+const grpNorm = x => String(x || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+const salesCps = () => {
+  const allow = SALES_GROUPS[normLabel(LABEL)];
+  if (!allow) return cpCodes();
+  const set = new Set(allow.map(grpNorm));
+  return (CP_GROUPS || []).filter(g => set.has(grpNorm(g.code)) || set.has(grpNorm(g.name))).map(g => g.code);
+};
 const cpName  = code => ((CP_GROUPS || []).find(g => g.code === code) || {}).name || code;
 async function ensureGroups(force){
   if (!CP_GROUPS || force) CP_GROUPS = await rpc('get_cp_groups') || [];
@@ -615,7 +1011,7 @@ async function salesLoad(){
   const cell = {};
   data.forEach(r => { cell[r.cp + '|' + r.salesman + '|' + r.divisi] = r; });
 
-  const html = cpCodes().map(cp => {
+  const html = salesCps().map(cp => {
     const sms = smRows.filter(r => r.cp === cp).map(r => r.name);
     if (!sms.length) return '';
     const dvs = dvRows.filter(r => r.cp === cp).map(r => r.name);
@@ -829,12 +1225,21 @@ function oaFiltered(){
   );
 }
 
+// OA: halaman dianggap dibaca jika di-scroll sampai bawah (tanpa search & filter)
+let oaPages = 1, oaRead = new Set(), oaReadCtx = '', oaFull = true;
+function oaReadState(){
+  return { done: oaFull && oaRead.size >= oaPages, read: oaRead.size, pages: oaPages, full: oaFull };
+}
 function oaRender(){
   const box = $('oaResult');
   if (!oaDivs.length){ box.innerHTML = '<div class="empty">Belum ada divisi untuk grup ini.</div>'; return; }
   const rows = oaFiltered();
   const pages = Math.max(1, Math.ceil(rows.length / OA_PAGE_SIZE));
   if (oaPage > pages) oaPage = pages;
+  oaPages = pages;
+  const ctx = $('oaBulan').value + '|' + $('oaGroup').value;
+  if (oaReadCtx !== ctx){ oaReadCtx = ctx; oaRead.clear(); }
+  oaFull = !$('oaSearch').value.trim() && !$('oaActive').checked;
   const slice = rows.slice((oaPage - 1) * OA_PAGE_SIZE, oaPage * OA_PAGE_SIZE);
   const oaCount = d => rows.reduce((a,c) => a + (oaCells[c.key + '|' + d] ? 1 : 0), 0);
 
@@ -1090,6 +1495,7 @@ const PAGE_LOADERS = {
 };
 async function openPage(key){
   enterSubPage('page-' + key);
+  setupPageCheck(key);
   const fn = PAGE_LOADERS[key];
   if (fn){ try{ await fn($('body-' + key)); }catch(err){ toast(err.message); } }
 }
