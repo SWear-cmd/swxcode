@@ -198,13 +198,16 @@
           <label class="chk"><input type="checkbox" id="ky_jht_yn"> JHT</label>
           <label class="chk"><input type="checkbox" id="ky_bpjs_yn"> BPJS Kes</label>
           <label class="chk"><input type="checkbox" id="ky_kali2"> BPJS Kes 2x</label>
-          <label class="chk"><input type="checkbox" id="ky_absen_sentani"> Absen Sentani (tanpa fingerprint)</label>
+          <label class="chk"><input type="checkbox" id="ky_absen_sentani"> Absen Sentani (mesin finger Sentani)</label>
         </div>
         <div class="full ky-checks" id="ky_payrollOnly" style="display:none">
           <label class="chk"><input type="checkbox" id="ky_dapat_service"> Dapat Service</label>
           <input id="ky_service_amount" type="number" placeholder="Nominal service (kosong = default)">
           <label class="chk"><input type="checkbox" id="ky_dapat_pulsa"> Dapat Pulsa</label>
           <input id="ky_pulsa_amount" type="number" placeholder="Nominal pulsa (kosong = default)">
+          <label class="chk"><input type="checkbox" id="ky_tanpa_uang_makan"> Tanpa Uang Makan</label>
+          <label class="chk"><input type="checkbox" id="ky_tanpa_bensin"> Tanpa Bensin</label>
+          <label class="chk" title="Uang makan, bensin, sarmi, service, pulsa, bonus rit = 0. Potongan tetap berlaku."><input type="checkbox" id="ky_hanya_gapok_tunj"> Hanya Gaji Pokok + Tunjangan</label>
         </div>
         <div class="full ky-checks" id="ky_ktpRow">
           <label class="chk">Foto KTP <input id="ky_ktp" type="file" accept="image/*" onchange="kyPreview(this)"></label>
@@ -582,6 +585,7 @@ async function showAttendanceFull(empId){
     const dt = new Date(x.tanggal+'T00:00:00'), dow = dt.getDay(), rules = x.rules||[];
     let st, cls = '', bg = '';
     if (dow === 0) { st = 'Minggu'; cls = 'muted'; bg = '#f6f8fa'; }
+    else if (_tmOf(empId) && x.tanggal < _tmOf(empId)) { st = 'Belum masuk kerja'; cls = 'muted'; bg = '#f6f8fa'; }
     else if (x.libur) { st = 'Libur: '+acEsc(x.libur); cls = 'muted'; bg = '#f6f8fa'; cnt.libur++; }
     else if (x.cuti) { st = 'Cuti / Ijin'; cls = 'pos'; cnt.hadir++; }
     else if (!x.check_in && !x.check_out) { st = 'Alpha' + (rules.includes('ABSENT') ? '' : ' <span class="muted">(tanpa denda)</span>'); cls = 'neg'; bg = '#fff4f4'; cnt.alpha++; }
@@ -994,13 +998,18 @@ function withBank(r){
   return { ...r, metode_bayar: b.metode_bayar || r.metode_bayar, no_rek: b.no_rek || r.no_rek || '', nama_rek: b.nama_rek || r.nama_rek || '' };
 }
 
+// tanggal masuk karyawan (hari sebelum itu tidak dihitung alpha)
+function _tmOf(id){
+  const e = (typeof kyEmps !== 'undefined' && kyEmps.find(x => x.id === id)) || (typeof employees !== 'undefined' && employees.find(x => x.id === id));
+  return e && e.tanggal_masuk ? String(e.tanggal_masuk).slice(0,10) : '';
+}
 const KY_PAYROLL = false;
 // ---------- DATA KARYAWAN (sama di HRD.html & Payroll.html) ----------
 let kyEmps = [], ktpStatus = {}, kyUploadId = null, kyEditId = null;
 const KY_FIELDS = ['no_fp','nama','nama_lengkap','no_id','cabang','sub_divisi','jabatan','tanggal_masuk','nik','npwp',
   'jenis_kelamin','agama','status_ptkp','metode_bayar','no_rek','nama_rek','alamat'];
 // HRD.html: saat edit, hanya kolom ini yang boleh diubah
-const KY_HRD_EDIT = new Set(['cabang','sub_divisi','jabatan','jenis_kelamin','metode_bayar','no_rek','nama_rek',
+const KY_HRD_EDIT = new Set(['cabang','sub_divisi','jenis_kelamin','metode_bayar','no_rek','nama_rek',
   'aktif_f','jht_yn','bpjs_yn','kali2']);
 
 async function kyReload(){
@@ -1034,7 +1043,7 @@ function renderKaryawan(){
     const j = e.jabatan || '(tanpa jabatan)';
     if (j !== last) { html += `<tr class="ky-grp"><td colspan="19"><span>${acEsc(j)} · ${cnt[j]} orang</span></td></tr>`; last = j; }
     html += `<tr class="${e.aktif !== false ? 'ky-on' : 'ky-off'}">
-    <td class="fz">${acEsc(e.no_id||'-')}</td><td class="fz">${acEsc(e.no_fp||'-')}</td><td class="fz"><b>${acEsc(e.nama)}</b></td><td class="fz fz-last">${acEsc(e.nama_lengkap||'-')}</td>
+    <td class="fz">${acEsc(e.no_id||'-')}</td><td class="fz">${acEsc(e.no_fp||'-')}</td><td class="fz"><b>${acEsc(e.nama)}</b>${e.hanya_gapok_tunj ? ' <span class="pill absent" title="Hanya gaji pokok + tunjangan">gapok+tunj</span>' : `${e.tanpa_uang_makan ? ' <span class="pill absent" title="Tanpa uang makan">no UM</span>' : ''}${e.tanpa_bensin ? ' <span class="pill absent" title="Tanpa bensin">no bensin</span>' : ''}`}</td><td class="fz fz-last">${acEsc(e.nama_lengkap||'-')}</td>
     <td>${acEsc(e.cabang||'')}</td><td>${acEsc(e.sub_divisi||'')}</td><td>${acEsc(e.jabatan||'-')}</td>
     <td>${d(e.tanggal_masuk)}</td><td>${acEsc(e.nik||'-')}</td><td>${kyJK(e.jenis_kelamin) || '-'}</td>
     <td style="max-width:260px;white-space:normal">${acEsc(e.alamat||'-')}</td>
@@ -1121,6 +1130,9 @@ function kyOpen(id){
     document.getElementById('ky_service_amount').value = e && e.service_amount ? e.service_amount : '';
     document.getElementById('ky_dapat_pulsa').checked = e ? !!e.dapat_pulsa : false;
     document.getElementById('ky_pulsa_amount').value = e && e.pulsa_amount ? e.pulsa_amount : '';
+    document.getElementById('ky_tanpa_uang_makan').checked = e ? !!e.tanpa_uang_makan : false;
+    document.getElementById('ky_tanpa_bensin').checked = e ? !!e.tanpa_bensin : false;
+    document.getElementById('ky_hanya_gapok_tunj').checked = e ? !!e.hanya_gapok_tunj : false;
   }
   const k = document.getElementById('ky_ktp'); k.value = ''; kyPreview(k);
   document.getElementById('ky_ktpRow').style.display = e && ktpStatus[e.id] ? 'none' : 'flex';
@@ -1149,6 +1161,9 @@ async function kySave(){
     emp.service_amount = Number(val('ky_service_amount')||0);
     emp.dapat_pulsa = document.getElementById('ky_dapat_pulsa').checked;
     emp.pulsa_amount = Number(val('ky_pulsa_amount')||0);
+    emp.tanpa_uang_makan = document.getElementById('ky_tanpa_uang_makan').checked;
+    emp.tanpa_bensin = document.getElementById('ky_tanpa_bensin').checked;
+    emp.hanya_gapok_tunj = document.getElementById('ky_hanya_gapok_tunj').checked;
   }
   if (!emp.nama || !emp.jabatan) { toast('Nama dan Jabatan wajib diisi'); return; }
   if (!emp.jenis_kelamin) { toast('Jenis Kelamin wajib dipilih'); return; }
@@ -1156,7 +1171,7 @@ async function kySave(){
     if (!emp.nama_lengkap) { toast('Nama lengkap (sesuai KTP) wajib diisi'); return; }
     if (!emp.nik) { toast('NIK wajib diisi'); return; }
   }
-  if (!emp.no_fp && !emp.absen_sentani) { toast('No. FP wajib diisi (kecuali Absen Sentani)'); return; }
+  if (!emp.no_fp && !(!KY_PAYROLL && kyEditId)) { toast('No. FP wajib diisi (Sentani: isi User ID mesin Sentani)'); return; }
   if (!(!KY_PAYROLL && kyEditId) && emp.nik && !/^\d{16}$/.test(emp.nik)) { toast('NIK harus 16 digit angka'); return; }
   if (emp.no_rek) emp.no_rek = emp.no_rek.replace(/\D/g,'');
   if (emp.metode_bayar === 'PAYROLL' && (!emp.no_rek || !emp.nama_rek)) { toast('Metode Payroll: isi No. rekening & Nama rekening'); return; }
@@ -1169,7 +1184,7 @@ async function kySave(){
   }
   // HRD.html: edit hanya kirim kolom yang boleh diubah
   if (!KY_PAYROLL && kyEditId) {
-    const allow = ['cabang','sub_divisi','jabatan','jenis_kelamin','metode_bayar','no_rek','nama_rek','aktif','jht_yn','bpjs_yn','bpjs_kes_kali'];
+    const allow = ['cabang','sub_divisi','jenis_kelamin','metode_bayar','no_rek','nama_rek','aktif','jht_yn','bpjs_yn','bpjs_kes_kali'];
     Object.keys(emp).forEach(k => { if (!allow.includes(k)) delete emp[k]; });
   }
   const file = document.getElementById('ky_ktp').files[0];
