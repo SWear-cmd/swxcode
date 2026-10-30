@@ -1010,7 +1010,8 @@ const KY_FIELDS = ['no_fp','nama','nama_lengkap','no_id','cabang','sub_divisi','
   'jenis_kelamin','agama','status_ptkp','metode_bayar','no_rek','nama_rek','alamat'];
 // HRD.html: saat edit, hanya kolom ini yang boleh diubah
 const KY_HRD_EDIT = new Set(['cabang','sub_divisi','jenis_kelamin','metode_bayar','no_rek','nama_rek',
-  'aktif_f','jht_yn','bpjs_yn','kali2']);
+  'aktif_f','jht_yn','bpjs_yn','kali2','nama_lengkap','nik','status_ptkp','alamat']);
+const KY_HRD_KTP = ['nama_lengkap','nik','status_ptkp','alamat'];
 
 async function kyReload(){
   const sb = getSupabase();
@@ -1172,7 +1173,10 @@ async function kySave(){
     if (!emp.nik) { toast('NIK wajib diisi'); return; }
   }
   if (!emp.no_fp && !(!KY_PAYROLL && kyEditId)) { toast('No. FP wajib diisi (Sentani: isi User ID mesin Sentani)'); return; }
-  if (!(!KY_PAYROLL && kyEditId) && emp.nik && !/^\d{16}$/.test(emp.nik)) { toast('NIK harus 16 digit angka'); return; }
+  if (emp.nik) emp.nik = emp.nik.replace(/\s/g,'');
+  const kyOld = kyEditId ? kyEmps.find(x => x.id === kyEditId) : null;
+  const nikBaru = !kyOld || String(kyOld.nik||'').trim() !== (emp.nik||'');
+  if (nikBaru && emp.nik && !/^\d{16}$/.test(emp.nik)) { toast('NIK harus 16 digit angka'); return; }
   if (emp.no_rek) emp.no_rek = emp.no_rek.replace(/\D/g,'');
   if (emp.metode_bayar === 'PAYROLL' && (!emp.no_rek || !emp.nama_rek)) { toast('Metode Payroll: isi No. rekening & Nama rekening'); return; }
   if (emp.aktif && !(!KY_PAYROLL && kyEditId)) {
@@ -1183,7 +1187,9 @@ async function kySave(){
     }
   }
   // HRD.html: edit hanya kirim kolom yang boleh diubah
+  let ktpData = null;
   if (!KY_PAYROLL && kyEditId) {
+    ktpData = {}; KY_HRD_KTP.forEach(k => ktpData[k] = emp[k]);
     const allow = ['cabang','sub_divisi','jenis_kelamin','metode_bayar','no_rek','nama_rek','aktif','jht_yn','bpjs_yn','bpjs_kes_kali'];
     Object.keys(emp).forEach(k => { if (!allow.includes(k)) delete emp[k]; });
   }
@@ -1191,6 +1197,10 @@ async function kySave(){
   if (!kyEditId && !confirm(`Tambah karyawan ${emp.nama} (${emp.cabang} · ${emp.jabatan})?${file ? '' : '\n\nFoto KTP belum dipilih (bisa diupload nanti).'}`)) return;
   const btn = document.getElementById('ky_save'); btn.disabled = true;
   try {
+    if (ktpData) {
+      const r = await getSupabase().rpc('hrd_update_ktp_data', { p_pin: PIN, p_id: kyEditId, p_data: ktpData });
+      if (r.error) throw r.error;
+    }
     const { data: id, error } = await getSupabase().rpc('save_employee_hrd', { p_pin: PIN, p_id: kyEditId, p_data: emp });
     if (error) throw error;
     let msg = kyEditId ? 'Karyawan diperbarui' : 'Karyawan ditambahkan';
