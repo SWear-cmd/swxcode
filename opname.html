@@ -299,6 +299,8 @@ td.bad{color:var(--danger); font-weight:800}
 .hrow .hq input{width:100%; padding:8px; border-radius:8px; border:1.5px solid var(--line); background:var(--bg); text-align:right}
 .hrow .hq input.saved{border-color:var(--ok)}
 .hrow.nohrg{border-left:4px solid #D2453D}
+.pencil{border:1.5px solid var(--line); background:var(--surface); color:var(--ink); border-radius:8px; width:34px; height:30px; margin-left:8px; cursor:pointer; font-size:14px; vertical-align:middle}
+.kline b .pencil{font-weight:400}
 .cal .d.sel{outline:3px solid var(--ink); outline-offset:2px}
 .kst{font-size:12px; font-weight:800; border-radius:6px; padding:4px 8px; white-space:nowrap; text-align:center; flex-shrink:0}
 .kst.g{background:#2F9E5B; color:#fff}
@@ -441,6 +443,7 @@ td.bad{color:var(--danger); font-weight:800}
       <div id="koDay"></div>
     </div>
     <div id="kDivList"></div>
+    <button class="btn ghost hidden" id="btnKAdd" style="margin-top:16px">+ Tambah kanvas</button>
     <div id="kAddWrap" class="hidden">
       <div class="sec">Tambah kanvas (Full Access)</div>
       <div class="form">
@@ -517,36 +520,43 @@ td.bad{color:var(--danger); font-weight:800}
   <div class="wrap">
     <div id="khStat"></div>
 
-    <div class="sec" style="margin-top:4px">Stock kanvas</div>
-    <div class="kbox" id="khStock"></div>
-    <button class="btn ghost hidden" id="btnKItems" style="margin-bottom:8px">Lihat / input item stock ›</button>
-    <button class="btn" id="btnKDone">Selesai stock</button>
-    <button class="btn ghost hidden" id="btnKReopen" style="margin-top:8px">Buka lagi stock (Full Access)</button>
+    <div id="khCalcWrap" class="hidden">
+      <div class="kbox" id="khCalc"></div>
+      <div id="khNoHarga"></div>
+    </div>
 
-    <div class="sec">Uang di admin kas</div>
-    <div class="kbox" id="khKas"></div>
-    <div class="form hidden" id="khKasForm">
+    <div id="khOld" class="hidden">
+      <div class="sec" style="margin-top:4px">Stock kanvas</div>
+      <div class="kbox" id="khStock"></div>
+    </div>
+
+    <div id="khKasWrap" class="hidden">
+      <div class="sec">Uang di admin kas</div>
+      <div class="kbox" id="khKas"></div>
+    </div>
+    <div class="form hidden" id="khKasForm" style="margin-bottom:12px">
       <span class="lbl">Uang kas fisik di tangan (Rp)</span>
       <input id="khKasIn" class="in num kmoney" type="text" inputmode="numeric" autocomplete="off" placeholder="0">
       <label class="kconf"><input type="checkbox" id="khKasConf"><span>Saya konfirmasi uang ini <b>betul fisiknya saya pegang</b> saat ini.</span></label>
       <div class="err" id="khKasErr"></div>
       <button class="btn" id="khKasSave">Simpan uang kas</button>
     </div>
+    <div id="khAkDone" class="hidden"></div>
 
-    <button class="btn ghost hidden" id="btnKSet2" style="margin-top:16px">Atur limit, harga & data kanvas ini</button>
-
-    <div id="khCalcWrap" class="hidden">
-      <div class="sec">Perhitungan limit</div>
-      <div class="kbox" id="khCalc"></div>
-      <div id="khNoHarga"></div>
-      <div class="sec">Rincian nilai stock</div>
-      <div class="tbl-wrap">
+    <div id="khRinc" class="hidden">
+      <button class="btn ghost" id="btnKRinc" style="margin-bottom:8px">Lihat rincian item stock</button>
+      <div class="tbl-wrap hidden" id="khRincTbl">
         <table>
           <thead><tr><th>NAMA BARANG</th><th class="r">KRT/PAK/PCS</th><th class="r">NILAI</th></tr></thead>
           <tbody id="khBody"></tbody>
         </table>
       </div>
     </div>
+
+    <button class="btn ghost hidden" id="btnKItems" style="margin-bottom:8px">Lihat / input item stock ›</button>
+    <button class="btn hidden" id="btnKDone">Selesai stock</button>
+    <button class="btn ghost hidden" id="btnKReopen" style="margin-top:8px">Buka lagi stock</button>
+    <button class="btn ghost hidden" id="btnKSet2" style="margin-top:8px">Atur limit, harga & data kanvas ini</button>
   </div>
 </section>
 
@@ -3017,11 +3027,11 @@ async function openKDiv(push = true){
   if(!kvScoped()){
     $('kdBack').classList.remove('hidden'); $('btnLogoutK').classList.add('hidden');
     $('kdWho').textContent = 'Semua kanvas';
-    $('kAddWrap').classList.toggle('hidden', !isFullAccess());
+    $('btnKAdd').classList.toggle('hidden', !isFullAccess()); $('kAddWrap').classList.add('hidden');
     return loadKOv();
   }
   $('kDivList').innerHTML = '<div class="empty">Memuat…</div>';
-  $('kAddWrap').classList.toggle('hidden', !isFullAccess());
+  $('btnKAdd').classList.toggle('hidden', !isFullAccess() || kvScoped()); $('kAddWrap').classList.add('hidden');
   const sc = kvScoped();
   $('kdBack').classList.toggle('hidden', sc); $('btnLogoutK').classList.toggle('hidden', !sc);
   $('kdWho').textContent = sc ? `${S.label}, ${fmtDay(jayapuraToday())}` : 'Pilih kanvas';
@@ -3151,6 +3161,11 @@ function renderKODay(){
   }));
 }
 
+$('btnKAdd').addEventListener('click', () => {
+  const open = $('kAddWrap').classList.toggle('hidden');
+  $('btnKAdd').textContent = open ? '+ Tambah kanvas' : '✕ Tutup form tambah kanvas';
+  if(!open) $('kaNama').focus();
+});
 $('btnLogoutK').addEventListener('click', () => { if(confirm('Keluar?')) logout(); });
 $('kaSave').addEventListener('click', async () => {
   $('kaErr').textContent = '';
@@ -3307,8 +3322,10 @@ async function openKHit(push = true){
   $('khTitle').textContent = fmtDay(S.kv.date);
   $('khSub').textContent = kvTxt();
   $('khStat').innerHTML = '<div class="empty">Memuat…</div>';
-  ['khStock','khKas'].forEach(id => $(id).innerHTML = '');
-  ['btnKDone','btnKReopen','khKasForm','khCalcWrap'].forEach(id => $(id).classList.add('hidden'));
+  ['khStock','khKas','khCalc','khNoHarga','khAkDone'].forEach(id => $(id).innerHTML = '');
+  ['btnKDone','btnKReopen','khKasForm','khCalcWrap','khOld','khKasWrap','khAkDone','khRinc','btnKItems','btnKSet2'].forEach(id => $(id).classList.add('hidden'));
+  $('khRincTbl').classList.add('hidden'); $('btnKRinc').textContent = 'Lihat rincian item stock';
+  if(isAdminKas()){ $('khTitle').textContent = S.kv.kname; $('khSub').textContent = fmtDay(S.kv.date); }
   try{
     S.kv.hit = await rpc('get_kanvas_hitung', { p_kanvas_id: S.kv.kid, p_tanggal: S.kv.date });
     renderKHit();
@@ -3316,60 +3333,85 @@ async function openKHit(push = true){
 }
 function kline(a, b, cls = ''){ return `<div class="kline ${cls}"><span>${a}</span><b class="num">${b}</b></div>`; }
 function renderKHit(){
-  const h = S.kv.hit, priv = !!h.privileged;
-  const wait = [];
-  if(!h.done) wait.push('stock belum diselesaikan');
-  if(!h.kas_input) wait.push('uang admin kas belum diinput');
-  const ST = {
-    cocok: ['ok', '✓ COCOK', 'Stock fisik + uang admin kas = limit kanvas'],
-    beda: ['bad', '⚠ TIDAK COCOK, AUDIT', priv ? `Selisih ${fmtRpS(h.selisih)}` : 'Hubungi Full Access / SPVADMIN untuk audit'],
-    no_modal: ['bad', '⚠ LIMIT BELUM DIATUR', 'Tidak bisa dicocokkan. Full Access isi limit kanvas dulu.'],
-    no_harga: ['bad', '⚠ ADA BARANG TANPA HARGA KANVAS', `${h.no_harga_count} barang. Full Access isi harga kanvas dulu.`]
+  const h = S.kv.hit, priv = !!h.privileged, ak = isAdminKas();
+  const fillKasForm = () => {
+    $('khKasIn').value = h.kas_input && h.kas != null ? Math.round(h.kas).toLocaleString('id-ID') : '';
+    $('khKasConf').checked = false; $('khKasErr').textContent = '';
   };
-  const st = ST[h.status] || ['wait', 'Belum bisa dicocokkan', wait.length ? 'Menunggu: ' + wait.join(', ') : ''];
+
+  /* ---- admin kas: cukup input uang > centang > submit ---- */
+  if(ak && !priv){
+    $('khStat').innerHTML = h.editable ? '' : `<div class="banner" style="margin:0 0 12px">${esc(h.lock_reason || 'Tanggal ini hanya bisa dilihat.')}</div>`;
+    if(h.can_kas){
+      fillKasForm();
+      $('khKasSave').textContent = 'Submit';
+      $('khKasForm').classList.remove('hidden');
+    }else{
+      $('khAkDone').innerHTML = `<div class="kstat ok">✓ Uang kas sudah diinput${h.kas != null ? `<small>${fmtRp(h.kas)}${h.kas_at ? ' · ' + fmtDate(h.kas_at) : ''}</small>` : ''}</div>
+        <button class="btn ghost" id="khBackList">‹ Kembali ke list kanvas</button>`;
+      $('khAkDone').classList.remove('hidden');
+      $('khBackList').addEventListener('click', () => history.back());
+    }
+    return;
+  }
+
+  const wait = [];
+  if(!h.done) wait.push('stock belum submit');
+  if(!h.kas_input) wait.push('uang kas belum diinput');
+  const ST = {
+    cocok: ['ok', '✓ PAS', 'Stock fisik + uang kas = limit'],
+    beda: ['bad', '⚠ SELISIH' + (priv && h.selisih != null ? ' ' + fmtRpS(h.selisih) : ''), priv ? 'Perlu audit' : 'Hubungi Full Access / SPVADMIN untuk audit'],
+    no_modal: ['bad', '⚠ LIMIT BELUM DIATUR', 'Isi limit kanvas dulu.'],
+    no_harga: ['bad', '⚠ ADA BARANG TANPA HARGA', `${h.no_harga_count} barang belum ada harga kanvas.`]
+  };
+  const st = ST[h.status] || ['wait', 'Belum lengkap', wait.length ? 'Menunggu: ' + wait.join(', ') : ''];
   $('khStat').innerHTML = `<div class="kstat ${st[0]}">${st[1]}${st[2] ? `<small>${esc(st[2])}</small>` : ''}</div>`
     + (h.editable ? '' : `<div class="banner" style="margin:-4px 0 12px">${esc(h.lock_reason || 'Tanggal ini hanya bisa dilihat.')}</div>`);
 
-  let sk = kline('Item di stock', fmt(h.n_item)) + kline('Status stock', h.done ? `Selesai${h.done_by ? ' (' + esc(h.done_by) + ')' : ''}` : 'Belum selesai');
-  if(priv) sk += kline('Nilai stock fisik', fmtRp(h.nilai));
-  $('khStock').innerHTML = sk;
-  const ak = isAdminKas();
-  $('btnKDone').classList.toggle('hidden', ak || h.done || !h.editable);
-  $('btnKItems').classList.toggle('hidden', ak || kvScoped());
-  $('btnKSet2').classList.toggle('hidden', !isFullAccess());
-  $('btnKReopen').classList.toggle('hidden', !(h.done && isFullAccess() && h.editable));
-
-  let kk = '';
-  if(h.kas_input){
-    kk += kline('Uang kas', h.kas != null ? fmtRp(h.kas) : 'Sudah diinput');
-    kk += kline('Diinput oleh', esc(h.kas_by || '-'));
-    kk += kline('Waktu', fmtDate(h.kas_at));
-    kk += kline('Konfirmasi fisik', h.konfirmasi ? '✓ Dikonfirmasi' : '-');
-  }else kk = kline('Uang kas', 'Belum diinput');
-  $('khKas').innerHTML = kk;
-  $('khKasForm').classList.toggle('hidden', !h.can_kas);
-  if(h.can_kas){
-    $('khKasIn').value = h.kas_input && h.kas != null ? Math.round(h.kas).toLocaleString('id-ID') : '';
-    $('khKasConf').checked = false; $('khKasErr').textContent = '';
-    $('khKasSave').textContent = h.kas_input ? 'Simpan perubahan uang kas' : 'Simpan uang kas';
+  /* ---- full access / spvadmin: ringkas ---- */
+  if(priv){
+    const tot = (Number(h.nilai) || 0) + (Number(h.kas) || 0);
+    const bad = h.modal != null && Math.abs(Number(h.selisih) || 0) >= 1;
+    const pen = h.can_kas ? '<button class="pencil" id="khEdit" title="Edit uang kas" aria-label="Edit uang kas">✏</button>' : '';
+    $('khCalc').innerHTML =
+        kline('Limit kanvas', h.modal != null ? fmtRp(h.modal) : 'Belum diatur')
+      + kline(`Nilai stock fisik <small>(${fmt(h.n_item)} item${h.done ? ', submit ✓' : ', belum submit'})</small>`, fmtRp(h.nilai))
+      + kline(`Uang kas${h.kas_by ? ` <small>(${esc(h.kas_by)})</small>` : ''}`, (h.kas_input ? fmtRp(h.kas) : 'Belum diinput') + pen)
+      + kline('Total (stock + kas)', fmtRp(tot), 'tot')
+      + (h.modal != null ? `<div class="kline tot" style="color:${bad ? 'var(--danger)' : 'var(--ok)'}"><span style="color:inherit">${bad ? 'Selisih' : 'Pas'}</span><b class="num">${fmtRpS(h.selisih)}</b></div>` : '');
+    $('khCalcWrap').classList.remove('hidden');
+    if($('khEdit')) $('khEdit').addEventListener('click', () => {
+      const f = $('khKasForm');
+      if(f.classList.contains('hidden')){ fillKasForm(); $('khKasSave').textContent = 'Simpan uang kas'; f.classList.remove('hidden'); $('khKasIn').focus(); }
+      else f.classList.add('hidden');
+    });
+    const nh = h.no_harga || [];
+    $('khNoHarga').innerHTML = nh.length ? `<div class="banner" style="margin:0 0 12px;border-color:var(--danger)"><b style="color:var(--danger)">⚠ ${nh.length} barang belum ada harga kanvas:</b><br>${nh.map(x => esc(x.product_name) + ' (' + esc(x.product_code) + ')').join('<br>')}</div>` : '';
+    const R = h.rows || [];
+    $('khBody').innerHTML = R.length ? R.map(x => `<tr${x.harga_ok ? '' : ' class="mis"'}><td>${esc(x.product_name)}<br><small style="color:var(--muted)">${esc(x.product_code)}</small></td><td class="r num">${fmt(x.krt)} / ${fmt(x.pak)} / ${fmt(x.pcs)}</td><td class="r num">${x.harga_ok ? fmtRp(x.nilai) : '<b style="color:var(--danger)">Harga?</b>'}</td></tr>`).join('')
+      + `<tr><td><b>TOTAL</b></td><td></td><td class="r num"><b>${fmtRp(h.nilai)}</b></td></tr>`
+      : '<tr><td colspan="3" class="c" style="color:var(--muted)">Belum ada stock</td></tr>';
+    $('khRinc').classList.remove('hidden');
+    $('btnKItems').textContent = 'Input / ubah item stock ›';
+    $('btnKItems').classList.toggle('hidden', !isFullAccess() || !h.editable);
+    $('btnKReopen').classList.toggle('hidden', !(h.done && isFullAccess() && h.editable));
+    $('btnKSet2').classList.toggle('hidden', !isFullAccess());
+    return;
   }
 
-  $('khCalcWrap').classList.toggle('hidden', !priv);
-  if(!priv) return;
-  const tot = (Number(h.nilai) || 0) + (Number(h.kas) || 0);
-  const bad = h.modal != null && Math.abs(Number(h.selisih) || 0) >= 1;
-  $('khCalc').innerHTML = kline('Nilai stock fisik', fmtRp(h.nilai))
-    + kline('Uang admin kas', h.kas_input ? fmtRp(h.kas) : 'Belum diinput')
-    + kline('Total (stock + kas)', fmtRp(tot), 'tot')
-    + kline('Limit kanvas', h.modal != null ? fmtRp(h.modal) + (h.modal_berlaku ? ` <small style="color:var(--muted);font-weight:400">sejak ${esc(String(h.modal_berlaku).slice(0,10))}</small>` : '') : 'Belum diatur')
-    + (h.modal != null ? `<div class="kline tot"${bad ? ' style="color:var(--danger)"' : ' style="color:var(--ok)"'}><span style="color:inherit">Selisih (total − limit)</span><b class="num">${fmtRpS(h.selisih)}</b></div>` : '');
-  const nh = h.no_harga || [];
-  $('khNoHarga').innerHTML = nh.length ? `<div class="banner" style="margin:0 0 12px;border-color:var(--danger)"><b style="color:var(--danger)">⚠ ${nh.length} barang belum ada harga kanvas:</b><br>${nh.map(x => esc(x.product_name) + ' (' + esc(x.product_code) + ')').join('<br>')}</div>` : '';
-  const R = h.rows || [];
-  $('khBody').innerHTML = R.length ? R.map(x => `<tr${x.harga_ok ? '' : ' class="mis"'}><td>${esc(x.product_name)}<br><small style="color:var(--muted)">${esc(x.product_code)}</small></td><td class="r num">${fmt(x.krt)} / ${fmt(x.pak)} / ${fmt(x.pcs)}</td><td class="r num">${x.harga_ok ? fmtRp(x.nilai) : '<b style="color:var(--danger)">Harga?</b>'}</td></tr>`).join('')
-    + `<tr><td><b>TOTAL</b></td><td></td><td class="r num"><b>${fmtRp(h.nilai)}</b></td></tr>`
-    : '<tr><td colspan="3" class="c" style="color:var(--muted)">Belum ada stock</td></tr>';
+  /* ---- tim stock lain (tanpa nilai rupiah) ---- */
+  $('khStock').innerHTML = kline('Item di stock', fmt(h.n_item)) + kline('Status stock', h.done ? `Selesai${h.done_by ? ' (' + esc(h.done_by) + ')' : ''}` : 'Belum selesai');
+  $('khOld').classList.remove('hidden');
+  $('khKas').innerHTML = kline('Uang kas', h.kas_input ? 'Sudah diinput' : 'Belum diinput');
+  $('khKasWrap').classList.remove('hidden');
+  $('btnKItems').textContent = 'Lihat / input item stock ›';
+  $('btnKItems').classList.toggle('hidden', kvScoped());
+  $('btnKDone').classList.toggle('hidden', h.done || !h.editable);
 }
+$('btnKRinc').addEventListener('click', () => {
+  const hid = $('khRincTbl').classList.toggle('hidden');
+  $('btnKRinc').textContent = hid ? 'Lihat rincian item stock' : 'Sembunyikan rincian item stock';
+});
 $('btnKItems').addEventListener('click', () => openKProd(true, true));
 $('btnKSet2').addEventListener('click', () => openKSet(true));
 $('btnKDone').addEventListener('click', async () => {
@@ -3392,7 +3434,7 @@ $('khKasSave').addEventListener('click', async () => {
   if(!$('khKasConf').checked){ $('khKasErr').textContent = 'Centang konfirmasi bahwa uang ini betul fisiknya Anda pegang.'; return; }
   if(!confirm(`Simpan uang kas ${fmtRp(v)} untuk kanvas ${S.kv.kname}, ${fmtDay(S.kv.date)}?${isFullAccess() ? '' : '\n\nSetelah disimpan tidak bisa diubah lagi kecuali oleh Full Access.'}`)) return;
   $('khKasSave').disabled = true; loading(true, 'Menyimpan…');
-  try{ await rpc('save_kanvas_kas', { p_kanvas_id: S.kv.kid, p_tanggal: S.kv.date, p_kas: v, p_konfirmasi: true }); loading(false); toast('Uang kas tersimpan'); if(kvScoped()) history.back(); else openKHit(false); }
+  try{ await rpc('save_kanvas_kas', { p_kanvas_id: S.kv.kid, p_tanggal: S.kv.date, p_kas: v, p_konfirmasi: true }); loading(false); toast('Uang kas tersimpan'); if(isAdminKas() && !canFinalize()) history.back(); else openKHit(false); }
   catch(e){ loading(false); $('khKasErr').textContent = e.message; }
   finally{ $('khKasSave').disabled = false; }
 });
