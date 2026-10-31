@@ -159,6 +159,14 @@ tr:last-child td{border-bottom:0}
 .modebtn b{display:block; font-size:21px; letter-spacing:.3px}
 .modebtn span{display:block; font-size:13.5px; color:var(--muted); margin-top:4px}
 .modebtn:hover{border-color:var(--kraft)}
+.modebtn{position:relative}
+.modebtn .mstat{position:absolute; right:16px; top:50%; transform:translateY(-50%); margin:0; font-size:13px; font-weight:800; letter-spacing:.3px; border-radius:8px; padding:6px 10px; background:rgba(0,0,0,.18); color:inherit}
+.modebtn.ms-g{background:#2F9E5B; border-color:#2F9E5B; color:#fff}
+.modebtn.ms-y{background:#F2C230; border-color:#F2C230; color:#1C2630}
+.modebtn.ms-r{background:#D2453D; border-color:#D2453D; color:#fff}
+.modebtn.ms-g span, .modebtn.ms-r span{color:rgba(255,255,255,.88)}
+.modebtn.ms-y span{color:rgba(28,38,48,.8)}
+.modebtn.has-st{padding-right:150px}
 .ltabs{display:flex; gap:6px; margin-bottom:12px}
 .ltab{flex:1; border:1.5px solid var(--line); background:var(--surface); border-radius:9px; padding:10px 4px; font-weight:700; cursor:pointer; color:var(--muted)}
 .ltab.on{background:var(--ink); color:var(--bg); border-color:var(--ink)}
@@ -2363,6 +2371,54 @@ function goMode(push = true){
   ['btnModeH','btnModeB','modeSep'].forEach(id => $(id).classList.toggle('hidden', ak));
   if(ak){ $('dupBox').classList.add('hidden'); return; }
   loadDupBarcodes();
+  loadModeStatus();
+}
+/* status hari ini di tombol menu (khusus Full Access) */
+function setModeSt(id, cls, txt){
+  const b = $(id);
+  b.classList.remove('ms-g', 'ms-y', 'ms-r', 'has-st');
+  b.querySelector('.mstat')?.remove();
+  if(!txt) return;
+  if(cls) b.classList.add('ms-' + cls);
+  b.classList.add('has-st');
+  b.insertAdjacentHTML('beforeend', `<em class="mstat" style="font-style:normal">${txt}</em>`);
+}
+async function loadModeStatus(){
+  setModeSt('btnModeH'); setModeSt('btnModeK');
+  if(!isFullAccess()) return;
+  const today = jayapuraToday(), [y, m] = today.split('-').map(Number);
+  if(dowOf(today) === 0){ setModeSt('btnModeH', '', 'LIBUR'); setModeSt('btnModeK', '', 'LIBUR'); return; }
+  /* harian: semua lokasi */
+  (async () => {
+    try{
+      const R = await Promise.all(LOKASI.map(l => rpc('get_daily_calendar', { p_lokasi: l, p_year: y, p_month: m })));
+      let tot = 0, done = 0;
+      R.forEach(r => {
+        const t = Number(r.total) || 0;
+        const d = Number((r.days || []).find(x => String(x.tanggal).slice(0, 10) === today)?.done) || 0;
+        tot += t; done += Math.min(d, t);
+      });
+      if(!tot) setModeSt('btnModeH', '', 'BELUM ADA ITEM');
+      else if(done >= tot) setModeSt('btnModeH', 'g', 'SUDAH STOCK');
+      else if(done > 0) setModeSt('btnModeH', 'y', `STOCK SEBAGIAN ${done}/${tot}`);
+      else setModeSt('btnModeH', '', 'BELUM STOCK');
+    }catch(e){}
+  })();
+  /* kanvas: semua kanvas aktif */
+  (async () => {
+    try{
+      const r = await rpc('get_kanvas_overview', { p_year: y, p_month: m });
+      const D = (r.days || []).filter(x => String(x.tanggal).slice(0, 10) === today);
+      const U = (r.units || []).filter(u => u.aktif || D.some(x => x.kanvas_id === u.id));
+      const st = U.map(u => (D.find(x => x.kanvas_id === u.id) || {}).status || 'kosong');
+      const red = st.filter(x => KV_WARN.includes(x)).length, ok = st.filter(x => x === 'cocok').length;
+      if(!U.length) setModeSt('btnModeK', '', 'BELUM ADA KANVAS');
+      else if(red) setModeSt('btnModeK', 'r', `AUDIT ${red}`);
+      else if(ok === U.length) setModeSt('btnModeK', 'g', 'SUDAH STOCK');
+      else if(st.some(x => x !== 'kosong')) setModeSt('btnModeK', 'y', `STOCK SEBAGIAN ${ok}/${U.length}`);
+      else setModeSt('btnModeK', '', 'BELUM STOCK');
+    }catch(e){}
+  })();
 }
 /* barang yang punya lebih dari 1 barcode (aturan: 1 barang = 1 barcode) */
 async function loadDupBarcodes(){
