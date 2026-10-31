@@ -121,6 +121,39 @@
   #kyTable .fz-last{box-shadow:inset -1px 0 0 var(--border), 4px 0 6px -4px rgba(0,0,0,.15);}
   #kyTable td.c{text-align:center;}
   @media(max-width:600px){#kyModal .ky-grid{grid-template-columns:1fr;}}
+  .gm-h{margin:0 0 4px;font-size:15px;}
+  .gm-wrap{overflow:auto;max-height:60vh;border:1px solid var(--border);border-radius:6px;margin-top:8px;}
+  .gm-wrap.tall{max-height:75vh;}
+  .gm-wrap table.pt{width:max-content;min-width:100%;font-size:12px;}
+  .gm-wrap table.pt th,.gm-wrap table.pt td{padding:5px 8px;vertical-align:top;white-space:nowrap;border-bottom:1px solid var(--border);}
+  .gm-wrap table.pt th.daycol,.gm-wrap table.pt td.day{border-left:1px solid var(--border);}
+  .gm-wrap table.pt thead th{text-transform:uppercase;font-size:10.5px;z-index:2;}
+  .gm-wrap table.pt thead th .d{display:block;text-transform:none;font-size:11.5px;color:var(--text);}
+  .gm-wrap table.pt .num{text-align:right;}
+  .gm-wrap table.pt td.sopir{font-weight:700;position:sticky;left:0;background:#fff;z-index:1;box-shadow:inset -1px 0 0 var(--border);}
+  .gm-wrap table.pt thead th:first-child{position:sticky;left:0;z-index:3;}
+  .gm-wrap table.pt tfoot td{background:#f6f8fa;font-weight:700;position:sticky;bottom:0;}
+  .gm-wrap table.pt tfoot td:first-child{left:0;z-index:2;}
+  .gm-wrap table.pt td.total,.gm-wrap table.pt td.net{font-weight:700;}
+  .gm-wrap table.pt td.net{color:var(--ok);}
+  .gm-wrap table.pt td.pot-cell{color:var(--danger);}
+  .gm-wrap table.pt .xcol{text-align:center;width:24px;}
+  .gm-wrap table.pt .gm-x{width:26px;height:24px;padding:0;border:1px solid var(--border);background:#fff;color:var(--danger);font-weight:800;border-radius:6px;font-size:13px;line-height:1;}
+  .gm-wrap table.pt .gm-x.on{background:var(--danger);color:#fff;border-color:var(--danger);}
+  .gm-wrap table.pt tr.row-x td{color:#999;}
+  .gm-wrap table.pt tr.row-x td.sopir{text-decoration:line-through;}
+  .gm-wrap table.pt td.day .cnt{font-weight:700;display:block;}
+  .gm-wrap table.pt td.day .pl{display:block;font-size:11px;color:var(--muted);margin-top:2px;}
+  .gm-wrap table.pt td.day .pl.unk{color:#b26a00;}
+  .gm-wrap table.pt td.day .pl.man{color:#0369a1;font-style:italic;}
+  .gm-wrap table.pt .kub-low{color:var(--danger);font-weight:700;}
+  .gm-wrap table.pt .pl-warn{background:#ffd600;color:#000;padding:0 2px;font-weight:800;}
+  .gm-wrap table.pt .per3{display:block;font-size:11px;font-weight:400;color:var(--muted);}
+  .gm-wrap table.pt tbody tr:nth-child(even) td{background:#f7f9fb;}
+  .gm-sum{display:inline-grid;grid-template-columns:auto auto;gap:4px 24px;font-size:13px;margin-top:8px;}
+  .gm-sum .v{text-align:right;font-variant-numeric:tabular-nums;}
+  .gm-sum .g{font-weight:700;border-top:1px solid var(--border);padding-top:4px;}
+  .gm-sum .v.g{color:var(--accent);}
 </style>
 </head>
 <body>
@@ -146,6 +179,7 @@
   <button data-tab="debt">Hutang Karyawan</button>
   <button data-tab="karyawan">Data Karyawan</button>
   <button data-tab="bpjs">BPJS</button>
+  <button data-tab="gajimingguan">Gaji Mingguan</button>
 </nav>
 <main>
 
@@ -369,6 +403,34 @@
     </div>
   </div>
 
+  <!-- GAJI MINGGUAN (lihat saja) -->
+  <div class="tab" id="tab-gajimingguan">
+    <div class="card">
+      <div class="row">
+        <label class="muted">Day 1 <input type="date" id="gm_day1"></label>
+        <button class="secondary" id="gm_btn" onclick="gmLoad()">Muat / Refresh</button>
+        <button id="gm_save_x" onclick="gmSaveX()" style="display:none">Simpan Tanda X</button>
+        <span class="muted" id="gm_info"></span>
+      </div>
+      <div class="muted" id="gm_msg"></div>
+      <div class="gm-sum" id="gm_sum"></div>
+    </div>
+    <div class="card">
+      <h3 class="gm-h">SOPIR ANTARAN</h3>
+      <div class="muted" id="gm_upah"></div>
+      <div class="gm-wrap tall" id="gm_antaran"></div>
+    </div>
+    <div class="card">
+      <h3 class="gm-h">GUDANG</h3>
+      <div class="muted" id="gm_upah_gd"></div>
+      <div class="gm-wrap" id="gm_gudang"></div>
+    </div>
+    <div class="card">
+      <h3 class="gm-h">UPAH TAMBAHAN</h3>
+      <div class="gm-wrap" id="gm_tambahan" style="max-width:640px"></div>
+    </div>
+  </div>
+
 </main>
 </div>
 
@@ -464,6 +526,7 @@ document.querySelectorAll('nav button').forEach(btn=>{
     if (btn.dataset.tab === 'slip' && PIN && !(window._slipData||[]).length) slipRefresh();
     if (btn.dataset.tab === 'karyawan' && PIN) kyReload();
     if (btn.dataset.tab === 'bpjs' && PIN && !window._bpjsData) loadBpjs();
+    if (btn.dataset.tab === 'gajimingguan' && PIN) gmInit();
   });
 });
 
@@ -1339,6 +1402,284 @@ document.getElementById('pinInput').addEventListener('keydown', e => { if (e.key
   document.addEventListener('click', () => setTimeout(q, 0));
   new MutationObserver(q).observe(document.body, { childList: true, subtree: true });
   window.addEventListener('load', q);
+})();
+</script>
+<script>
+// ===== GAJI MINGGUAN — tampilan (data sama dengan Gajimingguan.html, hanya lihat) =====
+(function(){
+  const HARI = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+  const BASIS = 'tgl_antar', BASIS_TXT = 'Tgl Antar';
+  const RIT_MULTIPLIER = 3, RIT_MULTIPLIER_LOW = 2, KUB_LOW = 7.5;
+  const KPL_GUDANG = ['NATALIA', 'FRANS', 'OLIN', 'BAMBANG'];
+
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const fmtRp = n => (Number(n) || 0).toLocaleString('id-ID', { maximumFractionDigits: 0 });
+  const toISO = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  const fromISO = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); };
+  function mondayOfThisWeek(){ const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return d; }
+  function fridayLastWeek(){ const d = mondayOfThisWeek(); d.setDate(d.getDate() - 3); return d; }
+  function buildDays(day1){
+    const days = [day1]; const d = fromISO(day1);
+    while (days.length < 6){ d.setDate(d.getDate() + 1); if (d.getDay() !== 0) days.push(toISO(d)); }
+    return days;
+  }
+  function fmtTglPanjang(iso){
+    const BLN = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+    const d = fromISO(iso);
+    return `${HARI[d.getDay()]}, ${String(d.getDate()).padStart(2,'0')} ${BLN[d.getMonth()]} ${d.getFullYear()}`;
+  }
+  function plLocation(noPl){ const m = /^PL-([A-Z]+)-/i.exec(String(noPl || '')); return m ? m[1].toUpperCase() : ''; }
+  function maxMobilPl(kub){ const k = Number(kub) || 0; return Math.max(k > 13 ? 2 : 1, Math.floor(k / 9)); }
+  function setMsg(t){ document.getElementById('gm_msg').textContent = t || ''; }
+
+  let rates = {}, sopirList = [];
+  const rateFor = loc => (loc === 'ABE' || loc === 'SENTANI') ? rates.ABE_SENTANI : (loc === 'ENTROP' ? rates.ENTROP : 0);
+  const isKubLow = p => !p._manual && (Number(p.kubikasi_ok) || 0) < KUB_LOW;
+  const entryLoc = p => p._manual ? p.lokasi : plLocation(p.no_pl);
+  const entryKali = p => p._manual ? (p.ab || 0) : (isKubLow(p) ? RIT_MULTIPLIER_LOW : RIT_MULTIPLIER);
+  const entryNilai = p => rateFor(entryLoc(p)) * entryKali(p) * p._rit;
+
+  function resolveSopirNames(str){
+    const norm = x => String(x).trim().replace(/\s*\/\s*/g, ' / ').replace(/\s+/g, ' ').toUpperCase();
+    const known = new Map(sopirList.map(n => [norm(n), n]));
+    const parts = String(str).split('/').map(x => x.trim()).filter(Boolean);
+    const out = []; let i = 0;
+    while (i < parts.length){
+      let matched = false;
+      for (let j = parts.length; j > i; j--){
+        const cand = norm(parts.slice(i, j).join(' / '));
+        if (known.has(cand)){ out.push(known.get(cand)); i = j; matched = true; break; }
+      }
+      if (!matched){ out.push(parts[i]); i++; }
+    }
+    return out;
+  }
+
+  async function rpc(name, args){
+    const { data, error } = await getSupabase().rpc(name, { p_pin: PIN, ...args });
+    if (error) throw new Error(name + ': ' + error.message);
+    return data || [];
+  }
+
+  async function loadAll(day1){
+    const days = buildDays(day1);
+    const [rt, sp, pl, gd, pt, xs, rm] = await Promise.all([
+      rpc('get_antaran_rates', {}), rpc('get_sopir_list', {}),
+      rpc('get_pl_antaran', { p_from: days[0], p_to: days[5] }),
+      rpc('get_gudang_rit', { p_day1: day1 }), rpc('get_antaran_potongan', { p_day1: day1 }),
+      rpc('get_antaran_x', { p_day1: day1 }), rpc('get_rit_tambahan', { p_day1: day1 })
+    ]);
+    rates = { ABE_SENTANI: 0, ENTROP: 0, GUDANG: 0 };
+    rt.forEach(r => { if (r.lokasi in rates) rates[r.lokasi] = Number(r.upah) || 0; });
+    sopirList = sp.map(r => r.nama).filter(Boolean);
+    const potongan = {}; pt.forEach(r => { potongan[r.sopir] = Number(r.potongan) || 0; });
+    const saved = new Map(gd.map(r => [String(r.nama || '').trim().toUpperCase(),
+      { rit: [r.r1, r.r2, r.r3, r.r4, r.r5, r.r6].map(x => Number(x) || 0), pot: Number(r.potongan) || 0 }]));
+    const gudangRows = KPL_GUDANG.map(n => { const v = saved.get(n); return { nama: n, rit: v ? v.rit : [0,0,0,0,0,0], pot: v ? v.pot : 0 }; });
+    const ritMan = rm.map(r => ({ sopir: r.sopir || '', tgl: String(r.tgl || '').slice(0,10), lokasi: r.lokasi || '',
+      ab: r.anak_buah == null ? RIT_MULTIPLIER : Number(r.anak_buah), keterangan: r.keterangan || '' }));
+    return { days, plRows: pl, potongan, xSopir: new Set(xs.map(r => r.sopir)), gudangRows, ritMan };
+  }
+
+  function headRow(first, days, x){
+    let h = `<tr><th>${first}</th>` + (x ? '<th class="xcol">X</th>' : '');
+    days.forEach((iso, i) => { const d = fromISO(iso); h += `<th class="daycol">Day ${i+1}<span class="d">${HARI[d.getDay()]}, ${iso.slice(8,10)}/${iso.slice(5,7)}</span></th><th class="num">Nilai</th>`; });
+    return h + '<th class="num total">Total</th><th class="num">Potongan</th><th class="num net">Diterima</th></tr>';
+  }
+
+  function buildAntaran(D){
+    const { days, plRows, potongan, xSopir, ritMan } = D;
+    const map = new Map(), plAudit = new Map();
+    plRows.forEach(r => {
+      const dt = r[BASIS] ? String(r[BASIS]).slice(0,10) : '';
+      const sp = String(r.sopir || '').trim();
+      if (!sp || !days.includes(dt)) return;
+      const occ = {};
+      resolveSopirNames(sp).forEach(n => { occ[n] = (occ[n] || 0) + 1; });
+      const kubA = Number(r.kubikasi_ok) || Number(r.total_kubikasi) || 0;
+      const ritPl = Object.keys(occ).reduce((s2, n) => s2 + ((occ[n] >= 2 && (Number(r.total_kubikasi) || 0) > 19) ? 2 : 1), 0);
+      const key = String(r.no_pl || ''); const prev = plAudit.get(key);
+      plAudit.set(key, { rit: (prev ? prev.rit : 0) + ritPl, max: maxMobilPl(kubA), kub: kubA });
+      Object.keys(occ).forEach(name => {
+        let rit = (occ[name] >= 2 && (Number(r.total_kubikasi) || 0) > 19) ? 2 : 1;
+        const areaU = String(r.area || ''), locU = plLocation(r.no_pl);
+        if (/\b(ARSO|SPM|SUPERMARKET)\b/i.test(areaU)) rit *= 2;
+        else if (/\bGENYEM\b/i.test(areaU) && (locU === 'ENTROP' || locU === 'ABE')) rit *= 2;
+        if (!map.has(name)) map.set(name, {});
+        (map.get(name)[dt] = map.get(name)[dt] || []).push({ ...r, _rit: rit });
+      });
+    });
+    ritMan.forEach(m => {
+      const name = String(m.sopir || '').trim();
+      if (!name || !m.tgl || !days.includes(m.tgl)) return;
+      if (!map.has(name)) map.set(name, {});
+      (map.get(name)[m.tgl] = map.get(name)[m.tgl] || []).push({ no_pl: '~RIT TAMBAHAN', _manual: true, lokasi: m.lokasi, ab: m.ab, area: m.keterangan, keterangan: m.keterangan, _rit: 1 });
+    });
+    const names = [...sopirList];
+    [...map.keys()].forEach(n => { if (!names.includes(n)) names.push(n); });
+
+    const colTotals = days.map(() => 0);
+    let grand = 0, potSum = 0, body = '';
+    names.forEach(name => {
+      const byDay = map.get(name) || {}, isX = xSopir.has(name);
+      let rowTotal = 0;
+      let html = `<td class="sopir">${esc(name)}</td><td class="xcol"><button type="button" class="gm-x${isX ? ' on' : ''}" data-sopir="${esc(name)}" title="X = tidak dapat upah">${isX ? 'X' : ''}</button></td>`;
+      days.forEach((iso, i) => {
+        const pls = (byDay[iso] || []).slice().sort((a, b) => String(a.no_pl).localeCompare(String(b.no_pl)));
+        const nilai = isX ? 0 : pls.reduce((s, p) => s + entryNilai(p), 0);
+        const rit = pls.reduce((s, p) => s + p._rit, 0);
+        rowTotal += nilai; colTotals[i] += nilai;
+        const list = pls.map(p => {
+          if (p._manual) return `<span class="pl man">+ RIT TAMBAHAN / ${esc(p.lokasi || '-')} / ${p.ab || 0} org / ${esc(p.keterangan || '-')}</span>`;
+          const loc = plLocation(p.no_pl);
+          const unk = !(loc === 'ABE' || loc === 'SENTANI' || loc === 'ENTROP');
+          const au = plAudit.get(String(p.no_pl || ''));
+          const warn = au && au.rit > au.max ? `<b class="pl-warn" title="${esc(p.no_pl)}: ${au.kub.toLocaleString('id-ID', { maximumFractionDigits: 1 })} kubik = maks ${au.max} mobil, tercatat ${au.rit} rit">!!</b> ` : '';
+          const k = Number(p.kubikasi_ok) || 0;
+          const kt = k.toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+          return `<span class="pl${unk ? ' unk' : ''}">${warn}${esc(p.no_pl)} / ${esc(p.area || '-')}${p._rit > 1 ? ' ×' + p._rit : ''} / ${k < KUB_LOW ? `<b class="kub-low">${kt}</b>` : kt}</span>`;
+        }).join('');
+        html += `<td class="day">${pls.length ? `<span class="cnt">${rit} rit</span>${list}` : '-'}</td><td class="num nilai">${nilai ? fmtRp(nilai) : '-'}</td>`;
+      });
+      grand += rowTotal;
+      const pot = isX ? 0 : (potongan[name] || 0);
+      potSum += pot;
+      html += `<td class="num total">${isX ? '-' : fmtRp(rowTotal) + `<span class="per3">( @ ${fmtRp(Math.round(rowTotal / 3))} )</span>`}</td>`;
+      html += isX ? '<td class="num pot-cell">-</td>' : `<td class="num pot-cell"><span>${pot ? fmtRp(pot) : '0'}</span></td>`;
+      html += `<td class="num net">${isX ? '-' : fmtRp(rowTotal - pot)}</td>`;
+      body += `<tr${isX ? ' class="row-x"' : ''}>${html}</tr>`;
+    });
+    let foot = '';
+    if (names.length){
+      foot = '<tr><td>TOTAL</td><td class="xcol"></td>' + colTotals.map(v => `<td class="day"></td><td class="num">${fmtRp(v)}</td>`).join('') +
+        `<td class="num total">${fmtRp(grand)}</td><td class="num pot-cell pot-total">${fmtRp(potSum)}</td><td class="num net">${fmtRp(grand - potSum)}</td></tr>`;
+    }
+    if (!names.length) return { html: '<div class="muted" style="padding:10px">Tidak ada sopir.</div>', net: 0, audit: [] };
+    return { html: `<table class="pt"><thead>${headRow('Sopir', days, true)}</thead><tbody>${body}</tbody><tfoot>${foot}</tfoot></table>`,
+      net: grand - potSum, audit: [...plAudit.values()].filter(a => a.rit > a.max) };
+  }
+
+  function buildGudang(D){
+    const { days, gudangRows } = D;
+    const colNilai = [0,0,0,0,0,0]; let grand = 0, potTotal = 0, body = '';
+    gudangRows.forEach(row => {
+      const nilai = row.rit.map(r => r * rates.GUDANG);
+      const tot = nilai.reduce((a, b) => a + b, 0);
+      grand += tot; potTotal += row.pot || 0;
+      let html = `<td class="sopir">${esc(row.nama)}</td>`;
+      row.rit.forEach((r, i) => { colNilai[i] += nilai[i]; html += `<td class="day"><span>${r || '0'}</span></td><td class="num nilai">${nilai[i] ? fmtRp(nilai[i]) : '-'}</td>`; });
+      html += `<td class="num total">${fmtRp(tot)}</td><td class="num pot-cell"><span>${row.pot ? fmtRp(row.pot) : '0'}</span></td><td class="num net">${fmtRp(tot - (row.pot || 0))}</td>`;
+      body += `<tr>${html}</tr>`;
+    });
+    const foot = '<tr><td>TOTAL</td>' + colNilai.map(v => `<td class="day"></td><td class="num">${fmtRp(v)}</td>`).join('') +
+      `<td class="num total">${fmtRp(grand)}</td><td class="num pot-cell">${fmtRp(potTotal)}</td><td class="num net">${fmtRp(grand - potTotal)}</td></tr>`;
+    return { html: `<table class="pt"><thead>${headRow('KPL Gudang', days, false)}</thead><tbody>${body}</tbody><tfoot>${foot}</tfoot></table>`, net: grand - potTotal };
+  }
+
+  async function loadTambahan(day1){
+    return (await rpc('get_upah_tambahan', { p_day1: day1 }))
+      .map(r => ({ keterangan: r.keterangan || '', upah: Number(r.upah) || 0 }))
+      .filter(r => r.keterangan.trim() || r.upah);
+  }
+
+  function showInfo(){
+    const v = document.getElementById('gm_day1').value;
+    if (!v){ document.getElementById('gm_info').textContent = ''; return; }
+    const days = buildDays(v);
+    document.getElementById('gm_info').textContent = `Periode: ${fmtTglPanjang(days[0])} s/d ${fmtTglPanjang(days[5])}`;
+  }
+
+  let inited = false, loadSeq = 0, cur = null, xDirty = false;
+  function setXDirty(v){
+    xDirty = v;
+    document.getElementById('gm_save_x').style.display = v ? '' : 'none';
+  }
+  window.gmInit = function(){
+    if (inited) return;
+    inited = true;
+    const el = document.getElementById('gm_day1');
+    el.value = toISO(fridayLastWeek());
+    el.dataset.prev = el.value;
+    el.addEventListener('change', () => {
+      if (xDirty && !confirm('Tanda X belum disimpan. Lanjut ganti tanggal?')){ el.value = el.dataset.prev; return; }
+      el.dataset.prev = el.value;
+      gmLoad();
+    });
+    document.getElementById('gm_antaran').addEventListener('click', e => {
+      const b = e.target.closest('button.gm-x');
+      if (!b || !cur) return;
+      const n = b.dataset.sopir;
+      if (cur.D.xSopir.has(n)) cur.D.xSopir.delete(n); else cur.D.xSopir.add(n);
+      setXDirty(true);
+      gmRender();
+    });
+    window.addEventListener('beforeunload', e => { if (xDirty){ e.preventDefault(); e.returnValue = ''; } });
+    gmLoad();
+  };
+
+  function gmRender(){
+    if (!cur) return;
+    const { D, tambahan, day1 } = cur;
+    const sc = document.getElementById('gm_antaran');
+    const keep = [sc.scrollLeft, sc.scrollTop];
+    const A = buildAntaran(D), G = buildGudang(D);
+    const tTam = tambahan.reduce((s, r) => s + r.upah, 0);
+    sc.innerHTML = A.html;
+    sc.scrollLeft = keep[0]; sc.scrollTop = keep[1];
+    document.getElementById('gm_gudang').innerHTML = G.html;
+    document.getElementById('gm_tambahan').innerHTML = tambahan.length
+      ? `<table class="pt"><thead><tr><th>Keterangan</th><th class="num">Upah</th></tr></thead><tbody>` +
+        tambahan.map(r => `<tr><td>${esc(r.keterangan)}</td><td class="num">${fmtRp(r.upah)}</td></tr>`).join('') +
+        `</tbody><tfoot><tr><td>TOTAL</td><td class="num">${fmtRp(tTam)}</td></tr></tfoot></table>`
+      : '<div class="muted" style="padding:10px">Tidak ada upah tambahan.</div>';
+    document.getElementById('gm_upah').textContent =
+      `Dasar tanggal PL: ${BASIS_TXT} · Upah/rit ABE & SENTANI: ${fmtRp(rates.ABE_SENTANI)} · ENTROP: ${fmtRp(rates.ENTROP)}`;
+    document.getElementById('gm_upah_gd').textContent = `Upah/rit Gudang: ${fmtRp(rates.GUDANG)}`;
+    document.getElementById('gm_sum').innerHTML =
+      `<span>Antaran (setelah potongan)</span><span class="v">${fmtRp(A.net)}</span>` +
+      `<span>Gudang (setelah potongan)</span><span class="v">${fmtRp(G.net)}</span>` +
+      `<span>Upah Tambahan</span><span class="v">${fmtRp(tTam)}</span>` +
+      `<span class="g">TOTAL</span><span class="v g">${fmtRp(A.net + G.net + tTam)}</span>`;
+    const warns = [];
+    if (xDirty) warns.push('Tanda X belum disimpan.');
+    if (fromISO(day1).getDay() === 0) warns.push('Day 1 jatuh di hari Minggu.');
+    if (A.audit.length) warns.push(`!! ${A.audit.length} PL tercatat melebihi kapasitas mobil.`);
+    setMsg(warns.join(' '));
+  }
+
+  window.gmLoad = async function gmLoad(){
+    const day1 = document.getElementById('gm_day1').value;
+    showInfo();
+    if (!day1){ setMsg('Isi tanggal Day 1 dulu.'); return; }
+    const seq = ++loadSeq;
+    const btn = document.getElementById('gm_btn');
+    btn.disabled = true; setMsg('Memuat data...');
+    try{
+      const [D, tambahan] = await Promise.all([loadAll(day1), loadTambahan(day1)]);
+      if (seq !== loadSeq) return;
+      cur = { D, tambahan, day1 };
+      setXDirty(false);
+      gmRender();
+    }catch(e){
+      if (seq === loadSeq) setMsg('Gagal: ' + e.message);
+    }finally{
+      if (seq === loadSeq) btn.disabled = false;
+    }
+  };
+
+  window.gmSaveX = async function(){
+    if (!cur) return;
+    const btn = document.getElementById('gm_save_x');
+    btn.disabled = true;
+    const { error } = await getSupabase().rpc('save_antaran_x', {
+      p_pin: PIN, p_day1: cur.day1, p_rows: [...cur.D.xSopir].map(n => ({ sopir: n }))
+    });
+    btn.disabled = false;
+    if (error){ setMsg('Gagal menyimpan tanda X: ' + error.message); return; }
+    setXDirty(false);
+    gmRender();
+    toast('Tanda X tersimpan');
+  };
 })();
 </script>
 </body>
