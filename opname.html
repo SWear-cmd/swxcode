@@ -271,6 +271,43 @@ td.bad{color:var(--danger); font-weight:800}
 .upsel b{display:block; overflow-wrap:anywhere}
 .upsel small{display:block; color:var(--muted); font-size:12.5px}
 .upact{display:grid; grid-template-columns:1fr 2fr; gap:8px; margin-top:4px}
+
+/* kanvas */
+.modesep{border:0; border-top:2px solid var(--line); margin:4px 0}
+.cal .d.w{background:#D2453D; border-color:#D2453D; color:#fff}
+.cal .d.w small{font-weight:800}
+.cal .d.m{background:var(--surface); border:2px dashed #D2453D; color:#D2453D}
+.kbox{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:12px}
+.kline{display:flex; justify-content:space-between; gap:10px; padding:7px 0; border-top:1px dashed var(--line); font-size:14.5px}
+.kline:first-child{border-top:0}
+.kline span{color:var(--muted)}
+.kline.tot{font-weight:800; font-size:16px; border-top:1.5px solid var(--ink)}
+.kstat{border-radius:12px; padding:14px; font-weight:800; font-size:17px; text-align:center; margin-bottom:12px}
+.kstat small{display:block; font-weight:600; font-size:13px; margin-top:4px}
+.kstat.ok{background:#2F9E5B; color:#fff}
+.kstat.bad{background:#D2453D; color:#fff}
+.kstat.wait{background:var(--kraft-soft); color:var(--ink)}
+.kconf{display:flex; gap:10px; align-items:flex-start; margin-top:12px; font-size:14px; cursor:pointer}
+.kconf input{width:22px; height:22px; flex-shrink:0; margin-top:1px}
+.kmoney{font-size:24px; font-weight:800; text-align:right}
+.hrow{padding:10px 14px; border-top:1px solid var(--line)}
+.hrow:first-child{border-top:0}
+.hrow .name{font-weight:600; font-size:14px}
+.hrow .sub{font-size:12.5px; color:var(--muted)}
+.hrow .hq{display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:6px}
+.hrow .hq small{display:block; font-size:11.5px; color:var(--muted); font-weight:600}
+.hrow .hq input{width:100%; padding:8px; border-radius:8px; border:1.5px solid var(--line); background:var(--bg); text-align:right}
+.hrow .hq input.saved{border-color:var(--ok)}
+.hrow.nohrg{border-left:4px solid #D2453D}
+.cal .d.sel{outline:3px solid var(--ink); outline-offset:2px}
+.kst{font-size:12px; font-weight:800; border-radius:6px; padding:4px 8px; white-space:nowrap; text-align:center; flex-shrink:0}
+.kst.g{background:#2F9E5B; color:#fff}
+.kst.r{background:#D2453D; color:#fff}
+.kst.y{background:#F2C230; color:#1C2630}
+.kst.m{border:2px dashed #D2453D; color:#D2453D}
+.kst.n{border:1.5px solid var(--line); color:var(--muted)}
+.kosum{display:flex; gap:8px; flex-wrap:wrap; margin:0 0 10px}
+.kosum span{font-size:13px; font-weight:700; border-radius:6px; padding:4px 9px}
 </style>
 </head>
 <body>
@@ -294,6 +331,8 @@ td.bad{color:var(--danger); font-weight:800}
     <div class="modes">
       <button class="modebtn" id="btnModeH"><b>OPNAME HARIAN</b><span>Item wajib stock setiap hari, per tanggal</span></button>
       <button class="modebtn" id="btnModeB"><b>OPNAME BULANAN</b><span>Opname per divisi, Tim A dan Tim B</span></button>
+      <hr class="modesep" id="modeSep">
+      <button class="modebtn" id="btnModeK"><b>OPNAME KANVAS</b><span>Stock kanvas harian + uang admin kas, dicocokkan dengan modal</span></button>
     </div>
     <div id="dupBox" class="hidden">
       <div class="sec duptitle" id="dupTitle"></div>
@@ -371,6 +410,204 @@ td.bad{color:var(--danger); font-weight:800}
     <div id="diResult" class="list hidden" style="margin-top:8px"></div>
     <div class="sec" id="diCount">Item harian</div>
     <div id="diList" class="list"></div>
+  </div>
+</section>
+
+
+<!-- KANVAS: PILIH DIVISI -->
+<section id="s-kdiv" class="hidden">
+  <header class="bar">
+    <button class="iconbtn back" id="kdBack" aria-label="Kembali">‹</button>
+    <div class="ttl"><b>Opname Kanvas</b><small id="kdWho">Pilih kanvas</small></div>
+    <button class="iconbtn hidden" id="btnLogoutK" title="Keluar" aria-label="Keluar">⏻</button>
+  </header>
+  <div class="wrap">
+    <div id="kOv" class="hidden">
+      <div class="calnav">
+        <button id="koPrev" aria-label="Bulan sebelumnya">‹</button>
+        <b id="koMonth"></b>
+        <button id="koNext" aria-label="Bulan berikutnya">›</button>
+      </div>
+      <div class="cal" id="koGrid"></div>
+      <div class="legend">
+        <span><i style="background:#2F9E5B"></i>Semua kanvas cocok</span>
+        <span><i style="background:#D2453D"></i>⚠ Ada selisih</span>
+        <span><i style="background:#F2C230"></i>Belum lengkap</span>
+        <span><i style="border:2px dashed #D2453D"></i>Tidak di stock</span>
+        <span><i style="background:var(--line)"></i>Minggu</span>
+      </div>
+      <div class="sec" id="koDayTtl" style="font-size:15px;color:var(--ink)"></div>
+      <div id="koSum" class="kosum"></div>
+      <div id="koDay"></div>
+    </div>
+    <div id="kDivList"></div>
+    <div id="kAddWrap" class="hidden">
+      <div class="sec">Tambah kanvas (Full Access)</div>
+      <div class="form">
+        <span class="lbl">Divisi</span>
+        <select id="kaDiv" class="in"></select>
+        <span class="lbl">Nama kanvas</span>
+        <input id="kaNama" class="in" type="text" maxlength="60" placeholder="Contoh: Wendy KLK M1 STN" autocomplete="off">
+        <div class="exp2">
+          <div><span class="lbl">Grup</span><select id="kaGrp" class="in"><option>M1</option><option>M2</option><option>M3</option></select></div>
+          <div><span class="lbl">Lokasi</span><select id="kaLok" class="in"><option>ABE</option><option>STN</option></select></div>
+        </div>
+        <span class="lbl">Limit / modal (Rp)</span>
+        <input id="kaLimit" class="in num kmoney" type="text" inputmode="numeric" autocomplete="off" placeholder="0">
+        <div class="err" id="kaErr"></div>
+        <button class="btn" id="kaSave">Tambah kanvas</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- KANVAS: KALENDER -->
+<section id="s-kcal" class="hidden">
+  <header class="bar">
+    <button class="iconbtn back" aria-label="Kembali">‹</button>
+    <div class="ttl"><b>Opname Kanvas</b><small id="kcDiv"></small></div>
+  </header>
+  <div class="wrap">
+    <div class="calnav">
+      <button id="kcPrev" aria-label="Bulan sebelumnya">‹</button>
+      <b id="kcMonth"></b>
+      <button id="kcNext" aria-label="Bulan berikutnya">›</button>
+    </div>
+    <div class="cal" id="kcGrid"></div>
+    <div class="legend">
+      <span><i style="background:#2F9E5B"></i>Cocok dengan limit</span>
+      <span><i style="background:#D2453D"></i>⚠ Selisih, audit</span>
+      <span><i style="background:#F2C230"></i>Proses (stock / kas belum lengkap)</span>
+      <span><i style="border:2px dashed #D2453D"></i>Tidak di stock</span>
+      <span><i style="background:var(--line)"></i>Minggu</span>
+    </div>
+    <div id="kcInfo"></div>
+    <button class="btn ghost hidden" id="btnKSet" style="margin-top:16px">Atur limit, harga & data kanvas</button>
+  </div>
+</section>
+
+<!-- KANVAS: LIST ITEM -->
+<section id="s-kprod" class="hidden">
+  <header class="bar">
+    <button class="iconbtn back" aria-label="Kembali">‹</button>
+    <div class="ttl"><b id="kpTitle"></b><small id="kpSub"></small></div>
+    <button class="btn-done" id="btnKHit">Hitung ›</button>
+  </header>
+  <div class="wrap" style="padding-top:0">
+    <div class="tools">
+      <input id="kSearch" class="search" type="search" placeholder="Cari nama atau kode barang">
+      <button class="btn scanbtn" id="btnScanK">📷 Scan barcode</button>
+      <div class="chips">
+        <button class="kchip chip on" data-f="all">Semua <span id="kcAll"></span></button>
+        <button class="kchip chip" data-f="todo">Belum <span id="kcTodo"></span></button>
+        <button class="kchip chip" data-f="done">Sudah <span id="kcDone"></span></button>
+      </div>
+      <div class="banner hidden" id="kpBanner"></div>
+    </div>
+    <div id="kProdList" class="list"></div>
+  </div>
+</section>
+
+<!-- KANVAS: HITUNG -->
+<section id="s-khit" class="hidden">
+  <header class="bar">
+    <button class="iconbtn back" aria-label="Kembali">‹</button>
+    <div class="ttl"><b id="khTitle"></b><small id="khSub"></small></div>
+  </header>
+  <div class="wrap">
+    <div id="khStat"></div>
+
+    <div class="sec" style="margin-top:4px">Stock kanvas</div>
+    <div class="kbox" id="khStock"></div>
+    <button class="btn ghost hidden" id="btnKItems" style="margin-bottom:8px">Lihat / input item stock ›</button>
+    <button class="btn" id="btnKDone">Selesai stock</button>
+    <button class="btn ghost hidden" id="btnKReopen" style="margin-top:8px">Buka lagi stock (Full Access)</button>
+
+    <div class="sec">Uang di admin kas</div>
+    <div class="kbox" id="khKas"></div>
+    <div class="form hidden" id="khKasForm">
+      <span class="lbl">Uang kas fisik di tangan (Rp)</span>
+      <input id="khKasIn" class="in num kmoney" type="text" inputmode="numeric" autocomplete="off" placeholder="0">
+      <label class="kconf"><input type="checkbox" id="khKasConf"><span>Saya konfirmasi uang ini <b>betul fisiknya saya pegang</b> saat ini.</span></label>
+      <div class="err" id="khKasErr"></div>
+      <button class="btn" id="khKasSave">Simpan uang kas</button>
+    </div>
+
+    <button class="btn ghost hidden" id="btnKSet2" style="margin-top:16px">Atur limit, harga & data kanvas ini</button>
+
+    <div id="khCalcWrap" class="hidden">
+      <div class="sec">Perhitungan limit</div>
+      <div class="kbox" id="khCalc"></div>
+      <div id="khNoHarga"></div>
+      <div class="sec">Rincian nilai stock</div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>NAMA BARANG</th><th class="r">KRT/PAK/PCS</th><th class="r">NILAI</th></tr></thead>
+          <tbody id="khBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- KANVAS: ATUR MODAL & HARGA (FULL ACCESS) -->
+<section id="s-kset" class="hidden">
+  <header class="bar">
+    <button class="iconbtn back" aria-label="Kembali">‹</button>
+    <div class="ttl"><b>Atur kanvas</b><small id="ksDiv"></small></div>
+  </header>
+  <div class="wrap">
+    <div class="tabs">
+      <button class="tab ktab on" data-t="modal">Limit</button>
+      <button class="tab ktab" data-t="harga">Harga</button>
+      <button class="tab ktab" data-t="unit">Data kanvas</button>
+    </div>
+
+    <div id="ks-unit" class="hidden">
+      <div class="form">
+        <span class="lbl">Nama kanvas</span>
+        <input id="kuNama" class="in" type="text" maxlength="60" autocomplete="off">
+        <span class="lbl">Divisi</span>
+        <select id="kuDiv" class="in"></select>
+        <div class="exp2">
+          <div><span class="lbl">Grup</span><select id="kuGrp" class="in"><option value="">-</option><option>M1</option><option>M2</option><option>M3</option></select></div>
+          <div><span class="lbl">Lokasi</span><select id="kuLok" class="in"><option value="">-</option><option>ABE</option><option>STN</option></select></div>
+        </div>
+        <label class="kconf"><input type="checkbox" id="kuAktif"><span>Kanvas aktif (tidak aktif = tidak muncul di list)</span></label>
+        <div class="err" id="kuErr"></div>
+        <button class="btn" id="kuSave">Simpan data kanvas</button>
+      </div>
+    </div>
+
+    <div id="ks-modal">
+      <div class="form">
+        <span class="lbl">Limit / modal kanvas (Rp)</span>
+        <input id="ksModal" class="in num kmoney" type="text" inputmode="numeric" autocomplete="off" placeholder="0">
+        <span class="lbl">Berlaku mulai tanggal</span>
+        <input id="ksBerlaku" class="in" type="date">
+        <div class="err" id="ksErr"></div>
+        <button class="btn" id="ksSave">Simpan limit</button>
+      </div>
+      <div class="sec">Riwayat limit</div>
+      <div id="ksHist" class="list"></div>
+    </div>
+
+    <div id="ks-harga" class="hidden">
+      <div class="banner" style="margin-top:0">Harga berlaku untuk semua kanvas divisi ini. Harga per satuan: Karton, Lusin/Pak/Rcg, Pcs. Nilai stock = qty × harga. Ubah angka lalu pindah kolom, otomatis tersimpan.</div>
+      <input id="ksSearch" class="search" type="search" placeholder="Cari nama atau kode barang" style="margin-top:10px">
+      <div class="chips">
+        <button class="hchip chip on" data-f="all">Semua <span id="hcAll"></span></button>
+        <button class="hchip chip" data-f="none">Belum ada harga <span id="hcNone"></span></button>
+      </div>
+      <div id="ksList" class="list" style="margin-top:10px"></div>
+      <div class="sec">Tempel dari Excel</div>
+      <div class="form">
+        <span class="lbl">Format per baris: KODE, HARGA KRT, HARGA PAK, HARGA PCS (kolom dipisah Tab dari Excel atau titik koma)</span>
+        <textarea id="ksPaste" class="in num" style="min-height:120px" placeholder="12345&#9;240000&#9;20000&#9;2000"></textarea>
+        <div class="err" id="ksPasteErr"></div>
+        <button class="btn" id="ksPasteSave">Simpan harga dari tempel</button>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -626,9 +863,10 @@ td.bad{color:var(--danger); font-weight:800}
       <button class="btn" id="btnCsv">Export CSV</button>
       <div id="csvNL" class="hidden" style="margin-top:16px">
         <div class="sec">Barang di luar list (tidak ikut export)</div>
+        <div id="csvNLHint" style="color:var(--muted);font-size:13px;margin:-2px 2px 8px"></div>
         <div class="tbl-wrap">
           <table>
-            <thead><tr><th>NAMA BARANG</th><th class="r">KRT</th><th class="r">PAK/RCG</th><th class="r">PCS</th><th class="c">EXPIRE DATE</th></tr></thead>
+            <thead><tr><th>NAMA BARANG</th><th class="r">KRT</th><th class="r">PAK/RCG</th><th class="r">PCS</th><th class="c">EXPIRE DATE</th><th class="c" id="csvNLAct"></th></tr></thead>
             <tbody id="csvNLBody"></tbody>
           </table>
         </div>
@@ -644,6 +882,51 @@ td.bad{color:var(--danger); font-weight:800}
       <button class="iconbtn" id="dvClose" aria-label="Tutup">✕</button>
     </div>
     <div id="dvBody"></div>
+  </div>
+</div>
+
+<div id="nlView" class="sheetbg hidden" role="dialog" aria-label="Benarkan barang di luar list">
+  <div class="sheet">
+    <div class="shead">
+      <div style="flex:1;min-width:0"><b>Benarkan barang</b><small id="nlOld" style="overflow-wrap:anywhere"></small></div>
+      <button class="iconbtn" id="nlClose" aria-label="Tutup">✕</button>
+    </div>
+    <div class="form">
+      <span class="lbl">Pilih barang yang benar</span>
+      <div id="nlPicked" class="hidden" style="display:flex;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px">
+        <div style="flex:1;min-width:0"><b id="nlPName" style="overflow-wrap:anywhere"></b><div id="nlPCode" class="num" style="color:var(--muted);font-size:13px"></div></div>
+        <button class="btn ghost small" id="nlChange">Ganti</button>
+      </div>
+      <div id="nlSearchBox">
+        <input id="nlSearch" class="in" type="search" placeholder="Cari nama atau kode barang" autocomplete="off">
+        <div id="nlList" class="list" style="margin-top:8px;max-height:260px;overflow:auto"></div>
+        <button class="btn ghost" id="nlNewBtn" style="margin-top:8px">+ Barang baru (belum ada di master)</button>
+      </div>
+      <div id="nlNewBox" class="hidden">
+        <small style="display:block;color:var(--muted);margin:0 2px 4px">Kode PLU baru</small>
+        <input id="nlNewCode" class="in num" type="text" maxlength="40" placeholder="Contoh: 1234567" autocomplete="off" autocapitalize="characters">
+        <small style="display:block;color:var(--muted);margin:8px 2px 4px">Nama barang baru</small>
+        <input id="nlNewName" class="in" type="text" maxlength="150" placeholder="Nama barang" autocomplete="off" autocapitalize="characters">
+        <button class="btn ghost small" id="nlNewCancel" style="margin-top:8px">← Pilih dari master</button>
+      </div>
+
+      <span class="lbl">Jumlah stok</span>
+      <div class="qty">
+        <div><small>Karton</small><input id="nlKrt" class="in num" type="number" inputmode="decimal" min="0" placeholder="0"></div>
+        <div><small>Lusin/Pak/Rcg</small><input id="nlPak" class="in num" type="number" inputmode="decimal" min="0" placeholder="0"></div>
+        <div><small>Pcs</small><input id="nlPcs" class="in num" type="number" inputmode="decimal" min="0" placeholder="0"></div>
+      </div>
+
+      <span class="lbl">Expire date</span>
+      <div class="exp2">
+        <select id="nlMonth" class="in" aria-label="Bulan expire"></select>
+        <select id="nlYear" class="in" aria-label="Tahun expire"></select>
+      </div>
+
+      <div class="err" id="nlErr"></div>
+      <button class="btn" id="nlSave">Simpan</button>
+      <button class="btn danger" id="nlDel" style="margin-top:10px">Hapus baris ini (dobel / salah)</button>
+    </div>
   </div>
 </div>
 
@@ -740,26 +1023,40 @@ const S = {
   report: null, screen: 'login', mode: 'bulanan',
   daily: { lokasi: '', y: 0, m: 0, date: '', today: '', cal: null, products: [], filter: 'all', search: '', editable: false }
 };
-const ALLOWED = ['FULL ACCESS','SENTANI','ENTROP','ABE','HRD','SPVADMIN','HEAD SALES'];
+const ALLOWED = ['FULL ACCESS','SENTANI','ENTROP','ABE','HRD','SPVADMIN','HEAD SALES','ADMINKAS'];
+const LBL = () => String(S.label || '').trim().toUpperCase();
+const isAdminKas = () => LBL().startsWith('ADMINKAS');
+const isKvStock = () => LBL().startsWith('STOCKKANVAS');
+const kvScoped = () => isKvStock() || LBL().startsWith('ADMINKASKANVAS');
+const kvOnly = () => isAdminKas() || isKvStock();
+const allowedLabel = l => { l = String(l || '').trim().toUpperCase(); return ALLOWED.includes(l) || l.startsWith('STOCKKANVAS') || l.startsWith('ADMINKASKANVAS'); };
+const noExpMode = () => S.mode === 'harian' || S.mode === 'kanvas';
 function fixedTim(){
   const l = String(S.label || '').trim().toUpperCase();
   if(['ENTROP','ABE','SENTANI'].includes(l)) return 'B';
   if(l === 'SPVADMIN') return 'A';
   return null;
 }
-const PARENT = { home:'mode', divisi:'home', team:'home', products:'team', input:'products', compare:'home', report:'home', dcal:'mode', dprod:'dcal', ditems:'dcal' };
-const parentOf = sc => (sc === 'input' || sc === 'rusak') ? (S.mode === 'harian' ? 'dprod' : 'products') : PARENT[sc];
+const PARENT = { home:'mode', divisi:'home', team:'home', products:'team', input:'products', compare:'home', report:'home', dcal:'mode', dprod:'dcal', ditems:'dcal', kdiv:'mode', kcal:'kdiv', kprod:'kcal', kset:'kcal' };
+const parentOf = sc => {
+  if(sc === 'input' || sc === 'rusak') return S.mode === 'kanvas' ? 'kprod' : S.mode === 'harian' ? 'dprod' : 'products';
+  if(sc === 'kdiv') return kvScoped() ? null : 'mode';
+  if(sc === 'kprod') return kvScoped() ? 'kdiv' : 'khit';
+  if(sc === 'khit') return (kvScoped() && !isAdminKas()) ? 'kprod' : 'kdiv';
+  if(sc === 'kset') return 'khit';
+  return PARENT[sc];
+};
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt = n => { const v = Number(n); return isFinite(v) ? v.toLocaleString('id-ID',{maximumFractionDigits:2}) : '0'; };
 const fmtDate = d => d ? new Date(d).toLocaleString('id-ID',{timeZone:'Asia/Jayapura',day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '-';
 const expTxt = (m,y) => (Number(m) && Number(y)) ? String(m).padStart(2,'0') + '/' + y : 'KOSONG';
-const isKosong = d => S.mode === 'harian'
+const isKosong = d => noExpMode()
   ? !(Number(d.krt) || Number(d.pak) || Number(d.pcs))
   : (!Number(d.exp_month) && !Number(d.exp_year));
 /* label batch: harian tanpa expire date */
-const batchTxt = d => S.mode === 'harian'
+const batchTxt = d => noExpMode()
   ? (Number(d.exp_month) && Number(d.exp_year) ? 'Stok fisik (exp ' + expTxt(d.exp_month, d.exp_year) + ')' : 'Stok fisik')
   : 'Exp ' + expTxt(d.exp_month, d.exp_year);
 
@@ -790,7 +1087,7 @@ async function rpc(name, params = {}){
 
 /* ---------- navigation ---------- */
 function show(screen, push = true){
-  ['login','mode','home','divisi','team','products','input','compare','report','dcal','dprod','ditems','rusak'].forEach(s => $('s-' + s).classList.toggle('hidden', s !== screen));
+  ['login','mode','home','divisi','team','products','input','compare','report','dcal','dprod','ditems','rusak','kdiv','kcal','kprod','khit','kset'].forEach(s => $('s-' + s).classList.toggle('hidden', s !== screen));
   S.screen = screen;
   window.scrollTo(0, 0);
   if(push && screen !== 'login') history.pushState({ s: screen }, '');
@@ -811,6 +1108,10 @@ function openScreen(name, push){
   if(name === 'mode') return goMode(push);
   if(name === 'dcal') return openDCal(push);
   if(name === 'dprod') return openDProd(push, false);
+  if(name === 'kdiv') return openKDiv(push);
+  if(name === 'kcal') return openKCal(push);
+  if(name === 'kprod') return openKProd(push, true);
+  if(name === 'khit') return openKHit(push);
   if(name === 'home') return goHome(push);
   if(name === 'products') return openProducts(push, false);
   if(name === 'team') return openTeam(push);
@@ -827,8 +1128,9 @@ async function doLogin(){
     if(error) throw new Error(error.message);
     const r = Array.isArray(data) ? data[0] : data;
     if(!r || !r.success) throw new Error(r && r.error ? r.error : 'PIN salah.');
-    if(!ALLOWED.includes(String(r.label || '').trim().toUpperCase())) throw new Error('PIN ini tidak punya akses ke Stock Opname.');
-    const probe = await sb().rpc('get_opname_docs', { p_pin: pin });
+    if(!allowedLabel(r.label)) throw new Error('PIN ini tidak punya akses ke Stock Opname.');
+    const ul = String(r.label || '').trim().toUpperCase();
+    const probe = await sb().rpc(ul.startsWith('ADMINKAS') || ul.startsWith('STOCKKANVAS') ? 'get_kanvas_divisi' : 'get_opname_docs', { p_pin: pin });
     if(probe.error) throw new Error(probe.error.message);
     S.pin = pin; S.label = r.label || '';
     storeSet('sessionStorage', 'opn_pin', pin); storeSet('sessionStorage', 'opn_label', S.label);
@@ -998,7 +1300,7 @@ document.querySelectorAll('.team').forEach(b => b.addEventListener('click', () =
   S.tim = b.dataset.tim;
   storeSet('sessionStorage', 'opn_tim_' + S.doc.id, S.tim);
   S.filter = 'all';
-  document.querySelectorAll('.chip').forEach(x => x.classList.toggle('on', x.dataset.f === 'all'));
+  document.querySelectorAll('#s-products .chip').forEach(x => x.classList.toggle('on', x.dataset.f === 'all'));
   openProducts(true, true);
 }));
 
@@ -1117,7 +1419,7 @@ $('btnFinish').addEventListener('click', async () => {
     }else{
       alert(`Ada ${r.mismatch} barang yang hasilnya beda.\n\nPutaran ${r.round}: kedua tim hitung ulang barang bertanda HITUNG ULANG.`);
       S.filter = 'ulang';
-      document.querySelectorAll('.chip').forEach(x => x.classList.toggle('on', x.dataset.f === 'ulang'));
+      document.querySelectorAll('#s-products .chip').forEach(x => x.classList.toggle('on', x.dataset.f === 'ulang'));
       openProducts(false, true);
     }
   }catch(e){ loading(false); toast(e.message, true); }
@@ -1180,7 +1482,7 @@ function resetForm(){
   S.editId = null; S.photoBlob = null;
   ['fKrt','fPak','fPcs'].forEach(id => $(id).value = '');
   $('fMonth').value = '0'; $('fYear').value = '0';
-  const harian = S.mode === 'harian';
+  const harian = noExpMode();
   $('fExpLbl').classList.toggle('hidden', harian); $('fExpBox').classList.toggle('hidden', harian);
   $('phPrev').classList.add('hidden'); $('phPrev').removeAttribute('src');
   $('phTxt').textContent = 'Ambil foto'; $('phInput').value = '';
@@ -1196,19 +1498,19 @@ async function openInput(fromScan = false){
   S.scanFlow = !!fromScan;
   $('btnScanNext').classList.toggle('hidden', !S.scanFlow);
   const p = S.product, s = sysTxt(p);
-  $('iDoc').textContent = S.mode === 'harian' ? `Harian ${S.daily.lokasi}, ${fmtDay(S.daily.date)}` : `${S.doc.doc_no}, ${S.doc.divisi}, Tim ${S.tim}`;
+  $('iDoc').textContent = S.mode === 'kanvas' ? `${kvTxt()}, ${fmtDay(S.kv.date)}` : S.mode === 'harian' ? `Harian ${S.daily.lokasi}, ${fmtDay(S.daily.date)}` : `${S.doc.doc_no}, ${S.doc.divisi}, Tim ${S.tim}`;
   $('iName').textContent = p.product_name;
   $('iCode').textContent = p.product_code + (p.uom_conversion ? `, konversi ${p.uom_conversion}` : '');
   $('iNote').textContent = p.stapel ? p.stapel : '-';
   $('iSys').textContent = s.a === '-' ? 'Tidak ada data' : `${s.a.replace(/&amp;/g,'&')} (${s.b})`;
-  $('iSysRow').classList.toggle('hidden', !canSeeSystem());
-  $('iDiffRow').classList.toggle('hidden', !canSeeSystem());
+  $('iSysRow').classList.toggle('hidden', !canSeeSystem() || S.mode === 'kanvas');
+  $('iDiffRow').classList.toggle('hidden', !canSeeSystem() || S.mode === 'kanvas');
   resetForm();
-  loadBarcodes();
+  if(S.mode === 'kanvas' && kvScoped()) $('iBarcodes').innerHTML = ''; else loadBarcodes();
   await loadItems();
 }
 /* barcode yang terhubung ke barang ini (FULL ACCESS bisa hapus) */
-const bcDivisi = () => S.mode === 'harian' ? (S.product.divisi || null) : S.doc.divisi;
+const bcDivisi = () => S.mode === 'kanvas' ? S.kv.divisi : S.mode === 'harian' ? (S.product.divisi || null) : S.doc.divisi;
 async function loadBarcodes(){
   const box = $('iBarcodes'), code = S.product.product_code;
   box.innerHTML = '';
@@ -1228,7 +1530,9 @@ async function loadBarcodes(){
 async function loadItems(){
   $('batchList').innerHTML = '<div class="empty">Memuat…</div>';
   try{
-    S.items = S.mode === 'harian'
+    S.items = S.mode === 'kanvas'
+      ? await rpc('get_kanvas_items', { p_kanvas_id: S.kv.kid, p_tanggal: S.kv.date, p_product_code: S.product.product_code })
+      : S.mode === 'harian'
       ? await rpc('get_daily_items', { p_lokasi: S.daily.lokasi, p_tanggal: S.daily.date, p_product_code: S.product.product_code })
       : await rpc('get_opname_items', { p_header_id: S.doc.id, p_product_code: S.product.product_code, p_tim: S.tim });
     S.product.batch_count = S.items.length;
@@ -1249,7 +1553,7 @@ function renderSelisih(){
   const f = [0, 0, 0];
   S.items.forEach(d => { f[0] += Number(d.krt) || 0; f[1] += Number(d.pak) || 0; f[2] += Number(d.pcs) || 0; });
   $('iFis').textContent = `${fmt(f[0])} / ${fmt(f[1])} / ${fmt(f[2])}`;
-  if(!canSeeSystem()) return;
+  if(!canSeeSystem() || S.mode === 'kanvas') return;
   const sys = parseSys(S.product);
   $('iDiffRow').classList.remove('bad'); $('iDiffTag').classList.add('hidden');
   if(!sys){ $('iDiff').textContent = 'Tidak ada stock system'; return; }
@@ -1278,7 +1582,7 @@ function renderItems(){
   $('batchList').querySelectorAll('[data-photo]').forEach(b => b.addEventListener('click', () => viewPhoto(Number(b.dataset.photo))));
 }
 async function fetchPhoto(id){
-  const r = await rpc(S.mode === 'harian' ? 'get_daily_photo' : 'get_opname_photo', { p_photo_id: id });
+  const r = await rpc(S.mode === 'kanvas' ? 'get_kanvas_photo' : noExpMode() ? 'get_daily_photo' : 'get_opname_photo', { p_photo_id: id });
   if(!r || !r.data) throw new Error('Foto tidak ditemukan');
   return `data:${r.mime || 'image/jpeg'};base64,${r.data}`;
 }
@@ -1299,7 +1603,7 @@ function startEdit(id){
     $('phTxt').textContent = 'Ganti foto';
     fetchPhoto(d.photo_id).then(src => { if(S.editId === id && !S.photoBlob){ $('phPrev').src = src; $('phPrev').classList.remove('hidden'); } }).catch(() => {});
   }
-  $('formTitle').textContent = S.mode === 'harian' ? 'Edit stok' : `Edit stok exp ${expTxt(d.exp_month, d.exp_year)}`;
+  $('formTitle').textContent = noExpMode() ? 'Edit stok' : `Edit stok exp ${expTxt(d.exp_month, d.exp_year)}`;
   $('btnSave').textContent = 'Simpan perubahan';
   $('btnCancelEdit').classList.remove('hidden');
   document.querySelector('.kosongbox').classList.add('hidden');
@@ -1326,7 +1630,7 @@ $('btnCancelEdit').addEventListener('click', () => { resetForm(); renderItems();
 
 async function delItem(id){
   const d = S.items.find(x => x.id === id); if(!d) return;
-  if(!confirm(S.mode === 'harian' ? 'Hapus stok ini?' : `Hapus stok exp ${expTxt(d.exp_month, d.exp_year)}?`)) return;
+  if(!confirm(noExpMode() ? 'Hapus stok ini?' : `Hapus stok exp ${expTxt(d.exp_month, d.exp_year)}?`)) return;
   loading(true, 'Menghapus…');
   try{
     await apiDel(id);
@@ -1375,10 +1679,12 @@ function blobToBase64(blob){
 /* simpan ke bulanan (opname_detail) atau harian (opname_daily_detail) sesuai mode */
 function apiSave(x){
   const q = { p_product_code: x.code, p_krt: x.krt, p_pak: x.pak, p_pcs: x.pcs, p_exp_month: x.m, p_exp_year: x.y, p_photo_data: x.photo || null, p_detail_id: x.detailId || null };
+  if(S.mode === 'kanvas') return rpc('save_kanvas_item', { p_kanvas_id: S.kv.kid, p_tanggal: S.kv.date, ...q });
   if(S.mode === 'harian') return rpc('save_daily_item', { p_lokasi: S.daily.lokasi, p_tanggal: S.daily.date, ...q });
   return rpc('save_opname_item', { p_header_id: S.doc.id, p_tim: S.tim, ...q });
 }
 function apiDel(id){
+  if(S.mode === 'kanvas') return rpc('delete_kanvas_item', { p_detail_id: id });
   if(S.mode === 'harian') return rpc('delete_daily_item', { p_detail_id: id });
   return rpc('delete_opname_item', { p_detail_id: id });
 }
@@ -1395,11 +1701,11 @@ async function saveMerged({ product, items, krt, pak, pcs, m, y, photoBlob, edit
   const t = [(Number(dup.krt) || 0) + krt, (Number(dup.pak) || 0) + pak, (Number(dup.pcs) || 0) + pcs];
   await apiSave({ ...base, krt: t[0], pak: t[1], pcs: t[2], detailId: dup.id });
   if(editId) await apiDel(editId);
-  return `${S.mode === 'harian' ? 'Stok' : 'Exp ' + expTxt(m, y)} digabung jadi ${fmt(t[0])} / ${fmt(t[1])} / ${fmt(t[2])}`;
+  return `${noExpMode() ? 'Stok' : 'Exp ' + expTxt(m, y)} digabung jadi ${fmt(t[0])} / ${fmt(t[1])} / ${fmt(t[2])}`;
 }
 function mergeConfirm(items, m, y, editId){
   const dup = items.find(d => Number(d.exp_month) === m && Number(d.exp_year) === y && d.id !== editId);
-  if(dup && S.mode === 'harian') return isKosong(dup) || confirm(`Stok barang ini sudah ada (${fmt(dup.krt)} / ${fmt(dup.pak)} / ${fmt(dup.pcs)}). Jumlah baru akan ditambahkan ke stok tersebut. Lanjutkan?`);
+  if(dup && noExpMode()) return isKosong(dup) || confirm(`Stok barang ini sudah ada (${fmt(dup.krt)} / ${fmt(dup.pak)} / ${fmt(dup.pcs)}). Jumlah baru akan ditambahkan ke stok tersebut. Lanjutkan?`);
   if(dup && editId) return confirm(`Exp ${expTxt(m, y)} sudah ada di batch lain. Batch ini akan digabung (qty dijumlah) ke batch tersebut. Lanjutkan?`);
   return true;
 }
@@ -1407,7 +1713,7 @@ function mergeConfirm(items, m, y, editId){
 $('btnSave').addEventListener('click', async () => {
   $('formErr').textContent = '';
   const krt = Number($('fKrt').value || 0), pak = Number($('fPak').value || 0), pcs = Number($('fPcs').value || 0);
-  const harian = S.mode === 'harian';
+  const harian = noExpMode();
   const m = harian ? 0 : Number($('fMonth').value), y = harian ? 0 : Number($('fYear').value);
   if([krt, pak, pcs].some(v => !isFinite(v) || v < 0)){ $('formErr').textContent = 'Jumlah stok tidak boleh minus.'; return; }
   if(!harian && (!m || !y)){ $('formErr').textContent = 'Bulan dan tahun expire wajib diisi.'; return; }
@@ -1614,7 +1920,11 @@ function csvRows(){
 function csvInfo(){
   const { rows, nl, nlRows } = csvRows();
   $('csvNL').classList.toggle('hidden', !nl);
-  $('csvNLBody').innerHTML = nlRows.map(r => `<tr><td>${esc(r.product_name)}</td><td class="r num">${fmt(r.krt)}</td><td class="r num">${fmt(r.pak)}</td><td class="r num">${fmt(r.pcs)}</td><td class="c num">${expTxt(r.exp_month, r.exp_year)}</td></tr>`).join('');
+  const can = canFinalize() && S.report && S.report.header && S.report.header.status === 'FINAL';
+  $('csvNLAct').textContent = can ? 'AKSI' : '';
+  $('csvNLHint').textContent = can ? 'Tekan Benarkan untuk pilih barang dari master. Setelah dibenarkan, barang langsung ikut export dan laporan.' : '';
+  $('csvNLBody').innerHTML = nlRows.map(r => `<tr><td>${esc(r.product_name)}</td><td class="r num">${fmt(r.krt)}</td><td class="r num">${fmt(r.pak)}</td><td class="r num">${fmt(r.pcs)}</td><td class="c num">${expTxt(r.exp_month, r.exp_year)}</td><td class="c">${can && r.id ? `<button class="btn small" data-nlfix="${r.id}">Benarkan</button>` : ''}</td></tr>`).join('');
+  $('csvNLBody').querySelectorAll('[data-nlfix]').forEach(b => b.addEventListener('click', () => nlOpen(Number(b.dataset.nlfix))));
   $('csvInfo').textContent = `${rows.length} barang akan diexport (qty dijumlah per barang, semua ExpiryDate 2050-12-31).` + (nl ? ` ${nl} baris barang di luar list tidak ikut karena tidak punya ProductCode.` : '');
 }
 $('btnCsv').addEventListener('click', () => {
@@ -1635,6 +1945,92 @@ $('btnCsv').addEventListener('click', () => {
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 });
+/* ---------- benarkan barang di luar list (hasil final) ---------- */
+S.nl = { row: null, pick: null, timer: null };
+$('nlMonth').innerHTML = $('fMonth').innerHTML;
+$('nlYear').innerHTML = $('fYear').innerHTML;
+function nlOpen(id){
+  const r = ((S.report && S.report.rows) || []).find(x => Number(x.id) === id); if(!r) return;
+  S.nl = { row: r, pick: null, timer: null, isNew: false };
+  $('nlNewCode').value = ''; $('nlNewName').value = String(r.product_name || '').toUpperCase();
+  $('nlOld').textContent = `Tertulis: ${r.product_name}`;
+  $('nlKrt').value = Number(r.krt) || ''; $('nlPak').value = Number(r.pak) || ''; $('nlPcs').value = Number(r.pcs) || '';
+  $('nlMonth').value = String(Number(r.exp_month) || 0); $('nlYear').value = String(Number(r.exp_year) || 0);
+  $('nlErr').textContent = '';
+  $('nlSearch').value = String(r.product_name || '').split(/\s+/).slice(0, 2).join(' ');
+  nlShowPick();
+  $('nlView').classList.remove('hidden');
+  nlSearch();
+}
+function nlClose(){ $('nlView').classList.add('hidden'); }
+function nlShowPick(){
+  const p = S.nl.pick, nw = S.nl.isNew;
+  $('nlPicked').classList.toggle('hidden', !p || nw);
+  $('nlSearchBox').classList.toggle('hidden', !!p || nw);
+  $('nlNewBox').classList.toggle('hidden', !nw);
+  if(p){ $('nlPName').textContent = p.name; $('nlPCode').textContent = p.code; }
+}
+async function nlSearch(){
+  const q = $('nlSearch').value.trim();
+  if(q.length < 2){ $('nlList').innerHTML = '<div class="empty">Ketik minimal 2 huruf untuk mencari barang.</div>'; return; }
+  try{
+    const r = await rpc('search_rusak_product', { p_q: q, p_header_id: S.doc.id }) || [];
+    if($('nlSearch').value.trim() !== q) return;
+    $('nlList').innerHTML = r.length ? r.map(x => `<button class="row" data-code="${esc(x.sku)}" data-name="${esc(x.name)}"><div class="main"><div class="name">${esc(x.name)}</div><div class="sub">${esc(x.sku)}</div></div></button>`).join('')
+      : '<div class="empty">Barang tidak ditemukan. Coba kata lain.</div>';
+    $('nlList').querySelectorAll('.row').forEach(b => b.addEventListener('click', () => { S.nl.pick = { code: b.dataset.code, name: b.dataset.name }; nlShowPick(); }));
+  }catch(e){ $('nlList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+$('nlSearch').addEventListener('input', () => { clearTimeout(S.nl.timer); S.nl.timer = setTimeout(nlSearch, 300); });
+$('nlChange').addEventListener('click', () => { S.nl.pick = null; nlShowPick(); $('nlSearch').focus(); });
+$('nlClose').addEventListener('click', nlClose);
+$('nlNewBtn').addEventListener('click', () => { S.nl.isNew = true; S.nl.pick = null; nlShowPick(); $('nlNewCode').focus(); });
+$('nlNewCancel').addEventListener('click', () => { S.nl.isNew = false; nlShowPick(); });
+async function nlReload(msg){
+  nlClose(); toast(msg);
+  await openReport(false);
+  setTab('csv');
+}
+$('nlSave').addEventListener('click', async () => {
+  $('nlErr').textContent = '';
+  const r = S.nl.row, isNew = S.nl.isNew;
+  let p = S.nl.pick;
+  if(isNew){
+    const code = $('nlNewCode').value.trim().toUpperCase().replace(/\s+/g, '');
+    const name = $('nlNewName').value.trim().toUpperCase().replace(/\s+/g, ' ');
+    if(!code){ $('nlErr').textContent = 'Kode PLU baru wajib diisi.'; return; }
+    if(code.startsWith('NL-')){ $('nlErr').textContent = 'Kode tidak boleh diawali NL-.'; return; }
+    if(!name){ $('nlErr').textContent = 'Nama barang baru wajib diisi.'; return; }
+    p = { code, name };
+  }
+  if(!p){ $('nlErr').textContent = 'Pilih barang yang benar dulu.'; return; }
+  const krt = Number($('nlKrt').value || 0), pak = Number($('nlPak').value || 0), pcs = Number($('nlPcs').value || 0);
+  const m = Number($('nlMonth').value), y = Number($('nlYear').value);
+  if([krt, pak, pcs].some(v => !isFinite(v) || v < 0)){ $('nlErr').textContent = 'Jumlah stok tidak boleh minus.'; return; }
+  if(krt === 0 && pak === 0 && pcs === 0){ $('nlErr').textContent = 'Isi jumlah stok.'; return; }
+  if(!m || !y){ $('nlErr').textContent = 'Bulan dan tahun expire wajib diisi.'; return; }
+  const dup = (S.report.rows || []).find(x => x.product_code === p.code && Number(x.exp_month) === m && Number(x.exp_year) === y);
+  const ask = dup
+    ? `${p.name} exp ${expTxt(m, y)} sudah ada (${fmt(dup.krt)} / ${fmt(dup.pak)} / ${fmt(dup.pcs)}).\nQty akan DIJUMLAH jadi ${fmt(Number(dup.krt) + krt)} / ${fmt(Number(dup.pak) + pak)} / ${fmt(Number(dup.pcs) + pcs)}.\n\nKalau baris ini dobel, pakai tombol Hapus. Lanjut jumlahkan?`
+    : `Ubah "${r.product_name}" menjadi${isNew ? ' BARANG BARU' : ''}:\n${p.name} (${p.code})\n${fmt(krt)} / ${fmt(pak)} / ${fmt(pcs)}, exp ${expTxt(m, y)}?`;
+  if(!confirm(ask)) return;
+  $('nlSave').disabled = true;
+  loading(true, 'Menyimpan…');
+  try{
+    const res = await rpc('fix_opname_final_nl', { p_final_id: r.id, p_product_code: p.code, p_new_name: isNew ? p.name : null, p_krt: krt, p_pak: pak, p_pcs: pcs, p_exp_month: m, p_exp_year: y });
+    loading(false);
+    await nlReload(res && res.merged ? `Digabung jadi ${fmt(res.krt)} / ${fmt(res.pak)} / ${fmt(res.pcs)}` : 'Barang dibenarkan');
+  }catch(e){ loading(false); $('nlErr').textContent = e.message; }
+  finally{ $('nlSave').disabled = false; }
+});
+$('nlDel').addEventListener('click', async () => {
+  const r = S.nl.row;
+  if(!confirm(`Hapus baris "${r.product_name}" ${fmt(r.krt)} / ${fmt(r.pak)} / ${fmt(r.pcs)} exp ${expTxt(r.exp_month, r.exp_year)} dari hasil final?`)) return;
+  loading(true, 'Menghapus…');
+  try{ await rpc('delete_opname_final_nl', { p_final_id: r.id }); loading(false); await nlReload('Baris dihapus'); }
+  catch(e){ loading(false); $('nlErr').textContent = e.message; }
+});
+
 /* ---------- cek adjust (import excel program) ---------- */
 S.adj = null;
 const adjNorm = v => String(v == null ? '' : v).toUpperCase().replace(/\s+/g, ' ').trim();
@@ -1762,7 +2158,7 @@ function renderAdj(){
 }
 
 function setTab(t){
-  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x.dataset.t === t));
+  document.querySelectorAll('#s-report .tab').forEach(x => x.classList.toggle('on', x.dataset.t === t));
   $('t-lap').classList.toggle('hidden', t !== 'lap');
   $('t-csv').classList.toggle('hidden', t !== 'csv');
   $('t-adj').classList.toggle('hidden', t !== 'adj');
@@ -1770,7 +2166,7 @@ function setTab(t){
   if(t === 'csv') csvInfo();
   if(t === 'ned') renderNearEd();
 }
-document.querySelectorAll('.tab').forEach(x => x.addEventListener('click', () => setTab(x.dataset.t)));
+document.querySelectorAll('#s-report .tab').forEach(x => x.addEventListener('click', () => setTab(x.dataset.t)));
 
 /* barang yang ED-nya <= 6 bulan dari bulan ini (termasuk yang sudah lewat ED) */
 const NEAR_ED_MONTHS = 6;
@@ -1862,8 +2258,14 @@ $('btnPdf').addEventListener('click', async () => {
     });
     {
       const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight();
-      let y = pdf.lastAutoTable.finalY + 14;
-      if(y + 50 > ph - 14){ pdf.addPage(); pdf.setFontSize(8); pdf.text(`Hal. ${pdf.internal.getNumberOfPages()}`, pw - 14, ph - 8, { align: 'right' }); y = 20; }
+      pdf.setFontSize(10); pdf.setFont(undefined, 'normal');
+      const st = pdf.splitTextToSize('Demikian hasil fisik persediaan ini dihitung dan diperiksa dengan sebenarnya. Data yang tercantum dalam laporan ini adalah benar, akurat, dan dapat dipertanggungjawabkan.', pw - 28);
+      const stH = st.length * 5;
+      let y = pdf.lastAutoTable.finalY + 10;
+      if(y + stH + 12 + 50 > ph - 14){ pdf.addPage(); pdf.setFontSize(8); pdf.text(`Hal. ${pdf.internal.getNumberOfPages()}`, pw - 14, ph - 8, { align: 'right' }); y = 20; }
+      pdf.setFontSize(10); pdf.setFont(undefined, 'normal');
+      pdf.text(st, 14, y, { lineHeightFactor: 1.4 });
+      y += stH + 12;
       const w = (pw - 28) / 3;
       ['ADMIN TIM A', 'ADMIN TIM B', 'KEPALA GUDANG'].forEach((t, i) => {
         const x0 = 14 + w * i, cx = x0 + w / 2, l = x0 + 6, r = x0 + w - 6;
@@ -1944,8 +2346,12 @@ $('pvClose').addEventListener('click', () => { $('photoView').classList.add('hid
 
 /* ================= MODE ================= */
 function goMode(push = true){
+  if(kvScoped()) return openKDiv(push);
   show('mode', push);
   $('whoami2').textContent = S.label;
+  const ak = isAdminKas();
+  ['btnModeH','btnModeB','modeSep'].forEach(id => $(id).classList.toggle('hidden', ak));
+  if(ak){ $('dupBox').classList.add('hidden'); return; }
   loadDupBarcodes();
 }
 /* barang yang punya lebih dari 1 barcode (aturan: 1 barang = 1 barcode) */
@@ -1969,6 +2375,7 @@ async function loadDupBarcodes(){
   }catch(e){ box.classList.add('hidden'); }
 }
 $('btnModeB').addEventListener('click', () => goHome(true));
+$('btnModeK').addEventListener('click', () => openKDiv(true));
 $('btnModeH').addEventListener('click', () => { S.mode = 'harian'; openDCal(true); });
 $('btnLogout2').addEventListener('click', () => { if(confirm('Keluar dari Stock Opname?')) logout(); });
 
@@ -2213,6 +2620,7 @@ function scanResume(msg){
 
 /* barang yang bisa dipilih di layar sekarang */
 function scanCandidates(){
+  if(S.sc.ctx === 'kanvas') return S.kv.products.map(p => ({ code: String(p.product_code), name: p.product_name, divisi: S.kv.divisi, ref: p }));
   if(S.sc.ctx === 'harian') return S.daily.products.map(p => ({ code: String(p.product_code), name: p.product_name, divisi: p.divisi || '', ref: p }));
   if(S.sc.ctx === 'bulanan') return S.products.map(p => ({ code: String(p.product_code), name: p.product_name, divisi: S.doc.divisi, ref: p }));
   return null; // rusak: cari ke server
@@ -2240,7 +2648,7 @@ async function scanHandle(code){
 
   const m = scanMatch(hit);
   if(!m){
-    const where = S.sc.ctx === 'harian' ? `list harian ${S.daily.lokasi}` : `divisi ${S.doc.divisi}`;
+    const where = S.sc.ctx === 'kanvas' ? `divisi ${S.kv.divisi}` : S.sc.ctx === 'harian' ? `list harian ${S.daily.lokasi}` : `divisi ${S.doc.divisi}`;
     if(confirm(`Barcode ${code} terdaftar sebagai:\n${hit.name} (${hit.sku}${hit.divisi ? ', ' + hit.divisi : ''})\n\nBarang ini tidak ada di ${where}.\nKalau barcode ini salah barang, tekan OK untuk menggantinya.`)){
       scanClose(); bcOpen(code); return;
     }
@@ -2250,7 +2658,9 @@ async function scanHandle(code){
   scanGo(m.ref);
 }
 function scanGo(p){
-  if(S.sc.ctx === 'harian'){
+  if(S.sc.ctx === 'kanvas'){
+    if(!S.kv.editable){ toast(S.kv.lockMsg || 'Tanggal ini hanya bisa dilihat.'); return; }
+  }else if(S.sc.ctx === 'harian'){
     if(!S.daily.editable){ toast(S.daily.lockMsg || 'Tanggal ini hanya bisa dilihat.'); return; }
   }else{
     const why = lockReason(p);
@@ -2306,11 +2716,12 @@ $('bcClose').addEventListener('click', bcClose);
 
 $('btnScanH').addEventListener('click', () => scanOpen('harian'));
 $('btnScanB').addEventListener('click', () => scanOpen('bulanan'));
+$('btnScanK').addEventListener('click', () => scanOpen('kanvas'));
 $('btnScanR').addEventListener('click', () => scanOpen('rusak'));
 $('scClose').addEventListener('click', scanClose);
 $('scManual').addEventListener('click', () => {
   const ctx = S.sc.ctx; scanClose();
-  const el = ctx === 'harian' ? $('dSearch') : ctx === 'bulanan' ? $('search') : $('rkSearch');
+  const el = ctx === 'kanvas' ? $('kSearch') : ctx === 'harian' ? $('dSearch') : ctx === 'bulanan' ? $('search') : $('rkSearch');
   el.focus();
 });
 $('scTorch').addEventListener('click', async () => {
@@ -2320,7 +2731,7 @@ $('scTorch').addEventListener('click', async () => {
 });
 /* alur scan: setelah simpan langsung kembali ke kamera untuk barang berikutnya */
 async function scanNext(){
-  const ctx = S.mode === 'harian' ? 'harian' : 'bulanan';
+  const ctx = S.mode === 'kanvas' ? 'kanvas' : S.mode === 'harian' ? 'harian' : 'bulanan';
   try{ await loadItems(); }catch(e){}
   S.scanFlow = false;
   history.back();
@@ -2582,12 +2993,554 @@ function diSearch(){
 }
 $('diSearch').addEventListener('input', diSearch);
 
+/* ================= OPNAME KANVAS ================= */
+S.kv = { kid: 0, kname: '', divisi: '', units: [], divs: [], y: 0, m: 0, date: '', today: '', cal: null, products: [], filter: 'all', search: '', editable: false, lockMsg: '', done: false, hit: null,
+  set: { tab: 'modal', modal: [], harga: [], filter: 'all', search: '' } };
+const fmtRp = n => 'Rp ' + Math.round(Number(n) || 0).toLocaleString('id-ID');
+const fmtRpS = n => (Number(n) > 0 ? '+' : Number(n) < 0 ? '−' : '') + fmtRp(Math.abs(Number(n) || 0));
+const parseRp = v => Number(String(v || '').replace(/[^\d]/g, '')) || 0;
+function moneyInput(el){
+  el.addEventListener('input', () => {
+    const n = String(el.value).replace(/[^\d]/g, '');
+    el.value = n ? Number(n).toLocaleString('id-ID') : '';
+  });
+}
+moneyInput($('khKasIn')); moneyInput($('ksModal')); moneyInput($('kaLimit'));
+const kvTxt = () => `${S.kv.kname} (${S.kv.divisi})`;
+
+/* ----- pilih kanvas (dikelompokkan per divisi) ----- */
+async function openKDiv(push = true){
+  S.mode = 'kanvas';
+  show('kdiv', push);
+  $('kOv').classList.toggle('hidden', kvScoped());
+  $('kDivList').classList.toggle('hidden', !kvScoped());
+  if(!kvScoped()){
+    $('kdBack').classList.remove('hidden'); $('btnLogoutK').classList.add('hidden');
+    $('kdWho').textContent = 'Semua kanvas';
+    $('kAddWrap').classList.toggle('hidden', !isFullAccess());
+    return loadKOv();
+  }
+  $('kDivList').innerHTML = '<div class="empty">Memuat…</div>';
+  $('kAddWrap').classList.toggle('hidden', !isFullAccess());
+  const sc = kvScoped();
+  $('kdBack').classList.toggle('hidden', sc); $('btnLogoutK').classList.toggle('hidden', !sc);
+  $('kdWho').textContent = sc ? `${S.label}, ${fmtDay(jayapuraToday())}` : 'Pilih kanvas';
+  try{
+    const r = await rpc('get_kanvas_divisi') || {};
+    S.kv.units = r.units || []; S.kv.divs = r.divisi || [];
+    $('kaDiv').innerHTML = S.kv.divs.map(d => `<option>${esc(d)}</option>`).join('');
+    const U = S.kv.units.filter(u => u.aktif || isFullAccess());
+    if(!U.length){ $('kDivList').innerHTML = `<div class="empty">Belum ada kanvas.${isFullAccess() ? ' Tambahkan di bawah.' : ' Hubungi Full Access.'}</div>`; return; }
+    const groups = [...new Set(U.map(u => u.divisi))];
+    $('kDivList').innerHTML = groups.map(g => `<div class="sec">Divisi ${esc(g)}</div><div class="list">` + U.filter(u => u.divisi === g).map(u => {
+      const sub = [];
+      if(canFinalize()) sub.push((u.grp || u.lokasi ? `${esc(u.grp || '?')} ${esc(u.lokasi || '?')} · ` : '') + (u.limit != null ? 'Limit ' + fmtRp(u.limit) : 'Limit belum diatur'));
+      if(!u.aktif) sub.push('Tidak aktif');
+      if(kvScoped()) sub.push(isAdminKas()
+        ? (u.kas_today ? '<b style="color:var(--ok)">✓ Kas hari ini sudah diinput</b>' : 'Kas hari ini belum diinput')
+        : (u.done_today ? '<b style="color:var(--ok)">✓ Sudah submit hari ini</b>' : 'Belum submit hari ini'));
+      if(Number(u.audit) > 0) sub.push(`<b style="color:var(--danger)">⚠ ${u.audit} tanggal perlu audit bulan ini</b>`);
+      return `<button class="row" data-id="${u.id}"><div class="main"><div class="name">${esc(u.nama)}</div>${sub.length ? `<div class="sub">${sub.join(' · ')}</div>` : ''}</div><span style="color:var(--muted);font-size:20px">›</span></button>`;
+    }).join('') + '</div>').join('');
+    $('kDivList').querySelectorAll('.row').forEach(el => el.addEventListener('click', () => {
+      const u = S.kv.units.find(x => String(x.id) === el.dataset.id);
+      if(S.kv.kid !== u.id) S.kv.products = [];
+      S.kv.kid = u.id; S.kv.kname = u.nama; S.kv.divisi = u.divisi;
+      if(kvScoped()){
+        S.kv.date = jayapuraToday();
+        if(isAdminKas()) openKHit(true); else openKProd(true, true);
+        return;
+      }
+      openKCal(true);
+    }));
+  }catch(e){ $('kDivList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+/* ----- kalender gabungan semua kanvas ----- */
+function koState(st, iso){
+  if(st === 'cocok') return 'g';
+  if(KV_WARN.includes(st)) return 'r';
+  if(st === 'proses') return 'y';
+  return iso < S.kv.today ? 'm' : 'n';
+}
+function koUnits(){ return (S.kv.ov && S.kv.ov.units) || []; }
+function koDay(iso){
+  const D = (S.kv.ov.days || []).filter(x => String(x.tanggal).slice(0, 10) === iso);
+  return koUnits().filter(u => u.aktif || D.some(x => x.kanvas_id === u.id)).map(u => {
+    const x = D.find(d => d.kanvas_id === u.id) || {};
+    return { u, x, st: x.status || 'kosong', c: koState(x.status || 'kosong', iso) };
+  });
+}
+async function loadKOv(){
+  if(!S.kv.y){ const t = jayapuraToday().split('-').map(Number); S.kv.y = t[0]; S.kv.m = t[1]; }
+  const { y, m } = S.kv;
+  $('koMonth').textContent = `${BULAN[m - 1]} ${y}`;
+  const tp = jayapuraToday().split('-').map(Number);
+  $('koNext').disabled = (y > tp[0]) || (y === tp[0] && m >= tp[1]);
+  $('koGrid').innerHTML = '<div class="empty" style="grid-column:1/-1">Memuat…</div>';
+  $('koDay').innerHTML = ''; $('koSum').innerHTML = ''; $('koDayTtl').textContent = '';
+  try{
+    const r = await rpc('get_kanvas_overview', { p_year: y, p_month: m });
+    if(S.kv.y !== y || S.kv.m !== m) return;
+    S.kv.ov = r; S.kv.today = r.today || jayapuraToday();
+    S.kv.units = r.units || []; S.kv.divs = r.divisi || [];
+    $('kaDiv').innerHTML = S.kv.divs.map(d => `<option>${esc(d)}</option>`).join('');
+    if(!S.kv.sel || S.kv.sel.slice(0, 7) !== ymd(y, m, 1).slice(0, 7)){
+      S.kv.sel = S.kv.today.slice(0, 7) === ymd(y, m, 1).slice(0, 7) ? S.kv.today : ymd(y, m, 1);
+    }
+    renderKOv();
+  }catch(e){ $('koGrid').innerHTML = `<div class="empty" style="grid-column:1/-1">${esc(e.message)}</div>`; }
+}
+$('koPrev').addEventListener('click', () => { S.kv.m--; if(S.kv.m < 1){ S.kv.m = 12; S.kv.y--; } S.kv.sel = ''; loadKOv(); });
+$('koNext').addEventListener('click', () => { S.kv.m++; if(S.kv.m > 12){ S.kv.m = 1; S.kv.y++; } S.kv.sel = ''; loadKOv(); });
+function renderKOv(){
+  const { y, m } = S.kv;
+  const days = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const lead = (dowOf(ymd(y, m, 1)) + 6) % 7;
+  let h = ['Sen','Sel','Rab','Kam','Jum','Sab','Min'].map(w => `<div class="wd">${w}</div>`).join('');
+  for(let i = 0; i < lead; i++) h += '<div class="d pad"></div>';
+  for(let d = 1; d <= days; d++){
+    const iso = ymd(y, m, d);
+    let c = '', sub = '', off = false;
+    if(dowOf(iso) === 0){ c = 'sun'; off = true; }
+    else if(iso > S.kv.today){ c = 'fut'; off = true; }
+    else{
+      const L = koDay(iso), red = L.filter(x => x.c === 'r').length, ok = L.filter(x => x.c === 'g').length;
+      const any = L.some(x => x.st !== 'kosong');
+      if(red){ c = 'w'; sub = '⚠' + red; }
+      else if(L.length && ok === L.length){ c = 'g'; sub = '✓'; }
+      else if(any){ c = 'y'; sub = `${ok}/${L.length}`; }
+      else if(iso < S.kv.today) c = 'm';
+    }
+    h += `<button class="d ${c}${iso === S.kv.today ? ' today' : ''}${iso === S.kv.sel ? ' sel' : ''}" data-iso="${iso}"${off ? ' disabled' : ''} aria-label="${fmtDay(iso)}">${d}${sub ? `<small>${sub}</small>` : ''}</button>`;
+  }
+  $('koGrid').innerHTML = h;
+  $('koGrid').querySelectorAll('.d[data-iso]:not([disabled])').forEach(b => b.addEventListener('click', () => { S.kv.sel = b.dataset.iso; renderKOv(); }));
+  renderKODay();
+}
+function renderKODay(){
+  const iso = S.kv.sel;
+  $('koDayTtl').textContent = fmtDay(iso);
+  if(!iso || dowOf(iso) === 0 || iso > S.kv.today){ $('koDay').innerHTML = '<div class="empty">Pilih tanggal di kalender.</div>'; $('koSum').innerHTML = ''; return; }
+  const L = koDay(iso);
+  if(!L.length){ $('koDay').innerHTML = '<div class="empty">Belum ada kanvas.</div>'; $('koSum').innerHTML = ''; return; }
+  const cnt = k => L.filter(x => x.c === k).length;
+  $('koSum').innerHTML = [['g', 'Cocok', '#2F9E5B', '#fff'], ['r', 'Selisih', '#D2453D', '#fff'], ['y', 'Belum lengkap', '#F2C230', '#1C2630']]
+    .map(([k, t, bg, fg]) => `<span style="background:${bg};color:${fg}">${t} ${cnt(k)}</span>`).join('')
+    + `<span style="border:1.5px solid var(--line);color:var(--muted)">Belum mulai ${cnt('m') + cnt('n')}</span>`;
+  const priv = canFinalize();
+  const lbl = r => {
+    const x = r.x;
+    if(r.st === 'cocok') return 'COCOK';
+    if(r.st === 'beda') return 'SELISIH' + (priv && x.selisih != null ? ' ' + fmtRpS(x.selisih) : '');
+    if(r.st === 'no_modal') return 'LIMIT BELUM ADA';
+    if(r.st === 'no_harga') return 'HARGA BELUM ADA';
+    if(r.st === 'proses') return !x.done ? 'STOCK BELUM SUBMIT' : 'KAS BELUM INPUT';
+    return iso < S.kv.today ? 'TIDAK DI STOCK' : 'BELUM';
+  };
+  const groups = [...new Set(L.map(r => r.u.divisi))];
+  $('koDay').innerHTML = groups.map(g => `<div class="sec">Divisi ${esc(g)}</div><div class="list">` + L.filter(r => r.u.divisi === g).map(r => {
+    const x = r.x;
+    const sub = `Stock ${x.done ? '✓' : x.n_item ? '… ' + x.n_item + ' item' : '✗'} · Kas ${x.kas_input ? '✓' : '✗'}${priv && r.u.limit != null ? ' · Limit ' + fmtRp(r.u.limit) : ''}`;
+    return `<button class="row" data-id="${r.u.id}"><div class="main"><div class="name">${esc(r.u.nama)}${r.u.aktif ? '' : ' <small style="color:var(--muted)">(tidak aktif)</small>'}</div><div class="sub">${sub}</div></div><span class="kst ${r.c}">${esc(lbl(r))}</span></button>`;
+  }).join('') + '</div>').join('');
+  $('koDay').querySelectorAll('.row').forEach(el => el.addEventListener('click', () => {
+    const u = koUnits().find(x => String(x.id) === el.dataset.id);
+    if(S.kv.kid !== u.id) S.kv.products = [];
+    S.kv.kid = u.id; S.kv.kname = u.nama; S.kv.divisi = u.divisi; S.kv.date = iso;
+    openKHit(true);
+  }));
+}
+
+$('btnLogoutK').addEventListener('click', () => { if(confirm('Keluar?')) logout(); });
+$('kaSave').addEventListener('click', async () => {
+  $('kaErr').textContent = '';
+  const div = $('kaDiv').value, nama = $('kaNama').value.trim(), lim = parseRp($('kaLimit').value);
+  if(!div || !nama){ $('kaErr').textContent = 'Isi divisi dan nama kanvas.'; return; }
+  if(lim <= 0){ $('kaErr').textContent = 'Isi limit kanvas.'; return; }
+  if(!confirm(`Tambah kanvas ${nama} (${div}) dengan limit ${fmtRp(lim)}?`)) return;
+  loading(true, 'Menyimpan…');
+  try{
+    await rpc('save_kanvas_unit', { p_id: null, p_divisi: div, p_nama: nama, p_aktif: true, p_limit: lim, p_grp: $('kaGrp').value, p_lokasi: $('kaLok').value });
+    loading(false); toast('Kanvas ditambahkan');
+    $('kaNama').value = ''; $('kaLimit').value = '';
+    openKDiv(false);
+  }catch(e){ loading(false); $('kaErr').textContent = e.message; }
+});
+
+/* ----- kalender ----- */
+function openKCal(push = true){
+  S.mode = 'kanvas';
+  show('kcal', push);
+  $('kcDiv').textContent = kvTxt();
+  $('btnKSet').classList.toggle('hidden', !isFullAccess());
+  if(!S.kv.y){ const t = jayapuraToday().split('-').map(Number); S.kv.y = t[0]; S.kv.m = t[1]; }
+  loadKCal();
+}
+$('kcPrev').addEventListener('click', () => { S.kv.m--; if(S.kv.m < 1){ S.kv.m = 12; S.kv.y--; } loadKCal(); });
+$('kcNext').addEventListener('click', () => { S.kv.m++; if(S.kv.m > 12){ S.kv.m = 1; S.kv.y++; } loadKCal(); });
+$('btnKSet').addEventListener('click', () => openKSet(true));
+
+async function loadKCal(){
+  const { y, m, kid } = S.kv;
+  $('kcMonth').textContent = `${BULAN[m - 1]} ${y}`;
+  const tp = jayapuraToday().split('-').map(Number);
+  $('kcNext').disabled = (y > tp[0]) || (y === tp[0] && m >= tp[1]);
+  $('kcGrid').innerHTML = '<div class="empty" style="grid-column:1/-1">Memuat…</div>';
+  $('kcInfo').innerHTML = '';
+  try{
+    const r = await rpc('get_kanvas_calendar', { p_kanvas_id: kid, p_year: y, p_month: m });
+    if(S.kv.y !== y || S.kv.m !== m || S.kv.kid !== kid) return;
+    S.kv.cal = r; S.kv.today = r.today || jayapuraToday();
+    renderKCal();
+  }catch(e){ $('kcGrid').innerHTML = `<div class="empty" style="grid-column:1/-1">${esc(e.message)}</div>`; }
+}
+const KV_WARN = ['beda', 'no_modal', 'no_harga'];
+function kDayState(iso){
+  const x = (S.kv.cal.days || []).find(d => String(d.tanggal).slice(0, 10) === iso) || {};
+  const st = x.status || 'kosong', n = Number(x.n_item) || 0;
+  if(dowOf(iso) === 0) return { c: 'sun', off: true };
+  if(iso > S.kv.today) return { c: 'fut', off: true };
+  if(st === 'cocok') return { c: 'g', sub: '✓' };
+  if(KV_WARN.includes(st)) return { c: 'w', sub: '⚠' };
+  if(st === 'proses') return { c: 'y', sub: n ? String(n) : '' };
+  if(iso < S.kv.today) return { c: 'm' };
+  return { c: '' };
+}
+function renderKCal(){
+  const { y, m } = S.kv, r = S.kv.cal;
+  const days = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const lead = (dowOf(ymd(y, m, 1)) + 6) % 7;
+  let h = ['Sen','Sel','Rab','Kam','Jum','Sab','Min'].map(w => `<div class="wd">${w}</div>`).join('');
+  for(let i = 0; i < lead; i++) h += '<div class="d pad"></div>';
+  let warn = 0;
+  for(let d = 1; d <= days; d++){
+    const iso = ymd(y, m, d), st = kDayState(iso);
+    if(st.c === 'w') warn++;
+    h += `<button class="d ${st.c}${iso === S.kv.today ? ' today' : ''}" data-iso="${iso}"${st.off ? ' disabled' : ''} aria-label="${fmtDay(iso)}">${d}${st.sub ? `<small>${st.sub}</small>` : ''}</button>`;
+  }
+  $('kcGrid').innerHTML = h;
+  $('kcGrid').querySelectorAll('.d[data-iso]:not([disabled])').forEach(b => b.addEventListener('click', () => {
+    S.kv.date = b.dataset.iso;
+    if(isAdminKas()) openKHit(true); else openKProd(true, true);
+  }));
+  let info = '';
+  if(warn) info += `<div class="banner" style="background:#D2453D;color:#fff;font-weight:700">⚠ ${warn} tanggal tidak cocok dengan limit. Perlu audit.</div>`;
+  if(!r.has_modal) info += `<div class="banner">Limit kanvas ${esc(S.kv.kname)} belum diatur.${isFullAccess() ? ' Tekan "Atur limit, harga & data kanvas".' : ' Hubungi Full Access.'}</div>`;
+  $('kcInfo').innerHTML = info;
+}
+
+/* ----- list item kanvas (semua item divisi, tidak wajib semua) ----- */
+async function openKProd(push = true, reload = true){
+  S.mode = 'kanvas';
+  show('kprod', push);
+  $('kpTitle').textContent = fmtDay(S.kv.date);
+  $('btnKHit').textContent = isKvStock() ? 'Submit' : 'Hitung';
+  $('btnScanK').classList.toggle('hidden', kvScoped());
+  if(!reload && S.kv.products.length){ renderKProd(); return; }
+  if(reload && S.kv.loadedFor !== S.kv.kid + '|' + S.kv.date){ S.kv.search = ''; $('kSearch').value = ''; }
+  if(!S.kv.products.length) $('kProdList').innerHTML = '<div class="empty">Memuat…</div>';
+  try{
+    const r = await rpc('get_kanvas_products', { p_kanvas_id: S.kv.kid, p_tanggal: S.kv.date });
+    S.kv.products = r.products || [];
+    S.kv.editable = !!r.editable; S.kv.lockMsg = r.lock_reason || ''; S.kv.done = !!r.done;
+    S.kv.loadedFor = S.kv.kid + '|' + S.kv.date;
+    renderKProd();
+  }catch(e){ $('kProdList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+function renderKProd(){
+  const P = S.kv.products, q = S.kv.search.toLowerCase();
+  const done = P.filter(p => p.batch_count > 0).length;
+  $('kpSub').textContent = `${kvTxt()}, ${done} item di stock`;
+  $('kcAll').textContent = P.length; $('kcDone').textContent = done; $('kcTodo').textContent = P.length - done;
+  const b = $('kpBanner');
+  b.className = 'banner';
+  if(!S.kv.editable) b.textContent = S.kv.lockMsg || 'Tanggal ini hanya bisa dilihat.';
+  else if(S.kv.done){ b.textContent = 'Stock sudah diselesaikan. Perubahan Full Access ikut dihitung ulang.'; b.classList.add('ok'); }
+  else if(!done) b.textContent = `Tidak wajib stock semua item. Input barang yang ada di kanvas, lalu tekan ${isKvStock() ? 'Submit' : 'Hitung ›'}.`;
+  else b.classList.add('hidden');
+  const rows = P.filter(p => {
+    if(S.kv.filter === 'done' && !(p.batch_count > 0)) return false;
+    if(S.kv.filter === 'todo' && p.batch_count > 0) return false;
+    if(q && !(String(p.product_name).toLowerCase().includes(q) || String(p.product_code).toLowerCase().includes(q))) return false;
+    return true;
+  });
+  if(!P.length){ $('kProdList').innerHTML = '<div class="empty">Belum ada barang di divisi ini.</div>'; return; }
+  if(!rows.length){ $('kProdList').innerHTML = '<div class="empty">Tidak ada barang yang cocok.</div>'; return; }
+  const LIM = 300, shown = rows.slice(0, LIM);
+  $('kProdList').innerHTML = shown.map(p => {
+    const kosong = p.kosong && !(Number(p.fis_krt) || Number(p.fis_pak) || Number(p.fis_pcs));
+    const fis = p.batch_count > 0 ? (kosong ? 'STOCK KOSONG' : `${fmt(p.fis_krt)} / ${fmt(p.fis_pak)} / ${fmt(p.fis_pcs)}`) : '';
+    return `<button class="row${S.kv.editable ? '' : ' locked'}" data-c="${esc(p.product_code)}">
+      <span class="tick ${p.batch_count > 0 ? '' : 'zero'}">${p.batch_count > 0 ? '✓' : ''}</span>
+      <div class="main"><div class="name">${esc(p.product_name)}</div><div class="sub">${esc(p.product_code)}${fis ? `<br>Fisik: <b>${fis}</b>` : ''}</div></div>
+    </button>`;
+  }).join('') + (rows.length > LIM ? `<div class="empty">+${rows.length - LIM} barang lain. Pakai pencarian.</div>` : '');
+  $('kProdList').querySelectorAll('.row').forEach(el => el.addEventListener('click', () => {
+    if(!S.kv.editable){ toast(S.kv.lockMsg || 'Tanggal ini hanya bisa dilihat.'); return; }
+    S.product = S.kv.products.find(x => String(x.product_code) === el.dataset.c);
+    openInput();
+  }));
+}
+$('kSearch').addEventListener('input', e => { S.kv.search = e.target.value; renderKProd(); });
+document.querySelectorAll('.kchip').forEach(c => c.addEventListener('click', () => {
+  document.querySelectorAll('.kchip').forEach(x => x.classList.toggle('on', x === c));
+  S.kv.filter = c.dataset.f; renderKProd();
+}));
+$('btnKHit').addEventListener('click', async () => {
+  if(!isKvStock()) return history.back();
+  if(S.kv.done){ toast('Stock hari ini sudah di-submit.'); return; }
+  if(!S.kv.editable){ toast(S.kv.lockMsg || 'Tanggal ini hanya bisa dilihat.'); return; }
+  const n = S.kv.products.filter(p => p.batch_count > 0).length;
+  if(!confirm(`Submit stock kanvas ${S.kv.kname}, ${fmtDay(S.kv.date)}?\n\n${n} item sudah di stock.${n ? '' : ' (kanvas kosong)'}\nSetelah submit, stock tidak bisa diubah lagi.`)) return;
+  loading(true, 'Menyimpan…');
+  try{
+    await rpc('set_kanvas_done', { p_kanvas_id: S.kv.kid, p_tanggal: S.kv.date, p_done: true });
+    loading(false); toast('Stock kanvas ter-submit');
+    history.back();
+  }catch(e){ loading(false); toast(e.message, true); }
+});
+
+/* ----- halaman hitung: stock x harga + uang admin kas vs modal ----- */
+async function openKHit(push = true){
+  S.mode = 'kanvas';
+  show('khit', push);
+  $('khTitle').textContent = fmtDay(S.kv.date);
+  $('khSub').textContent = kvTxt();
+  $('khStat').innerHTML = '<div class="empty">Memuat…</div>';
+  ['khStock','khKas'].forEach(id => $(id).innerHTML = '');
+  ['btnKDone','btnKReopen','khKasForm','khCalcWrap'].forEach(id => $(id).classList.add('hidden'));
+  try{
+    S.kv.hit = await rpc('get_kanvas_hitung', { p_kanvas_id: S.kv.kid, p_tanggal: S.kv.date });
+    renderKHit();
+  }catch(e){ $('khStat').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+function kline(a, b, cls = ''){ return `<div class="kline ${cls}"><span>${a}</span><b class="num">${b}</b></div>`; }
+function renderKHit(){
+  const h = S.kv.hit, priv = !!h.privileged;
+  const wait = [];
+  if(!h.done) wait.push('stock belum diselesaikan');
+  if(!h.kas_input) wait.push('uang admin kas belum diinput');
+  const ST = {
+    cocok: ['ok', '✓ COCOK', 'Stock fisik + uang admin kas = limit kanvas'],
+    beda: ['bad', '⚠ TIDAK COCOK, AUDIT', priv ? `Selisih ${fmtRpS(h.selisih)}` : 'Hubungi Full Access / SPVADMIN untuk audit'],
+    no_modal: ['bad', '⚠ LIMIT BELUM DIATUR', 'Tidak bisa dicocokkan. Full Access isi limit kanvas dulu.'],
+    no_harga: ['bad', '⚠ ADA BARANG TANPA HARGA KANVAS', `${h.no_harga_count} barang. Full Access isi harga kanvas dulu.`]
+  };
+  const st = ST[h.status] || ['wait', 'Belum bisa dicocokkan', wait.length ? 'Menunggu: ' + wait.join(', ') : ''];
+  $('khStat').innerHTML = `<div class="kstat ${st[0]}">${st[1]}${st[2] ? `<small>${esc(st[2])}</small>` : ''}</div>`
+    + (h.editable ? '' : `<div class="banner" style="margin:-4px 0 12px">${esc(h.lock_reason || 'Tanggal ini hanya bisa dilihat.')}</div>`);
+
+  let sk = kline('Item di stock', fmt(h.n_item)) + kline('Status stock', h.done ? `Selesai${h.done_by ? ' (' + esc(h.done_by) + ')' : ''}` : 'Belum selesai');
+  if(priv) sk += kline('Nilai stock fisik', fmtRp(h.nilai));
+  $('khStock').innerHTML = sk;
+  const ak = isAdminKas();
+  $('btnKDone').classList.toggle('hidden', ak || h.done || !h.editable);
+  $('btnKItems').classList.toggle('hidden', ak || kvScoped());
+  $('btnKSet2').classList.toggle('hidden', !isFullAccess());
+  $('btnKReopen').classList.toggle('hidden', !(h.done && isFullAccess() && h.editable));
+
+  let kk = '';
+  if(h.kas_input){
+    kk += kline('Uang kas', h.kas != null ? fmtRp(h.kas) : 'Sudah diinput');
+    kk += kline('Diinput oleh', esc(h.kas_by || '-'));
+    kk += kline('Waktu', fmtDate(h.kas_at));
+    kk += kline('Konfirmasi fisik', h.konfirmasi ? '✓ Dikonfirmasi' : '-');
+  }else kk = kline('Uang kas', 'Belum diinput');
+  $('khKas').innerHTML = kk;
+  $('khKasForm').classList.toggle('hidden', !h.can_kas);
+  if(h.can_kas){
+    $('khKasIn').value = h.kas_input && h.kas != null ? Math.round(h.kas).toLocaleString('id-ID') : '';
+    $('khKasConf').checked = false; $('khKasErr').textContent = '';
+    $('khKasSave').textContent = h.kas_input ? 'Simpan perubahan uang kas' : 'Simpan uang kas';
+  }
+
+  $('khCalcWrap').classList.toggle('hidden', !priv);
+  if(!priv) return;
+  const tot = (Number(h.nilai) || 0) + (Number(h.kas) || 0);
+  const bad = h.modal != null && Math.abs(Number(h.selisih) || 0) >= 1;
+  $('khCalc').innerHTML = kline('Nilai stock fisik', fmtRp(h.nilai))
+    + kline('Uang admin kas', h.kas_input ? fmtRp(h.kas) : 'Belum diinput')
+    + kline('Total (stock + kas)', fmtRp(tot), 'tot')
+    + kline('Limit kanvas', h.modal != null ? fmtRp(h.modal) + (h.modal_berlaku ? ` <small style="color:var(--muted);font-weight:400">sejak ${esc(String(h.modal_berlaku).slice(0,10))}</small>` : '') : 'Belum diatur')
+    + (h.modal != null ? `<div class="kline tot"${bad ? ' style="color:var(--danger)"' : ' style="color:var(--ok)"'}><span style="color:inherit">Selisih (total − limit)</span><b class="num">${fmtRpS(h.selisih)}</b></div>` : '');
+  const nh = h.no_harga || [];
+  $('khNoHarga').innerHTML = nh.length ? `<div class="banner" style="margin:0 0 12px;border-color:var(--danger)"><b style="color:var(--danger)">⚠ ${nh.length} barang belum ada harga kanvas:</b><br>${nh.map(x => esc(x.product_name) + ' (' + esc(x.product_code) + ')').join('<br>')}</div>` : '';
+  const R = h.rows || [];
+  $('khBody').innerHTML = R.length ? R.map(x => `<tr${x.harga_ok ? '' : ' class="mis"'}><td>${esc(x.product_name)}<br><small style="color:var(--muted)">${esc(x.product_code)}</small></td><td class="r num">${fmt(x.krt)} / ${fmt(x.pak)} / ${fmt(x.pcs)}</td><td class="r num">${x.harga_ok ? fmtRp(x.nilai) : '<b style="color:var(--danger)">Harga?</b>'}</td></tr>`).join('')
+    + `<tr><td><b>TOTAL</b></td><td></td><td class="r num"><b>${fmtRp(h.nilai)}</b></td></tr>`
+    : '<tr><td colspan="3" class="c" style="color:var(--muted)">Belum ada stock</td></tr>';
+}
+$('btnKItems').addEventListener('click', () => openKProd(true, true));
+$('btnKSet2').addEventListener('click', () => openKSet(true));
+$('btnKDone').addEventListener('click', async () => {
+  const n = Number(S.kv.hit && S.kv.hit.n_item) || 0;
+  if(!confirm(`Selesaikan stock kanvas ${S.kv.kname}, ${fmtDay(S.kv.date)}?\n\n${n} item sudah di stock.${n ? '' : ' (kanvas kosong)'}\nSetelah selesai, stock tidak bisa diubah lagi kecuali oleh Full Access.`)) return;
+  loading(true, 'Menyimpan…');
+  try{ await rpc('set_kanvas_done', { p_kanvas_id: S.kv.kid, p_tanggal: S.kv.date, p_done: true }); loading(false); toast('Stock kanvas selesai'); openKHit(false); }
+  catch(e){ loading(false); toast(e.message, true); }
+});
+$('btnKReopen').addEventListener('click', async () => {
+  if(!confirm('Buka lagi stock kanvas tanggal ini? Status kembali ke proses.')) return;
+  loading(true, 'Menyimpan…');
+  try{ await rpc('set_kanvas_done', { p_kanvas_id: S.kv.kid, p_tanggal: S.kv.date, p_done: false }); loading(false); toast('Stock dibuka lagi'); openKHit(false); }
+  catch(e){ loading(false); toast(e.message, true); }
+});
+$('khKasSave').addEventListener('click', async () => {
+  $('khKasErr').textContent = '';
+  const raw = $('khKasIn').value.trim(), v = parseRp(raw);
+  if(!raw){ $('khKasErr').textContent = 'Isi jumlah uang kas (isi 0 kalau tidak ada uang).'; return; }
+  if(!$('khKasConf').checked){ $('khKasErr').textContent = 'Centang konfirmasi bahwa uang ini betul fisiknya Anda pegang.'; return; }
+  if(!confirm(`Simpan uang kas ${fmtRp(v)} untuk kanvas ${S.kv.kname}, ${fmtDay(S.kv.date)}?${isFullAccess() ? '' : '\n\nSetelah disimpan tidak bisa diubah lagi kecuali oleh Full Access.'}`)) return;
+  $('khKasSave').disabled = true; loading(true, 'Menyimpan…');
+  try{ await rpc('save_kanvas_kas', { p_kanvas_id: S.kv.kid, p_tanggal: S.kv.date, p_kas: v, p_konfirmasi: true }); loading(false); toast('Uang kas tersimpan'); if(kvScoped()) history.back(); else openKHit(false); }
+  catch(e){ loading(false); $('khKasErr').textContent = e.message; }
+  finally{ $('khKasSave').disabled = false; }
+});
+
+/* ----- atur modal & harga kanvas (FULL ACCESS) ----- */
+function openKSet(push = true){
+  show('kset', push);
+  $('ksDiv').textContent = kvTxt();
+  $('ksBerlaku').value = jayapuraToday(); $('ksModal').value = ''; $('ksErr').textContent = '';
+  $('ksPaste').value = ''; $('ksPasteErr').textContent = '';
+  setKTab(S.kv.set.tab);
+  const u = S.kv.units.find(x => x.id === S.kv.kid) || {};
+  $('kuNama').value = S.kv.kname;
+  $('kuDiv').innerHTML = S.kv.divs.map(d => `<option${d === S.kv.divisi ? ' selected' : ''}>${esc(d)}</option>`).join('');
+  $('kuAktif').checked = u.aktif !== false;
+  $('kuGrp').value = u.grp || ''; $('kuLok').value = u.lokasi || ''; $('kuErr').textContent = '';
+  loadKSet();
+}
+$('kuSave').addEventListener('click', async () => {
+  $('kuErr').textContent = '';
+  const nama = $('kuNama').value.trim(), div = $('kuDiv').value, aktif = $('kuAktif').checked;
+  if(!nama || !div){ $('kuErr').textContent = 'Isi nama dan divisi.'; return; }
+  if(div !== S.kv.divisi && !confirm(`Pindah kanvas ke divisi ${div}? List barang ikut berubah.`)) return;
+  loading(true, 'Menyimpan…');
+  try{
+    await rpc('save_kanvas_unit', { p_id: S.kv.kid, p_divisi: div, p_nama: nama, p_aktif: aktif, p_limit: null, p_grp: $('kuGrp').value, p_lokasi: $('kuLok').value });
+    loading(false); toast('Data kanvas tersimpan');
+    S.kv.kname = nama; if(S.kv.divisi !== div){ S.kv.divisi = div; S.kv.products = []; }
+    const u = S.kv.units.find(x => x.id === S.kv.kid); if(u){ u.nama = nama; u.divisi = div; u.aktif = aktif; u.grp = $('kuGrp').value; u.lokasi = $('kuLok').value; }
+    $('ksDiv').textContent = kvTxt();
+    loadKSet();
+  }catch(e){ loading(false); $('kuErr').textContent = e.message; }
+});
+function setKTab(t){
+  S.kv.set.tab = t;
+  document.querySelectorAll('.ktab').forEach(x => x.classList.toggle('on', x.dataset.t === t));
+  $('ks-modal').classList.toggle('hidden', t !== 'modal');
+  $('ks-harga').classList.toggle('hidden', t !== 'harga');
+  $('ks-unit').classList.toggle('hidden', t !== 'unit');
+}
+document.querySelectorAll('.ktab').forEach(x => x.addEventListener('click', () => setKTab(x.dataset.t)));
+async function loadKSet(){
+  $('ksHist').innerHTML = '<div class="empty">Memuat…</div>';
+  $('ksList').innerHTML = '<div class="empty">Memuat…</div>';
+  try{
+    const r = await rpc('get_kanvas_setting', { p_kanvas_id: S.kv.kid });
+    S.kv.set.modal = r.modal || []; S.kv.set.harga = r.products || [];
+    renderKModal(); renderKHarga();
+  }catch(e){ $('ksHist').innerHTML = $('ksList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+function renderKModal(){
+  const M = S.kv.set.modal, today = jayapuraToday();
+  const cur = M.find(x => String(x.berlaku).slice(0, 10) <= today);
+  if(!M.length){ $('ksHist').innerHTML = '<div class="empty">Belum ada limit.</div>'; return; }
+  $('ksHist').innerHTML = M.map(x => `<div class="row" style="cursor:default">
+    <div class="main"><div class="name num">${fmtRp(x.modal)}${cur && cur.id === x.id ? ' <span class="pill done">Berlaku</span>' : ''}</div>
+    <div class="sub">Mulai ${fmtDay(String(x.berlaku).slice(0, 10))}${x.created_by ? ' · ' + esc(x.created_by) : ''}</div></div>
+    <button class="delbtn" data-id="${x.id}" aria-label="Hapus limit">🗑</button></div>`).join('');
+  $('ksHist').querySelectorAll('[data-id]').forEach(b => b.addEventListener('click', async () => {
+    const x = M.find(i => String(i.id) === b.dataset.id);
+    if(!confirm(`Hapus limit ${fmtRp(x.modal)} mulai ${String(x.berlaku).slice(0, 10)}?`)) return;
+    try{ await rpc('delete_kanvas_modal', { p_id: x.id }); toast('Dihapus'); loadKSet(); }
+    catch(e){ toast(e.message, true); }
+  }));
+}
+$('ksSave').addEventListener('click', async () => {
+  $('ksErr').textContent = '';
+  const raw = $('ksModal').value.trim(), v = parseRp(raw), d = $('ksBerlaku').value;
+  if(!raw || v <= 0){ $('ksErr').textContent = 'Isi limit kanvas.'; return; }
+  if(!d){ $('ksErr').textContent = 'Isi tanggal berlaku.'; return; }
+  if(!confirm(`Simpan limit kanvas ${S.kv.kname} ${fmtRp(v)} mulai ${fmtDay(d)}?`)) return;
+  loading(true, 'Menyimpan…');
+  try{ await rpc('save_kanvas_modal', { p_kanvas_id: S.kv.kid, p_berlaku: d, p_modal: v }); loading(false); toast('Limit tersimpan'); $('ksModal').value = ''; loadKSet(); }
+  catch(e){ loading(false); $('ksErr').textContent = e.message; }
+});
+
+const hasHarga = x => Number(x.harga_krt) > 0 || Number(x.harga_pak) > 0 || Number(x.harga_pcs) > 0;
+function renderKHarga(){
+  const H = S.kv.set.harga, q = S.kv.set.search.toLowerCase();
+  const none = H.filter(x => !hasHarga(x)).length;
+  $('hcAll').textContent = H.length; $('hcNone').textContent = none;
+  const rows = H.filter(x => (S.kv.set.filter !== 'none' || !hasHarga(x))
+    && (!q || String(x.product_name).toLowerCase().includes(q) || String(x.product_code).toLowerCase().includes(q)));
+  if(!rows.length){ $('ksList').innerHTML = '<div class="empty">Tidak ada barang.</div>'; return; }
+  const LIM = 200, shown = rows.slice(0, LIM);
+  const inp = (x, u) => `<input class="num" type="text" inputmode="numeric" data-u="${u}" value="${Number(x['harga_' + u]) ? Math.round(x['harga_' + u]).toLocaleString('id-ID') : ''}" placeholder="0">`;
+  $('ksList').innerHTML = shown.map(x => `<div class="hrow${hasHarga(x) ? '' : ' nohrg'}" data-c="${esc(x.product_code)}">
+    <div class="name">${esc(x.product_name)}</div><div class="sub">${esc(x.product_code)}</div>
+    <div class="hq"><label><small>Karton</small>${inp(x, 'krt')}</label><label><small>Lusin/Pak/Rcg</small>${inp(x, 'pak')}</label><label><small>Pcs</small>${inp(x, 'pcs')}</label></div>
+  </div>`).join('') + (rows.length > LIM ? `<div class="empty">+${rows.length - LIM} barang lain. Pakai pencarian.</div>` : '');
+  $('ksList').querySelectorAll('.hrow').forEach(row => {
+    row.querySelectorAll('input').forEach(i => { moneyInput(i); i.addEventListener('change', () => saveHargaRow(row)); });
+  });
+}
+async function saveHargaRow(row){
+  const code = row.dataset.c, g = u => parseRp(row.querySelector(`[data-u="${u}"]`).value);
+  const v = { code, krt: g('krt'), pak: g('pak'), pcs: g('pcs') };
+  try{
+    await rpc('save_kanvas_harga', { p_rows: [v] });
+    const x = S.kv.set.harga.find(h => String(h.product_code) === code);
+    if(x){ x.harga_krt = v.krt; x.harga_pak = v.pak; x.harga_pcs = v.pcs; }
+    row.classList.toggle('nohrg', !(v.krt || v.pak || v.pcs));
+    row.querySelectorAll('input').forEach(i => i.classList.add('saved'));
+    const none = S.kv.set.harga.filter(h => !hasHarga(h)).length; $('hcNone').textContent = none;
+  }catch(e){ toast(e.message, true); }
+}
+$('ksSearch').addEventListener('input', e => { S.kv.set.search = e.target.value; renderKHarga(); });
+document.querySelectorAll('.hchip').forEach(c => c.addEventListener('click', () => {
+  document.querySelectorAll('.hchip').forEach(x => x.classList.toggle('on', x === c));
+  S.kv.set.filter = c.dataset.f; renderKHarga();
+}));
+$('ksPasteSave').addEventListener('click', async () => {
+  $('ksPasteErr').textContent = '';
+  const lines = $('ksPaste').value.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  if(!lines.length){ $('ksPasteErr').textContent = 'Tempel data dulu.'; return; }
+  const rows = [], bad = [];
+  lines.forEach((l, i) => {
+    const c = l.split(/\t|;/).map(x => x.trim());
+    if(c.length < 4 || !c[0]){ bad.push(i + 1); return; }
+    const code = c[0].replace(/^'/, '');
+    if(/^(kode|code|product)/i.test(code)) return; // baris judul
+    rows.push({ code, krt: parseRp(c[1]), pak: parseRp(c[2]), pcs: parseRp(c[3]) });
+  });
+  if(bad.length){ $('ksPasteErr').textContent = `Baris ${bad.slice(0, 10).join(', ')}${bad.length > 10 ? '…' : ''} tidak sesuai format (butuh 4 kolom).`; return; }
+  if(!rows.length){ $('ksPasteErr').textContent = 'Tidak ada baris data.'; return; }
+  if(!confirm(`Simpan harga kanvas untuk ${rows.length} barang?`)) return;
+  loading(true, 'Menyimpan harga…');
+  try{
+    let saved = 0, miss = [];
+    for(let i = 0; i < rows.length; i += 500){
+      const r = await rpc('save_kanvas_harga', { p_rows: rows.slice(i, i + 500) });
+      saved += Number(r && r.saved) || 0;
+      miss = miss.concat((r && r.not_found) || []);
+    }
+    loading(false);
+    toast(`${saved} harga tersimpan`);
+    $('ksPaste').value = '';
+    if(miss.length) $('ksPasteErr').textContent = `Kode tidak ada di master produk (tidak disimpan): ${miss.slice(0, 20).join(', ')}${miss.length > 20 ? '…' : ''}`;
+    loadKSet();
+  }catch(e){ loading(false); $('ksPasteErr').textContent = e.message; }
+});
+
 /* ---------- start ---------- */
 (async function start(){
-  if(!S.pin || !ALLOWED.includes(String(S.label || '').trim().toUpperCase())){ logout(); return; }
+  if(!S.pin || !allowedLabel(S.label)){ logout(); return; }
   show('login', false);
   $('loginErr').textContent = '';
-  const { error } = await sb().rpc('get_opname_docs', { p_pin: S.pin });
+  const { error } = await sb().rpc(kvOnly() ? 'get_kanvas_divisi' : 'get_opname_docs', { p_pin: S.pin });
   if(error){ logout(); $('loginErr').textContent = error.message; return; }
   history.replaceState({ s: 'mode' }, '');
   goMode(false);
