@@ -332,6 +332,8 @@ td.bad{color:var(--danger); font-weight:800}
 .pencil{border:1.5px solid var(--line); background:var(--surface); color:var(--ink); border-radius:8px; width:34px; height:30px; margin-left:8px; cursor:pointer; font-size:14px; vertical-align:middle}
 .kline b .pencil{font-weight:400}
 .cal .d.sel{outline:3px solid var(--ink); outline-offset:2px}
+.cal .d.lib{opacity:.85; cursor:pointer}
+.cal .d.lib small{font-size:8px; font-weight:800}
 #koGrid{gap:4px}
 #koGrid .d{aspect-ratio:2/1; border-radius:8px; font-size:13px}
 #koGrid .d small{font-size:9px; line-height:1}
@@ -3115,17 +3117,30 @@ moneyInput($('khKasIn')); moneyInput($('ksModal')); moneyInput($('kaLimit'));
 const kvTxt = () => `${S.kv.kname} (${S.kv.divisi})`;
 
 /* ----- alasan & action untuk selisih minus ----- */
-S.kv.tl = []; S.kv.cls = [];
+S.kv.tl = []; S.kv.cls = []; S.kv.lib = []; S.kv.mulai = '';
 const canEditTL = () => ['FULL ACCESS','SPVADMIN','HEAD SALES'].includes(LBL());
 const canCloseDay = () => ['FULL ACCESS','SPVADMIN'].includes(LBL());
 async function loadTL(y, m){
-  const [a, b] = await Promise.all([
+  let [a, b] = await Promise.all([
     rpc('get_kanvas_tindak', { p_year: y, p_month: m }).catch(() => []),
-    rpc('get_kanvas_closing', { p_year: y, p_month: m }).catch(() => [])
+    rpc('get_kanvas_closing', { p_year: y, p_month: m }).catch(() => null)
   ]);
-  S.kv.tl = a || []; S.kv.cls = b || [];
+  S.kv.tl = a || [];
+  b = b || {};
+  S.kv.cls = Array.isArray(b) ? b : (b.closing || []);
+  S.kv.lib = b.libur || []; S.kv.mulai = b.mulai ? String(b.mulai).slice(0, 10) : '';
+  S.kv.belum = Array.isArray(b.belum) ? b.belum.map(x => String(x).slice(0, 10)) : null;
 }
 const clFor = iso => (S.kv.cls || []).find(c => String(c.tanggal).slice(0, 10) === iso);
+const libFor = iso => (S.kv.lib || []).find(c => String(c.tanggal).slice(0, 10) === iso);
+function isoAdd(iso, n){ const [y, m, d] = iso.split('-').map(Number); const t = new Date(Date.UTC(y, m - 1, d + n)); return t.toISOString().slice(0, 10); }
+/* hari kerja sebelumnya yang belum closing (null = aman) */
+function prevUnclosed(iso){
+  let d = isoAdd(iso, -1);
+  for(let i = 0; i < 20 && (dowOf(d) === 0 || libFor(d)); i++) d = isoAdd(d, -1);
+  if(S.kv.mulai && d < S.kv.mulai) return null;
+  return clFor(d) ? null : d;
+}
 /* semua yang tidak hijau = bermasalah, wajib alasan & action */
 const isProblem = r => !kvOk(r.st);
 const tlFor = (kid, iso) => (S.kv.tl || []).find(t => t.kanvas_id === kid && String(t.tanggal).slice(0, 10) === iso);
@@ -3164,16 +3179,35 @@ $('tlSave').addEventListener('click', async () => {
     $('tlDlg').classList.add('hidden'); renderKODay();
   }catch(e){ loading(false); toast(e.message, true); }
 });
+async function setLibur(iso, on){
+  let ket = null;
+  if(on){
+    ket = prompt(`Jadikan ${fmtDay(iso)} hari libur?\n\nKeterangan (boleh kosong):`, '');
+    if(ket === null) return;
+  }else if(!confirm(`Jadikan ${fmtDay(iso)} hari kerja lagi?`)) return;
+  loading(true, 'Menyimpan…');
+  try{
+    await rpc('save_kanvas_libur', { p_tanggal: iso, p_libur: on, p_ket: ket });
+    await loadTL(S.kv.y, S.kv.m); loading(false); toast(on ? 'Hari libur tersimpan' : 'Jadi hari kerja'); renderKOv();
+  }catch(e){ loading(false); toast(e.message, true); }
+}
 function renderKOClose(iso, L){
   const box = $('koClose'), c = clFor(iso);
   if(!L || !L.length){ box.innerHTML = ''; return; }
+  if(S.kv.mulai && iso < S.kv.mulai){ box.innerHTML = ''; return; }
+  const pu = prevUnclosed(iso);
+  const lockMsg = pu ? `<div class="clwarn">🔒 Opname tanggal ini terkunci: ${fmtDay(pu)} belum closing harian.</div>` : '';
+  const libBtn = isFullAccess() && !c ? '<button class="btn ghost" id="libOn" style="margin-top:8px">Jadikan hari libur</button>' : '';
   if(c){
     box.innerHTML = `<div class="clbox ok">🔒 Sudah closing harian<small>${esc(c.closed_by || '')} · ${fmtDate(c.closed_at)}</small></div>`
       + (isFullAccess() ? '<button class="btn ghost" id="clOpen" style="margin-top:8px">Buka closing</button>' : '');
+    box.innerHTML = lockMsg + box.innerHTML;
   }else{
     const miss = L.filter(r => isProblem(r) && !tlFor(r.u.id, iso)).length;
     box.innerHTML = `<div class="clbox wait">Belum closing harian<small>${miss ? `Masih ${miss} kanvas bermasalah belum ada alasan & action` : 'Semua masalah sudah ada alasan & action'}</small></div>`
-      + (canCloseDay() ? `<button class="btn" id="clDo" style="margin-top:8px"${miss ? ' disabled' : ''}>Closing harian ${fmtDay(iso)}</button>` : '<div class="banner" style="text-align:center">Closing harian dilakukan oleh SPVADMIN.</div>');
+      + (canCloseDay() ? `<button class="btn" id="clDo" style="margin-top:8px"${miss ? ' disabled' : ''}>Closing harian ${fmtDay(iso)}</button>` : '<div class="banner" style="text-align:center">Closing harian dilakukan oleh SPVADMIN.</div>')
+      + libBtn;
+    box.innerHTML = lockMsg + box.innerHTML;
   }
   const go = async (close) => {
     if(close && !confirm(`Closing harian ${fmtDay(iso)}?\n\nSetelah closing, alasan & action tidak bisa diubah lagi.`)) return;
@@ -3186,6 +3220,7 @@ function renderKOClose(iso, L){
   };
   if($('clDo')) $('clDo').addEventListener('click', () => go(true));
   if($('clOpen')) $('clOpen').addEventListener('click', () => go(false));
+  if($('libOn')) $('libOn').addEventListener('click', () => setLibur(iso, true));
 }
 
 /* ----- pilih kanvas (dikelompokkan per divisi) ----- */
@@ -3285,6 +3320,7 @@ function renderKOv(){
     const iso = ymd(y, m, d);
     let c = '', sub = '', off = false;
     if(dowOf(iso) === 0){ c = 'sun'; off = true; }
+    else if(libFor(iso)){ c = 'sun lib'; sub = 'LIBUR'; off = !isFullAccess(); }
     else if(iso > S.kv.today){ c = 'fut'; off = true; }
     else{
       const L = koDay(iso), red = L.filter(x => x.c === 'r').length, ok = L.filter(x => x.c === 'g').length;
@@ -3292,13 +3328,21 @@ function renderKOv(){
       if(red){ c = 'w'; sub = '⚠' + red; }
       else if(L.length && ok === L.length){ c = 'g'; sub = '✓'; }
       else if(any){ c = 'y'; sub = `${ok}/${L.length}`; }
-      else if(iso < S.kv.today) c = 'm';
+      else if(iso < S.kv.today && !(S.kv.mulai && iso < S.kv.mulai)) c = 'm';
     }
-    if(!off && clFor(iso)) sub += '🔒';
-    else if(!off && iso < S.kv.today && koDay(iso).some(x => x.st !== 'kosong')) belum.push(iso);
+    if(libFor(iso) || off){ /* libur / minggu / nanti */ }
+    else if(clFor(iso)) sub += '🔒';
+    else if(iso < S.kv.today && (S.kv.mulai ? iso >= S.kv.mulai : koDay(iso).some(x => x.st !== 'kosong'))) belum.push(iso);
     h += `<button class="d ${c}${iso === S.kv.today ? ' today' : ''}${iso === S.kv.sel ? ' sel' : ''}" data-iso="${iso}"${off ? ' disabled' : ''} aria-label="${fmtDay(iso)}">${d}${sub ? `<small>${sub}</small>` : ''}</button>`;
   }
-  $('koCl').innerHTML = belum.length ? `<div class="clwarn">⚠ ${belum.length} tanggal belum closing harian: ${belum.map(fmtShortD).join(', ')}</div>` : '';
+  const BL = S.kv.belum || belum;
+  $('koCl').innerHTML = BL.length ? `<div class="clwarn">⚠ Belum closing harian: ${BL.map(x => `<a href="#" data-go="${x}" style="color:#fff;text-decoration:underline">${fmtShortD(x)}</a>`).join(', ')}<br><span style="font-weight:600">Opname hari berikutnya terkunci sampai SPVADMIN closing tanggal tersebut.</span></div>` : '';
+  $('koCl').querySelectorAll('[data-go]').forEach(a => a.addEventListener('click', e => {
+    e.preventDefault();
+    const g = a.dataset.go, gy = Number(g.slice(0, 4)), gm = Number(g.slice(5, 7));
+    if(gy === S.kv.y && gm === S.kv.m){ S.kv.sel = g; renderKOv(); }
+    else { S.kv.y = gy; S.kv.m = gm; S.kv.sel = g; loadKOv(); }
+  }));
   $('koGrid').innerHTML = h;
   $('koGrid').querySelectorAll('.d[data-iso]:not([disabled])').forEach(b => b.addEventListener('click', () => { S.kv.sel = b.dataset.iso; renderKOv(); }));
   renderKODay();
@@ -3307,6 +3351,14 @@ function renderKODay(){
   const iso = S.kv.sel;
   $('koDayTtl').textContent = fmtDay(iso);
   $('koClose').innerHTML = '';
+  if(iso && libFor(iso)){
+    const lb = libFor(iso);
+    $('koSum').innerHTML = ''; $('koDay').innerHTML = '';
+    $('koClose').innerHTML = `<div class="clbox ok" style="background:var(--line);color:var(--ink)">🏖 Hari libur${lb.keterangan ? `<small>${esc(lb.keterangan)}</small>` : ''}</div>`
+      + (isFullAccess() ? '<button class="btn ghost" id="libOff" style="margin-top:8px">Jadikan hari kerja</button>' : '');
+    if($('libOff')) $('libOff').addEventListener('click', () => setLibur(iso, false));
+    return;
+  }
   if(!iso || dowOf(iso) === 0 || iso > S.kv.today){ $('koDay').innerHTML = '<div class="empty">Pilih tanggal di kalender.</div>'; $('koSum').innerHTML = ''; return; }
   const L = koDay(iso);
   if(!L.length){ $('koDay').innerHTML = '<div class="empty">Belum ada kanvas.</div>'; $('koSum').innerHTML = ''; return; }
