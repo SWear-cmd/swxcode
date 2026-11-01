@@ -298,6 +298,28 @@ td.bad{color:var(--danger); font-weight:800}
 .kconf{display:flex; gap:10px; align-items:flex-start; margin-top:12px; font-size:14px; cursor:pointer}
 .kconf input{width:22px; height:22px; flex-shrink:0; margin-top:1px}
 .kmoney{font-size:24px; font-weight:800; text-align:right}
+.kst.lb{background:#2F9E5B; color:#fff}
+/* alasan & action */
+.kvi{border-top:1px solid var(--line); border-left:5px solid transparent}
+.kvi:first-child{border-top:0}
+.kvi > .row{border-top:0}
+.kvi.good{background:rgba(47,158,91,.14); border-left-color:#2F9E5B}
+.kvi.bad{background:rgba(210,69,61,.14); border-left-color:#D2453D}
+.kvr{display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0}
+.tlbtn{font-size:12px; font-weight:700; border-radius:6px; padding:5px 9px; cursor:pointer; white-space:nowrap; background:var(--surface)}
+.tlbtn.no{border:1.5px dashed var(--danger); color:var(--danger)}
+.tlbtn.ok{border:1.5px solid #2F9E5B; color:var(--ok)}
+.tldlg{position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:60; display:flex; align-items:center; justify-content:center; padding:16px}
+.tldlg.hidden{display:none}
+.tldlg .tlbox{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:16px; width:100%; max-width:440px}
+.tldlg .in{margin-bottom:8px}
+.tldlg .tlbtns{display:flex; gap:8px; margin-top:6px}
+.tldlg .tlbtns .btn{flex:1}
+.clbox{border-radius:12px; padding:10px; margin:0; text-align:center; font-weight:800}
+.clbox small{display:block; font-weight:600; font-size:12.5px; margin-top:4px}
+.clbox.ok{background:#2F9E5B; color:#fff}
+.clbox.wait{border:2px dashed #D2453D; color:#D2453D}
+.clwarn{background:#D2453D; color:#fff; border-radius:10px; padding:10px 12px; font-size:13.5px; font-weight:700; margin-bottom:10px}
 .hrow{padding:10px 14px; border-top:1px solid var(--line)}
 .hrow:first-child{border-top:0}
 .hrow .name{font-weight:600; font-size:14px}
@@ -310,6 +332,9 @@ td.bad{color:var(--danger); font-weight:800}
 .pencil{border:1.5px solid var(--line); background:var(--surface); color:var(--ink); border-radius:8px; width:34px; height:30px; margin-left:8px; cursor:pointer; font-size:14px; vertical-align:middle}
 .kline b .pencil{font-weight:400}
 .cal .d.sel{outline:3px solid var(--ink); outline-offset:2px}
+#koGrid{gap:4px}
+#koGrid .d{aspect-ratio:2/1; border-radius:8px; font-size:13px}
+#koGrid .d small{font-size:9px; line-height:1}
 .kst{font-size:12px; font-weight:800; border-radius:6px; padding:4px 8px; white-space:nowrap; text-align:center; flex-shrink:0}
 .kst.g{background:#2F9E5B; color:#fff}
 .kst.r{background:#D2453D; color:#fff}
@@ -446,6 +471,8 @@ td.bad{color:var(--danger); font-weight:800}
         <span><i style="border:2px dashed #D2453D"></i>Tidak di stock</span>
         <span><i style="background:var(--line)"></i>Minggu</span>
       </div>
+      <div id="koCl" style="margin-top:10px"></div>
+      <div id="koClose" style="margin-bottom:6px"></div>
       <div class="sec" id="koDayTtl" style="font-size:15px;color:var(--ink)"></div>
       <div id="koSum" class="kosum"></div>
       <div id="koDay"></div>
@@ -1016,6 +1043,18 @@ td.bad{color:var(--danger); font-weight:800}
 
 <div id="loading" class="loading hidden"><div id="loadingTxt">Memuat…</div></div>
 
+<div id="tlDlg" class="tldlg hidden">
+  <div class="tlbox">
+    <b id="tlTtl" style="font-size:16px"></b><div id="tlSub" style="color:var(--muted);font-size:13px;margin-bottom:10px"></div>
+    <span class="lbl">Alasan</span>
+    <textarea id="tlA" class="in" maxlength="300" placeholder="Kenapa bermasalah"></textarea>
+    <span class="lbl">Action</span>
+    <textarea id="tlC" class="in" maxlength="300" placeholder="Apa yang dilakukan"></textarea>
+    <small id="tlInfo" style="color:var(--muted)"></small>
+    <div id="tlLock" style="color:var(--danger);font-size:13px;font-weight:700"></div>
+    <div class="tlbtns"><button class="btn ghost" id="tlCancel">Tutup</button><button class="btn" id="tlSave">Simpan</button></div>
+  </div>
+</div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
 const SUPABASE_URL = 'https://swxgkuaoctrcfbgncwaz.supabase.co';
@@ -2408,10 +2447,11 @@ async function loadModeStatus(){
   (async () => {
     try{
       const r = await rpc('get_kanvas_overview', { p_year: y, p_month: m });
+      (r.days || []).forEach(kvNorm);
       const D = (r.days || []).filter(x => String(x.tanggal).slice(0, 10) === today);
       const U = (r.units || []).filter(u => u.aktif || D.some(x => x.kanvas_id === u.id));
       const st = U.map(u => (D.find(x => x.kanvas_id === u.id) || {}).status || 'kosong');
-      const red = st.filter(x => KV_WARN.includes(x)).length, ok = st.filter(x => x === 'cocok').length;
+      const red = st.filter(x => KV_WARN.includes(x)).length, ok = st.filter(x => kvOk(x)).length;
       if(!U.length) setModeSt('btnModeK', '', 'BELUM ADA KANVAS');
       else if(red) setModeSt('btnModeK', 'r', `AUDIT ${red}`);
       else if(ok === U.length) setModeSt('btnModeK', 'g', 'SUDAH STOCK');
@@ -3074,6 +3114,80 @@ function moneyInput(el){
 moneyInput($('khKasIn')); moneyInput($('ksModal')); moneyInput($('kaLimit'));
 const kvTxt = () => `${S.kv.kname} (${S.kv.divisi})`;
 
+/* ----- alasan & action untuk selisih minus ----- */
+S.kv.tl = []; S.kv.cls = [];
+const canEditTL = () => ['FULL ACCESS','SPVADMIN','HEAD SALES'].includes(LBL());
+const canCloseDay = () => ['FULL ACCESS','SPVADMIN'].includes(LBL());
+async function loadTL(y, m){
+  const [a, b] = await Promise.all([
+    rpc('get_kanvas_tindak', { p_year: y, p_month: m }).catch(() => []),
+    rpc('get_kanvas_closing', { p_year: y, p_month: m }).catch(() => [])
+  ]);
+  S.kv.tl = a || []; S.kv.cls = b || [];
+}
+const clFor = iso => (S.kv.cls || []).find(c => String(c.tanggal).slice(0, 10) === iso);
+/* semua yang tidak hijau = bermasalah, wajib alasan & action */
+const isProblem = r => !kvOk(r.st);
+const tlFor = (kid, iso) => (S.kv.tl || []).find(t => t.kanvas_id === kid && String(t.tanggal).slice(0, 10) === iso);
+function tlBtn(r, iso){
+  if(!isProblem(r)) return '';
+  const t = tlFor(r.u.id, iso);
+  return t ? `<button class="tlbtn ok" data-id="${r.u.id}">✓ Alasan &amp; action</button>`
+           : `<button class="tlbtn no" data-id="${r.u.id}">⚑ Alasan &amp; action</button>`;
+}
+function bindTLBars(iso){
+  $('koDay').querySelectorAll('.tlbtn').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); openTLDlg(Number(b.dataset.id), iso); }));
+}
+function openTLDlg(kid, iso){
+  const u = koUnits().find(x => x.id === kid) || {}, t = tlFor(kid, iso), ed = canEditTL() && !clFor(iso);
+  $('tlTtl').textContent = u.nama || '';
+  $('tlSub').textContent = fmtDay(iso);
+  $('tlA').value = t ? t.penyebab : ''; $('tlC').value = t ? t.tindakan : '';
+  $('tlA').readOnly = $('tlC').readOnly = !ed;
+  $('tlInfo').textContent = t ? `${t.updated_by || t.created_by || ''} · ${fmtDate(t.updated_at || t.created_at)}` : '';
+  $('tlLock').textContent = ed ? '' : clFor(iso) ? '🔒 Sudah closing harian, tidak bisa diubah.' : 'Hanya Full Access / SPVADMIN / Head Sales yang bisa mengisi.';
+  $('tlSave').classList.toggle('hidden', !ed);
+  $('tlDlg').dataset.k = kid; $('tlDlg').dataset.d = iso;
+  $('tlDlg').classList.remove('hidden');
+  if(ed) $('tlA').focus();
+}
+$('tlCancel').addEventListener('click', () => $('tlDlg').classList.add('hidden'));
+$('tlDlg').addEventListener('click', e => { if(e.target === $('tlDlg')) $('tlDlg').classList.add('hidden'); });
+$('tlSave').addEventListener('click', async () => {
+  const a = $('tlA').value.trim(), c = $('tlC').value.trim();
+  if(!a){ toast('Isi alasan.', true); return; }
+  if(!c){ toast('Isi action.', true); return; }
+  loading(true, 'Menyimpan…');
+  try{
+    await rpc('save_kanvas_alasan', { p_kanvas_id: Number($('tlDlg').dataset.k), p_tanggal: $('tlDlg').dataset.d, p_alasan: a, p_action: c });
+    await loadTL(S.kv.y, S.kv.m); loading(false); toast('Tersimpan');
+    $('tlDlg').classList.add('hidden'); renderKODay();
+  }catch(e){ loading(false); toast(e.message, true); }
+});
+function renderKOClose(iso, L){
+  const box = $('koClose'), c = clFor(iso);
+  if(!L || !L.length){ box.innerHTML = ''; return; }
+  if(c){
+    box.innerHTML = `<div class="clbox ok">🔒 Sudah closing harian<small>${esc(c.closed_by || '')} · ${fmtDate(c.closed_at)}</small></div>`
+      + (isFullAccess() ? '<button class="btn ghost" id="clOpen" style="margin-top:8px">Buka closing</button>' : '');
+  }else{
+    const miss = L.filter(r => isProblem(r) && !tlFor(r.u.id, iso)).length;
+    box.innerHTML = `<div class="clbox wait">Belum closing harian<small>${miss ? `Masih ${miss} kanvas bermasalah belum ada alasan & action` : 'Semua masalah sudah ada alasan & action'}</small></div>`
+      + (canCloseDay() ? `<button class="btn" id="clDo" style="margin-top:8px"${miss ? ' disabled' : ''}>Closing harian ${fmtDay(iso)}</button>` : '<div class="banner" style="text-align:center">Closing harian dilakukan oleh SPVADMIN.</div>');
+  }
+  const go = async (close) => {
+    if(close && !confirm(`Closing harian ${fmtDay(iso)}?\n\nSetelah closing, alasan & action tidak bisa diubah lagi.`)) return;
+    if(!close && !confirm('Buka lagi closing tanggal ini?')) return;
+    loading(true, 'Menyimpan…');
+    try{
+      await rpc('save_kanvas_closing', { p_tanggal: iso, p_close: close });
+      await loadTL(S.kv.y, S.kv.m); loading(false); toast(close ? 'Closing harian tersimpan' : 'Closing dibuka'); renderKOv();
+    }catch(e){ loading(false); toast(e.message, true); }
+  };
+  if($('clDo')) $('clDo').addEventListener('click', () => go(true));
+  if($('clOpen')) $('clOpen').addEventListener('click', () => go(false));
+}
+
 /* ----- pilih kanvas (dikelompokkan per divisi) ----- */
 async function openKDiv(push = true){
   S.mode = 'kanvas';
@@ -3123,7 +3237,7 @@ async function openKDiv(push = true){
 }
 /* ----- kalender gabungan semua kanvas ----- */
 function koState(st, iso){
-  if(st === 'cocok') return 'g';
+  if(kvOk(st)) return 'g';
   if(KV_WARN.includes(st)) return 'r';
   if(st === 'proses') return 'y';
   return iso < S.kv.today ? 'm' : 'n';
@@ -3145,8 +3259,9 @@ async function loadKOv(){
   $('koGrid').innerHTML = '<div class="empty" style="grid-column:1/-1">Memuat…</div>';
   $('koDay').innerHTML = ''; $('koSum').innerHTML = ''; $('koDayTtl').textContent = '';
   try{
-    const r = await rpc('get_kanvas_overview', { p_year: y, p_month: m });
+    const [r] = await Promise.all([rpc('get_kanvas_overview', { p_year: y, p_month: m }), loadTL(y, m)]);
     if(S.kv.y !== y || S.kv.m !== m) return;
+    (r.days || []).forEach(kvNorm);
     S.kv.ov = r; S.kv.today = r.today || jayapuraToday();
     S.kv.units = r.units || []; S.kv.divs = r.divisi || [];
     $('kaDiv').innerHTML = S.kv.divs.map(d => `<option>${esc(d)}</option>`).join('');
@@ -3164,6 +3279,8 @@ function renderKOv(){
   const lead = (dowOf(ymd(y, m, 1)) + 6) % 7;
   let h = ['Sen','Sel','Rab','Kam','Jum','Sab','Min'].map(w => `<div class="wd">${w}</div>`).join('');
   for(let i = 0; i < lead; i++) h += '<div class="d pad"></div>';
+  const belum = [];
+  const fmtShortD = iso => Number(iso.slice(8, 10)) + ' ' + BULAN[Number(iso.slice(5, 7)) - 1].slice(0, 3);
   for(let d = 1; d <= days; d++){
     const iso = ymd(y, m, d);
     let c = '', sub = '', off = false;
@@ -3177,8 +3294,11 @@ function renderKOv(){
       else if(any){ c = 'y'; sub = `${ok}/${L.length}`; }
       else if(iso < S.kv.today) c = 'm';
     }
+    if(!off && clFor(iso)) sub += '🔒';
+    else if(!off && iso < S.kv.today && koDay(iso).some(x => x.st !== 'kosong')) belum.push(iso);
     h += `<button class="d ${c}${iso === S.kv.today ? ' today' : ''}${iso === S.kv.sel ? ' sel' : ''}" data-iso="${iso}"${off ? ' disabled' : ''} aria-label="${fmtDay(iso)}">${d}${sub ? `<small>${sub}</small>` : ''}</button>`;
   }
+  $('koCl').innerHTML = belum.length ? `<div class="clwarn">⚠ ${belum.length} tanggal belum closing harian: ${belum.map(fmtShortD).join(', ')}</div>` : '';
   $('koGrid').innerHTML = h;
   $('koGrid').querySelectorAll('.d[data-iso]:not([disabled])').forEach(b => b.addEventListener('click', () => { S.kv.sel = b.dataset.iso; renderKOv(); }));
   renderKODay();
@@ -3186,6 +3306,7 @@ function renderKOv(){
 function renderKODay(){
   const iso = S.kv.sel;
   $('koDayTtl').textContent = fmtDay(iso);
+  $('koClose').innerHTML = '';
   if(!iso || dowOf(iso) === 0 || iso > S.kv.today){ $('koDay').innerHTML = '<div class="empty">Pilih tanggal di kalender.</div>'; $('koSum').innerHTML = ''; return; }
   const L = koDay(iso);
   if(!L.length){ $('koDay').innerHTML = '<div class="empty">Belum ada kanvas.</div>'; $('koSum').innerHTML = ''; return; }
@@ -3193,10 +3314,13 @@ function renderKODay(){
   $('koSum').innerHTML = [['g', 'Cocok', '#2F9E5B', '#fff'], ['r', 'Selisih', '#D2453D', '#fff'], ['y', 'Belum lengkap', '#F2C230', '#1C2630']]
     .map(([k, t, bg, fg]) => `<span style="background:${bg};color:${fg}">${t} ${cnt(k)}</span>`).join('')
     + `<span style="border:1.5px solid var(--line);color:var(--muted)">Belum mulai ${cnt('m') + cnt('n')}</span>`;
+  const noTL = L.filter(r => isProblem(r) && !tlFor(r.u.id, iso)).length;
+  if(noTL) $('koSum').innerHTML += `<span style="border:2px dashed #D2453D;color:#D2453D">⚑ Belum ada alasan ${noTL}</span>`;
   const priv = canFinalize();
   const lbl = r => {
     const x = r.x;
     if(r.st === 'cocok') return 'COCOK';
+    if(r.st === 'lebih') return 'LEBIH' + (priv && x.selisih != null ? ' ' + fmtRpS(x.selisih) : '');
     if(r.st === 'beda') return 'SELISIH' + (priv && x.selisih != null ? ' ' + fmtRpS(x.selisih) : '');
     if(r.st === 'no_modal') return 'LIMIT BELUM ADA';
     if(r.st === 'no_harga') return 'HARGA BELUM ADA';
@@ -3207,8 +3331,10 @@ function renderKODay(){
   $('koDay').innerHTML = groups.map(g => `<div class="sec">Divisi ${esc(g)}</div><div class="list">` + L.filter(r => r.u.divisi === g).map(r => {
     const x = r.x;
     const sub = `Stock ${x.done ? '✓' : x.n_item ? '… ' + x.n_item + ' item' : '✗'} · Kas ${x.kas_input ? '✓' : '✗'}${priv && r.u.limit != null ? ' · Limit ' + fmtRp(r.u.limit) : ''}`;
-    return `<button class="row" data-id="${r.u.id}"><div class="main"><div class="name">${esc(r.u.nama)}${r.u.aktif ? '' : ' <small style="color:var(--muted)">(tidak aktif)</small>'}</div><div class="sub">${sub}</div></div><span class="kst ${r.c}">${esc(lbl(r))}</span></button>`;
+    return `<div class="kvi ${isProblem(r) ? 'bad' : 'good'}"><div class="row" role="button" tabindex="0" data-id="${r.u.id}"><div class="main"><div class="name">${esc(r.u.nama)}${r.u.aktif ? '' : ' <small style="color:var(--muted)">(tidak aktif)</small>'}</div><div class="sub">${sub}</div></div><div class="kvr"><span class="kst ${r.st === 'lebih' ? 'lb' : r.c}">${esc(lbl(r))}</span>${tlBtn(r, iso)}</div></div></div>`;
   }).join('') + '</div>').join('');
+  bindTLBars(iso);
+  renderKOClose(iso, L);
   $('koDay').querySelectorAll('.row').forEach(el => el.addEventListener('click', () => {
     const u = koUnits().find(x => String(x.id) === el.dataset.id);
     if(S.kv.kid !== u.id) S.kv.products = [];
@@ -3261,17 +3387,21 @@ async function loadKCal(){
   try{
     const r = await rpc('get_kanvas_calendar', { p_kanvas_id: kid, p_year: y, p_month: m });
     if(S.kv.y !== y || S.kv.m !== m || S.kv.kid !== kid) return;
+    (r.days || []).forEach(kvNorm);
     S.kv.cal = r; S.kv.today = r.today || jayapuraToday();
     renderKCal();
   }catch(e){ $('kcGrid').innerHTML = `<div class="empty" style="grid-column:1/-1">${esc(e.message)}</div>`; }
 }
 const KV_WARN = ['beda', 'no_modal', 'no_harga'];
+/* selisih plus (uang/stock lebih) tidak dianggap masalah */
+function kvNorm(x){ if(x && x.status === 'beda' && Number(x.selisih) > 0) x.status = 'lebih'; return x; }
+const kvOk = st => st === 'cocok' || st === 'lebih';
 function kDayState(iso){
   const x = (S.kv.cal.days || []).find(d => String(d.tanggal).slice(0, 10) === iso) || {};
   const st = x.status || 'kosong', n = Number(x.n_item) || 0;
   if(dowOf(iso) === 0) return { c: 'sun', off: true };
   if(iso > S.kv.today) return { c: 'fut', off: true };
-  if(st === 'cocok') return { c: 'g', sub: '✓' };
+  if(kvOk(st)) return { c: 'g', sub: '✓' };
   if(KV_WARN.includes(st)) return { c: 'w', sub: '⚠' };
   if(st === 'proses') return { c: 'y', sub: n ? String(n) : '' };
   if(iso < S.kv.today) return { c: 'm' };
@@ -3383,7 +3513,7 @@ async function openKHit(push = true){
   $('khRincTbl').classList.add('hidden'); $('btnKRinc').textContent = 'Lihat rincian item stock';
   if(isAdminKas()){ $('khTitle').textContent = S.kv.kname; $('khSub').textContent = fmtDay(S.kv.date); }
   try{
-    S.kv.hit = await rpc('get_kanvas_hitung', { p_kanvas_id: S.kv.kid, p_tanggal: S.kv.date });
+    S.kv.hit = kvNorm(await rpc('get_kanvas_hitung', { p_kanvas_id: S.kv.kid, p_tanggal: S.kv.date }));
     renderKHit();
   }catch(e){ $('khStat').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
 }
@@ -3416,6 +3546,7 @@ function renderKHit(){
   if(!h.kas_input) wait.push('uang kas belum diinput');
   const ST = {
     cocok: ['ok', '✓ PAS', 'Stock fisik + uang kas = limit'],
+    lebih: ['ok', '✓ LEBIH' + (priv && h.selisih != null ? ' ' + fmtRpS(h.selisih) : ''), 'Stock fisik + uang kas lebih dari limit'],
     beda: ['bad', '⚠ SELISIH' + (priv && h.selisih != null ? ' ' + fmtRpS(h.selisih) : ''), priv ? 'Perlu audit' : 'Hubungi Full Access / SPVADMIN untuk audit'],
     no_modal: ['bad', '⚠ LIMIT BELUM DIATUR', 'Isi limit kanvas dulu.'],
     no_harga: ['bad', '⚠ ADA BARANG TANPA HARGA', `${h.no_harga_count} barang belum ada harga kanvas.`]
@@ -3427,14 +3558,14 @@ function renderKHit(){
   /* ---- full access / spvadmin: ringkas ---- */
   if(priv){
     const tot = (Number(h.nilai) || 0) + (Number(h.kas) || 0);
-    const bad = h.modal != null && Math.abs(Number(h.selisih) || 0) >= 1;
+    const sl = Number(h.selisih) || 0, bad = h.modal != null && sl <= -1;
     const pen = h.can_kas ? '<button class="pencil" id="khEdit" title="Edit uang kas" aria-label="Edit uang kas">✏</button>' : '';
     $('khCalc').innerHTML =
         kline('Limit kanvas', h.modal != null ? fmtRp(h.modal) : 'Belum diatur')
       + kline(`Nilai stock fisik <small>(${fmt(h.n_item)} item${h.done ? ', submit ✓' : ', belum submit'})</small>`, fmtRp(h.nilai))
       + kline(`Uang kas${h.kas_by ? ` <small>(${esc(h.kas_by)})</small>` : ''}`, (h.kas_input ? fmtRp(h.kas) : 'Belum diinput') + pen)
       + kline('Total (stock + kas)', fmtRp(tot), 'tot')
-      + (h.modal != null ? `<div class="kline tot" style="color:${bad ? 'var(--danger)' : 'var(--ok)'}"><span style="color:inherit">${bad ? 'Selisih' : 'Pas'}</span><b class="num">${fmtRpS(h.selisih)}</b></div>` : '');
+      + (h.modal != null ? `<div class="kline tot" style="color:${bad ? 'var(--danger)' : 'var(--ok)'}"><span style="color:inherit">${bad ? 'Selisih' : sl >= 1 ? 'Lebih' : 'Pas'}</span><b class="num">${fmtRpS(h.selisih)}</b></div>` : '');
     $('khCalcWrap').classList.remove('hidden');
     if($('khEdit')) $('khEdit').addEventListener('click', () => {
       const f = $('khKasForm');
