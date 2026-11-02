@@ -580,6 +580,23 @@ td.bad{color:var(--danger); font-weight:800}
     </div>
     <div id="khAkDone" class="hidden"></div>
 
+    <div id="khSetWrap" class="hidden">
+      <div class="sec">Setoran penggantian selisih</div>
+      <div class="kbox" id="khSetList"></div>
+      <button class="btn ghost hidden" id="btnKSetAdd" style="margin-bottom:8px">+ Tambah setoran penggantian selisih</button>
+      <div class="form hidden" id="khSetForm" style="margin-bottom:12px">
+        <span class="lbl">Jumlah setoran (Rp)</span>
+        <input id="khSetIn" class="in num kmoney" type="text" inputmode="numeric" autocomplete="off" placeholder="0">
+        <span class="lbl" style="margin-top:10px;display:block">Tanggal setor</span>
+        <input id="khSetTgl" class="in" type="date">
+        <span class="lbl" style="margin-top:10px;display:block">Keterangan (opsional)</span>
+        <input id="khSetKet" class="in" type="text" maxlength="200" placeholder="mis. diganti salesman / potong gaji">
+        <label class="kconf"><input type="checkbox" id="khSetConf"><span>Saya konfirmasi uang setoran ini <b>betul sudah diterima fisiknya</b>.</span></label>
+        <div class="err" id="khSetErr"></div>
+        <button class="btn" id="khSetSave">Simpan setoran</button>
+      </div>
+    </div>
+
     <div id="khRinc" class="hidden">
       <button class="btn ghost" id="btnKRinc" style="margin-bottom:8px">Lihat rincian item stock</button>
       <div class="tbl-wrap hidden" id="khRincTbl">
@@ -3561,19 +3578,26 @@ async function openKHit(push = true){
   $('khSub').textContent = kvTxt();
   $('khStat').innerHTML = '<div class="empty">Memuat…</div>';
   ['khStock','khKas','khCalc','khNoHarga','khAkDone'].forEach(id => $(id).innerHTML = '');
-  ['btnKDone','btnKReopen','khKasForm','khCalcWrap','khOld','khKasWrap','khAkDone','khRinc','btnKItems','btnKSet2'].forEach(id => $(id).classList.add('hidden'));
+  ['btnKDone','btnKReopen','khKasForm','khCalcWrap','khOld','khKasWrap','khAkDone','khRinc','btnKItems','btnKSet2','khSetWrap','khSetForm','btnKSetAdd'].forEach(id => $(id).classList.add('hidden'));
+  S.kv.setor = null;
   $('khRincTbl').classList.add('hidden'); $('btnKRinc').textContent = 'Lihat rincian item stock';
   if(isAdminKas()){ $('khTitle').textContent = S.kv.kname; $('khSub').textContent = fmtDay(S.kv.date); }
   try{
-    S.kv.hit = kvNorm(await rpc('get_kanvas_hitung', { p_kanvas_id: S.kv.kid, p_tanggal: S.kv.date }));
+    const [hit, setor] = await Promise.all([
+      rpc('get_kanvas_hitung', { p_kanvas_id: S.kv.kid, p_tanggal: S.kv.date }),
+      rpc('get_kanvas_setoran', { p_kanvas_id: S.kv.kid, p_tanggal: S.kv.date }).catch(() => null)
+    ]);
+    S.kv.hit = kvNorm(hit); S.kv.setor = setor;
     renderKHit();
   }catch(e){ $('khStat').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
 }
 function kline(a, b, cls = ''){ return `<div class="kline ${cls}"><span>${a}</span><b class="num">${b}</b></div>`; }
 function renderKHit(){
   const h = S.kv.hit, priv = !!h.privileged, ak = isAdminKas();
+  const setTot = Number(S.kv.setor && S.kv.setor.total) || 0;
+  const kasAwal = h.kas != null ? Number(h.kas) - setTot : null;
   const fillKasForm = () => {
-    $('khKasIn').value = h.kas_input && h.kas != null ? Math.round(h.kas).toLocaleString('id-ID') : '';
+    $('khKasIn').value = h.kas_input && kasAwal != null ? Math.round(kasAwal).toLocaleString('id-ID') : '';
     $('khKasConf').checked = false; $('khKasErr').textContent = '';
   };
 
@@ -3585,10 +3609,11 @@ function renderKHit(){
       $('khKasSave').textContent = 'Submit';
       $('khKasForm').classList.remove('hidden');
     }else{
-      $('khAkDone').innerHTML = `<div class="kstat ok">✓ Uang kas sudah diinput${h.kas != null ? `<small>${fmtRp(h.kas)}${h.kas_at ? ' · ' + fmtDate(h.kas_at) : ''}</small>` : ''}</div>
+      $('khAkDone').innerHTML = `<div class="kstat ok">✓ Uang kas sudah diinput${kasAwal != null ? `<small>${fmtRp(kasAwal)}${h.kas_at ? ' · ' + fmtDate(h.kas_at) : ''}</small>` : ''}</div>
         <button class="btn ghost" id="khBackList">‹ Kembali ke list kanvas</button>`;
       $('khAkDone').classList.remove('hidden');
       $('khBackList').addEventListener('click', () => history.back());
+      renderKSet();
     }
     return;
   }
@@ -3604,6 +3629,7 @@ function renderKHit(){
     no_harga: ['bad', '⚠ ADA BARANG TANPA HARGA', `${h.no_harga_count} barang belum ada harga kanvas.`]
   };
   const st = ST[h.status] || ['wait', 'Belum lengkap', wait.length ? 'Menunggu: ' + wait.join(', ') : ''];
+  if(setTot > 0 && st[2]) st[2] += ` (termasuk setoran penggantian ${fmtRp(setTot)})`;
   $('khStat').innerHTML = `<div class="kstat ${st[0]}">${st[1]}${st[2] ? `<small>${esc(st[2])}</small>` : ''}</div>`
     + (h.editable ? '' : `<div class="banner" style="margin:-4px 0 12px">${esc(h.lock_reason || 'Tanggal ini hanya bisa dilihat.')}</div>`);
 
@@ -3615,8 +3641,9 @@ function renderKHit(){
     $('khCalc').innerHTML =
         kline('Limit kanvas', h.modal != null ? fmtRp(h.modal) : 'Belum diatur')
       + kline(`Nilai stock fisik <small>(${fmt(h.n_item)} item${h.done ? ', submit ✓' : ', belum submit'})</small>`, fmtRp(h.nilai))
-      + kline(`Uang kas${h.kas_by ? ` <small>(${esc(h.kas_by)})</small>` : ''}`, (h.kas_input ? fmtRp(h.kas) : 'Belum diinput') + pen)
-      + kline('Total (stock + kas)', fmtRp(tot), 'tot')
+      + kline(`Uang kas${h.kas_by ? ` <small>(${esc(h.kas_by)})</small>` : ''}`, (h.kas_input ? fmtRp(kasAwal) : 'Belum diinput') + pen)
+      + (setTot > 0 ? kline('Setoran penggantian', fmtRp(setTot)) : '')
+      + kline(setTot > 0 ? 'Total (stock + kas + setoran)' : 'Total (stock + kas)', fmtRp(tot), 'tot')
       + (h.modal != null ? `<div class="kline tot" style="color:${bad ? 'var(--danger)' : 'var(--ok)'}"><span style="color:inherit">${bad ? 'Selisih' : sl >= 1 ? 'Lebih' : 'Pas'}</span><b class="num">${fmtRpS(h.selisih)}</b></div>` : '');
     $('khCalcWrap').classList.remove('hidden');
     if($('khEdit')) $('khEdit').addEventListener('click', () => {
@@ -3635,6 +3662,7 @@ function renderKHit(){
     $('btnKItems').classList.toggle('hidden', !isFullAccess() || !h.editable);
     $('btnKReopen').classList.toggle('hidden', !(h.done && isFullAccess() && h.editable));
     $('btnKSet2').classList.toggle('hidden', !isFullAccess());
+    renderKSet();
     return;
   }
 
@@ -3676,6 +3704,50 @@ $('khKasSave').addEventListener('click', async () => {
   try{ await rpc('save_kanvas_kas', { p_kanvas_id: S.kv.kid, p_tanggal: S.kv.date, p_kas: v, p_konfirmasi: true }); loading(false); toast('Uang kas tersimpan'); if(isAdminKas() && !canFinalize()) history.back(); else openKHit(false); }
   catch(e){ loading(false); $('khKasErr').textContent = e.message; }
   finally{ $('khKasSave').disabled = false; }
+});
+
+/* ----- setoran penggantian selisih (tidak mengubah uang kas awal) ----- */
+moneyInput($('khSetIn'));
+function renderKSet(){
+  const s = S.kv.setor;
+  if(!s){ $('khSetWrap').classList.add('hidden'); return; }
+  const R = s.rows || [];
+  if(!R.length && !s.can_add){ $('khSetWrap').classList.add('hidden'); return; }
+  $('khSetList').innerHTML = (R.length ? R.map(r => `<div class="kline"><span>Setor ${esc(fmtDay(r.tgl_setor))}<br><small>${esc(r.created_by || '')} · ${esc(fmtDate(r.created_at))}${r.keterangan ? '<br>' + esc(r.keterangan) : ''}</small></span><b class="num">${fmtRp(r.jumlah)}${s.can_del ? ` <button class="pencil" data-delset="${r.id}" title="Hapus setoran" aria-label="Hapus setoran">✕</button>` : ''}</b></div>`).join('')
+      : '<div class="kline"><span>Belum ada setoran</span><b class="num">–</b></div>')
+    + (R.length > 1 ? kline('Total setoran', fmtRp(s.total), 'tot') : '')
+    + (s.sisa != null ? `<div class="kline tot" style="color:${s.sisa >= 1 ? 'var(--danger)' : 'var(--ok)'}"><span style="color:inherit">Sisa selisih</span><b class="num">${s.sisa >= 1 ? fmtRp(s.sisa) : 'Lunas'}</b></div>` : '');
+  $('btnKSetAdd').classList.toggle('hidden', !s.can_add);
+  $('khSetWrap').classList.remove('hidden');
+  $('khSetList').querySelectorAll('[data-delset]').forEach(b => b.addEventListener('click', async () => {
+    if(!confirm('Hapus setoran ini? Selisih tanggal ini akan dihitung ulang.')) return;
+    loading(true, 'Menghapus…');
+    try{ await rpc('delete_kanvas_setoran', { p_id: Number(b.dataset.delset) }); loading(false); toast('Setoran dihapus'); openKHit(false); }
+    catch(e){ loading(false); toast(e.message, true); }
+  }));
+}
+$('btnKSetAdd').addEventListener('click', () => {
+  const f = $('khSetForm');
+  if(!f.classList.contains('hidden')){ f.classList.add('hidden'); return; }
+  const s = S.kv.setor || {}, today = jayapuraToday();
+  $('khSetIn').value = s.sisa >= 1 ? Math.round(s.sisa).toLocaleString('id-ID') : '';
+  $('khSetTgl').value = today; $('khSetTgl').max = today; $('khSetTgl').min = S.kv.date;
+  $('khSetKet').value = ''; $('khSetConf').checked = false; $('khSetErr').textContent = '';
+  f.classList.remove('hidden'); $('khSetIn').focus();
+});
+$('khSetSave').addEventListener('click', async () => {
+  $('khSetErr').textContent = '';
+  const v = parseRp($('khSetIn').value), tgl = $('khSetTgl').value, ket = $('khSetKet').value.trim();
+  if(v <= 0){ $('khSetErr').textContent = 'Isi jumlah setoran.'; return; }
+  if(!tgl){ $('khSetErr').textContent = 'Isi tanggal setor.'; return; }
+  if(!$('khSetConf').checked){ $('khSetErr').textContent = 'Centang konfirmasi uang setoran sudah diterima.'; return; }
+  if(!confirm(`Simpan setoran penggantian ${fmtRp(v)} untuk kanvas ${S.kv.kname}, selisih ${fmtDay(S.kv.date)}?\n\nUang kas awal tidak berubah.`)) return;
+  $('khSetSave').disabled = true; loading(true, 'Menyimpan…');
+  try{
+    await rpc('save_kanvas_setoran', { p_kanvas_id: S.kv.kid, p_tanggal: S.kv.date, p_jumlah: v, p_tgl_setor: tgl, p_keterangan: ket, p_konfirmasi: true });
+    loading(false); toast('Setoran tersimpan'); openKHit(false);
+  }catch(e){ loading(false); $('khSetErr').textContent = e.message; }
+  finally{ $('khSetSave').disabled = false; }
 });
 
 /* ----- atur modal & harga kanvas (FULL ACCESS) ----- */
