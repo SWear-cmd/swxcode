@@ -515,8 +515,9 @@ td.bad{color:var(--danger); font-weight:800}
     </div>
     <div class="cal" id="kcGrid"></div>
     <div class="legend">
-      <span><i style="background:#2F9E5B"></i>Cocok dengan limit</span>
-      <span><i style="background:#D2453D"></i>⚠ Selisih, audit</span>
+      <span class="kcPriv"><i style="background:#2F9E5B"></i>Cocok dengan limit</span>
+      <span class="kcPriv"><i style="background:#D2453D"></i>⚠ Selisih, audit</span>
+      <span class="kcBlind hidden"><i style="background:#2F9E5B"></i>Stock &amp; kas lengkap</span>
       <span><i style="background:#F2C230"></i>Proses (stock / kas belum lengkap)</span>
       <span><i style="border:2px dashed #D2453D"></i>Tidak di stock</span>
       <span><i style="background:var(--line)"></i>Minggu</span>
@@ -1117,8 +1118,8 @@ const PARENT = { home:'mode', divisi:'home', team:'home', products:'team', input
 const parentOf = sc => {
   if(sc === 'input' || sc === 'rusak') return S.mode === 'kanvas' ? 'kprod' : S.mode === 'harian' ? 'dprod' : 'products';
   if(sc === 'kdiv') return kvScoped() ? null : 'mode';
-  if(sc === 'kprod') return kvScoped() ? 'kdiv' : 'khit';
-  if(sc === 'khit') return (kvScoped() && !isAdminKas()) ? 'kprod' : 'kdiv';
+  if(sc === 'kprod') return kvScoped() ? 'kcal' : 'khit';
+  if(sc === 'khit') return (kvScoped() && !isAdminKas()) ? 'kprod' : kvScoped() ? 'kcal' : 'kdiv';
   if(sc === 'kset') return 'khit';
   return PARENT[sc];
 };
@@ -3278,11 +3279,6 @@ async function openKDiv(push = true){
       const u = S.kv.units.find(x => String(x.id) === el.dataset.id);
       if(S.kv.kid !== u.id) S.kv.products = [];
       S.kv.kid = u.id; S.kv.kname = u.nama; S.kv.divisi = u.divisi;
-      if(kvScoped()){
-        S.kv.date = jayapuraToday();
-        if(isAdminKas()) openKHit(true); else openKProd(true, true);
-        return;
-      }
       openKCal(true);
     }));
   }catch(e){ $('kDivList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
@@ -3439,6 +3435,8 @@ function openKCal(push = true){
   show('kcal', push);
   $('kcDiv').textContent = kvTxt();
   $('btnKSet').classList.toggle('hidden', !isFullAccess());
+  document.querySelectorAll('.kcPriv').forEach(e => e.classList.toggle('hidden', kvScoped()));
+  document.querySelectorAll('.kcBlind').forEach(e => e.classList.toggle('hidden', !kvScoped()));
   if(!S.kv.y){ const t = jayapuraToday().split('-').map(Number); S.kv.y = t[0]; S.kv.m = t[1]; }
   loadKCal();
 }
@@ -3470,6 +3468,7 @@ function kDayState(iso){
   const st = x.status || 'kosong', n = Number(x.n_item) || 0;
   if(dowOf(iso) === 0) return { c: 'sun', off: true };
   if(iso > S.kv.today) return { c: 'fut', off: true };
+  if(kvScoped() && st !== 'kosong' && st !== 'proses') return { c: 'g', sub: '✓' };
   if(kvOk(st)) return { c: 'g', sub: '✓' };
   if(KV_WARN.includes(st)) return { c: 'w', sub: '⚠' };
   if(st === 'proses') return { c: 'y', sub: n ? String(n) : '' };
@@ -3495,7 +3494,7 @@ function renderKCal(){
   }));
   let info = '';
   if(warn) info += `<div class="banner" style="background:#D2453D;color:#fff;font-weight:700">⚠ ${warn} tanggal tidak cocok dengan limit. Perlu audit.</div>`;
-  if(!r.has_modal) info += `<div class="banner">Limit kanvas ${esc(S.kv.kname)} belum diatur.${isFullAccess() ? ' Tekan "Atur limit, harga & data kanvas".' : ' Hubungi Full Access.'}</div>`;
+  if(!r.has_modal && !kvScoped()) info += `<div class="banner">Limit kanvas ${esc(S.kv.kname)} belum diatur.${isFullAccess() ? ' Tekan "Atur limit, harga & data kanvas".' : ' Hubungi Full Access.'}</div>`;
   $('kcInfo').innerHTML = info;
 }
 
@@ -3610,7 +3609,7 @@ function renderKHit(){
       $('khKasForm').classList.remove('hidden');
     }else{
       $('khAkDone').innerHTML = `<div class="kstat ok">✓ Uang kas sudah diinput${kasAwal != null ? `<small>${fmtRp(kasAwal)}${h.kas_at ? ' · ' + fmtDate(h.kas_at) : ''}</small>` : ''}</div>
-        <button class="btn ghost" id="khBackList">‹ Kembali ke list kanvas</button>`;
+        <button class="btn ghost" id="khBackList">‹ Kembali ke kalender</button>`;
       $('khAkDone').classList.remove('hidden');
       $('khBackList').addEventListener('click', () => history.back());
       renderKSet();
