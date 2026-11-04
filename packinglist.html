@@ -325,6 +325,7 @@
       <select id="plDetailSopir4"><option value="">- Tidak ada -</option></select>
       <label for="plDetailSopir5">Sopir 5</label>
       <select id="plDetailSopir5"><option value="">- Tidak ada -</option></select>
+      <button class="btn btn-sm" id="plDetailAddSopirBtn" type="button" title="Tambah nama sopir baru ke daftar">+ Sopir Baru</button>
       <label for="plDetailTgl">Tgl Antar</label>
       <input type="date" id="plDetailTgl">
       <button class="btn primary" id="plDetailHdrSaveBtn" type="button">Simpan</button>
@@ -1267,6 +1268,11 @@
     const { data, error } = await sb.rpc('get_sopir_list', { p_pin: currentPin });
     if (error){ console.warn('Gagal memuat list sopir: ' + error.message); sopirList = []; return; }
     sopirList = (data || []).map(r => r.nama).filter(Boolean);
+    // extra sopir names added manually (pl_sopir_extra)
+    const ex = await sb.rpc('get_sopir_extra_list', { p_pin: currentPin });
+    if (ex.error){ console.warn('Gagal memuat sopir tambahan: ' + ex.error.message); }
+    else (ex.data || []).forEach(r => { if (r.nama && !sopirList.includes(r.nama)) sopirList.push(r.nama); });
+    sopirList.sort((x, y) => x.localeCompare(y));
   }
   // up to 5 sopir stored in packing_lists.sopir as "SOPIR1 / SOPIR2 / ..."
   const SOPIR_SEP = ' / ';
@@ -1800,6 +1806,27 @@
     msgEl.textContent = 'Tersimpan'; msgEl.className = 'automsg success';
     renderPackingListTable();
     renderTrackingTable();
+  });
+
+  // ---- Tambah nama sopir baru ke dropdown ----
+  document.getElementById('plDetailAddSopirBtn').addEventListener('click', async function(){
+    const raw = window.prompt('Nama sopir baru:');
+    const nama = String(raw || '').trim().replace(/\s+/g, ' ').toUpperCase();
+    if (!nama) return;
+    const msgEl = document.getElementById('plDetailHdrMsg');
+    if (sopirList.includes(nama)){ msgEl.textContent = 'Sopir sudah ada di daftar.'; msgEl.className = 'automsg error'; return; }
+    this.disabled = true;
+    const { error } = await sb.rpc('add_sopir_extra', { p_pin: currentPin, p_nama: nama });
+    this.disabled = false;
+    if (error){ msgEl.textContent = 'Gagal tambah sopir: ' + error.message; msgEl.className = 'automsg error'; return; }
+    // keep current selections, rebuild options, put new name in first empty slot
+    const cur = SOPIR_IDS.map(id => document.getElementById(id).value);
+    sopirList.push(nama);
+    sopirList.sort((x, y) => x.localeCompare(y));
+    const empty = cur.findIndex(v => !v);
+    if (empty >= 0) cur[empty] = nama;
+    fillSopirSelect(cur.filter(Boolean).join(SOPIR_SEP));
+    msgEl.textContent = 'Sopir ' + nama + ' ditambahkan (klik Simpan).'; msgEl.className = 'automsg success';
   });
 
   // ---- PL detail modal (invoices inside one packing list) ----
