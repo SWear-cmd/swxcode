@@ -104,7 +104,8 @@
   .modal-box{background:var(--panel);border:1px solid var(--border);border-radius:14px;width:100%;max-width:420px;padding:20px;}
   .modal-box-wide{max-width:960px;}
   .modal-box-wide .tablescroll{max-height:50vh;}
-  .pl-summary-actions{display:flex;gap:6px;flex-wrap:wrap;}
+  .pl-summary-actions{white-space:nowrap;}
+  .pl-act-wrap{display:flex;gap:6px;flex-wrap:nowrap;align-items:center;}
   .btn-sm{padding:5px 10px;font-size:12px;}
   .pagebar{display:flex;align-items:center;justify-content:center;gap:14px;padding:10px 8px;border-top:1px solid var(--border);}
   .pagebar-inline{padding:0;border-top:none;gap:8px;}
@@ -119,6 +120,24 @@
   .modal-field input:focus{outline:2px solid var(--blue);outline-offset:1px;}
   .modal-field input[readonly]{color:var(--teal);font-weight:700;}
   .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:6px;}
+  #trackReviewOverlay{padding:0;}
+  .tr-box{width:100vw;height:100vh;max-width:none;border-radius:0;border:none;display:flex;flex-direction:column;padding:16px 20px;}
+  .tr-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px;}
+  .tr-stats{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;}
+  .tr-stats b{font-size:15px;}
+  .tr-stats .s-ok b{color:var(--green);}
+  .tr-stats .s-cancel b{color:var(--red);}
+  .tr-box .tablewrap{flex:1;min-height:0;display:flex;flex-direction:column;}
+  .tr-box .tablescroll{flex:1;max-height:none;}
+  .tr-inv{cursor:pointer;user-select:none;font-weight:600;}
+  .tr-inv .tr-box-ic{display:inline-block;width:16px;height:16px;border:1.5px solid var(--muted);border-radius:4px;margin-right:8px;vertical-align:-3px;text-align:center;line-height:13px;font-size:12px;}
+  tr.tr-ok td{background:rgba(76,175,130,.12);}
+  tr.tr-ok .tr-box-ic{background:var(--green);border-color:var(--green);color:#062421;}
+  tr.tr-cancel td{opacity:.45;text-decoration:line-through;}
+  tr.tr-cancel td.tr-act{opacity:1;text-decoration:none;}
+  tr.tr-cancel .tr-inv{cursor:default;}
+  .btn.danger{border-color:var(--red);color:var(--red);}
+  .tr-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;}
   #kasWarnOverlay{z-index:60;}
   #kasWarnOverlay .modal-box{border-color:#E8A33D;}
   #kasWarnOverlay h3{color:#E8A33D;}
@@ -139,6 +158,19 @@
   .pl-toolbar .lbl{font-size:12.5px;color:var(--text);}
   .pl-toolbar select{background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:8px;font-size:12.5px;}
   .reason-tag{display:block;font-size:10.5px;color:var(--muted);margin-top:3px;max-width:140px;white-space:normal;}
+  .pl-summary{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;font-size:12.5px;}
+  .pl-chip{background:var(--panel);border:1px solid var(--border);color:var(--muted);padding:6px 12px;border-radius:999px;font-size:12px;cursor:pointer;}
+  .pl-chip b{color:var(--text);margin-left:4px;}
+  .pl-chip.active{border-color:var(--teal);color:var(--teal);}
+  .pl-chip.warn b{color:#f0b93d;}
+  .pl-chip.bad b{color:var(--red);}
+  .pl-gudang{color:var(--muted);margin-left:6px;}
+  .pl-gudang b{color:#f0b93d;}
+  .pl-tag{display:inline-block;margin-left:8px;padding:1px 7px;border-radius:6px;font-size:10.5px;font-weight:700;vertical-align:1px;}
+  .pl-tag.null{background:rgba(224,99,122,.18);color:var(--red);border:1px solid var(--red);}
+  .pl-tag.old{background:rgba(240,185,61,.14);color:#f0b93d;border:1px solid #f0b93d;}
+  tr.pl-has-null td{background:rgba(224,99,122,.08);}
+  tr.pl-null-row td{background:rgba(224,99,122,.12);}
   tr.pl-rekap > td:not(:first-child):not(:last-child){text-decoration:line-through;opacity:.55;}
   .reason-options{display:flex;flex-direction:column;gap:8px;margin:4px 0 12px;}
   .reason-options label{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;color:var(--text);}
@@ -241,6 +273,7 @@
       <input class="search" id="plSearch" placeholder="Cari no invoice, toko, no PL...">
       <span class="subtitle" id="plMeta">0 baris</span>
     </div>
+    <div class="pl-summary" id="plSummary"></div>
     <div class="tablewrap">
       <div class="tablescroll">
         <table>
@@ -269,7 +302,8 @@
       <input class="search" id="trackSearch" placeholder="Cari no invoice, toko, no PL...">
       <div class="toolrow-right">
         <span class="subtitle" id="trackMeta">0 baris</span>
-        <button class="btn primary" id="trackExportBtn">Export Excel</button>
+        <span class="subtitle" id="trackJobInfo"></span>
+        <button class="btn primary" id="trackProsesBtn">Proses FULL &rarr; Tracking</button>
       </div>
     </div>
     <div class="tablewrap">
@@ -358,6 +392,49 @@
 </div>
 
 <!-- Generate modal -->
+<!-- Tracking review modal (full screen) -->
+<div class="modal-overlay hidden" id="trackReviewOverlay">
+  <div class="modal-box tr-box">
+    <div class="tr-head">
+      <div>
+        <h3>Cek invoice sebelum Tracking</h3>
+        <div class="modal-sub" style="margin-bottom:0">Klik No Invoice untuk centang (OK). Klik Batal untuk invoice yang salah &mdash; tidak ikut tracking dan tidak ditandai exported.</div>
+      </div>
+      <div class="tr-stats">
+        <span>Total <b id="trTotal">0</b></span>
+        <span class="s-ok">Dicek <b id="trOk">0</b></span>
+        <span class="s-cancel">Dibatalkan <b id="trCancel">0</b></span>
+        <span id="trBranch" class="subtitle"></span>
+      </div>
+    </div>
+    <div class="tablewrap">
+      <div class="tablescroll">
+        <table>
+          <thead>
+            <tr>
+              <th>No Invoice</th>
+              <th>Nama Toko</th>
+              <th>No PL</th>
+              <th>Tgl</th>
+              <th>Kubikasi</th>
+              <th>Branch</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="trTbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="tr-foot">
+      <span class="subtitle" id="trHint"></span>
+      <div class="modal-actions" style="margin-top:0">
+        <button class="btn" id="trCloseBtn" type="button">Tutup</button>
+        <button class="btn primary" id="trSubmitBtn" type="button" disabled>Submit &amp; Proses Tracking</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay hidden" id="genOverlay">
   <div class="modal-box">
     <h3>Generate Packing List</h3>
@@ -1299,10 +1376,31 @@
     SOPIR_IDS.forEach((id, i) => fill(id, i === 0 ? '- Pilih sopir -' : '- Tidak ada -', curs[i] || ''));
   }
 
+  // PL bulan sebelumnya yang belum selesai (belum diantar / masih ada inv NULL) tetap ikut tampil
+  const PL_CARRY_MONTHS = 3;
   async function loadPackingList(){
-    const { data, error } = await rpcAll('get_packing_list_items', { p_pin: currentPin }, byMonth('tgl'));
-    if (error){ alert('Gagal memuat packing list: ' + error.message); return; }
-    plItems = data || [];
+    const { start } = monthRange();
+    const [y, m] = start.split('-').map(Number);
+    const c = new Date(Date.UTC(y, m - 1 - PL_CARRY_MONTHS, 1));
+    const carryStart = c.toISOString().slice(0, 10);
+    const [cur, old] = await Promise.all([
+      rpcAll('get_packing_list_items', { p_pin: currentPin }, byMonth('tgl')),
+      rpcAll('get_packing_list_items', { p_pin: currentPin },
+        q => q.gte('tgl', carryStart).lt('tgl', start).or('tgl_antar.is.null,status.is.null'))
+    ]);
+    if (cur.error){ alert('Gagal memuat packing list: ' + cur.error.message); return; }
+    let extra = [];
+    if (!old.error){
+      const oldPls = [...new Set((old.data || [])
+        .filter(r => !r.tgl_antar || !r.status)
+        .map(r => r.no_pl).filter(Boolean))];
+      if (oldPls.length){
+        // ambil semua invoice dari PL tsb supaya jumlah & detail lengkap
+        const full = await rpcAll('get_packing_list_items', { p_pin: currentPin }, q => q.in('no_pl', oldPls));
+        if (!full.error) extra = full.data || [];
+      }
+    }
+    plItems = (cur.data || []).concat(extra);
     renderPackingListTable();
     renderTrackingTable();
   }
@@ -1616,17 +1714,23 @@
   }
 
   // group the flat invoice-level plItems rows into one summary row per no_pl
-  function getPlGroups(){
-    const rows = filteredPlItems();
+  function getPlGroups(rows){
+    rows = rows || filteredPlItems();
+    const monthStart = monthRange().start;
     const map = new Map();
     rows.forEach(r => {
       if (!map.has(r.no_pl)){
         map.set(r.no_pl, {
           no_pl: r.no_pl, tgl: r.tgl, sopir: r.sopir, pl_area: r.pl_area,
-          total_kubikasi: r.total_kubikasi, tgl_antar: r.tgl_antar, count: 0
+          total_kubikasi: r.total_kubikasi, tgl_antar: r.tgl_antar, count: 0,
+          nullCount: 0, gudangs: new Set(), carry: String(r.tgl || '') < monthStart
         });
       }
-      map.get(r.no_pl).count++;
+      const g = map.get(r.no_pl);
+      g.count++;
+      if (!r.status) g.nullCount++;
+      g.gudangs.add(String(r.gudang || '-').trim().toUpperCase() || '-');
+      if (!g.tgl_antar && r.tgl_antar) g.tgl_antar = r.tgl_antar;
     });
     return [...map.values()].sort((a, b) =>
       String(b.tgl || '').localeCompare(String(a.tgl || '')) ||
@@ -1635,21 +1739,55 @@
 
   let activeDetailPl = null; // no_pl currently open in the detail modal
 
+  let plFilter = 'all'; // all | belum | null
+  const plIsBelum = g => !g.tgl_antar;
+  const plIsNull  = g => !!g.tgl_antar && g.nullCount > 0;
+
+  function renderPlSummary(){
+    const all = getPlGroups(plItems);
+    const belum = all.filter(plIsBelum);
+    const nul = all.filter(plIsNull);
+    const perGudang = new Map();
+    belum.forEach(g => g.gudangs.forEach(k => perGudang.set(k, (perGudang.get(k) || 0) + 1)));
+    const gudTxt = [...perGudang.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([k, n]) => `${escapeHtml(k)} <b>${n}</b>`).join(' &middot; ');
+    const chip = (key, label, n, cls) =>
+      `<button type="button" class="pl-chip ${cls || ''} ${plFilter === key ? 'active' : ''}" data-f="${key}">${label}<b>${n}</b></button>`;
+    document.getElementById('plSummary').innerHTML =
+      chip('all', 'Semua', all.length) +
+      chip('belum', 'Belum diantar', belum.length, 'warn') +
+      chip('null', 'Sudah diantar, ada inv NULL', nul.length, 'bad') +
+      (gudTxt ? `<span class="pl-gudang">Belum diantar per gudang: ${gudTxt}</span>` : '');
+  }
+  document.getElementById('plSummary').addEventListener('click', e => {
+    const b = e.target.closest('.pl-chip');
+    if (!b) return;
+    plFilter = b.dataset.f;
+    renderPackingListTable();
+  });
+
   function renderPackingListTable(){
-    const groups = getPlGroups();
+    let groups = getPlGroups();
+    if (plFilter === 'belum') groups = groups.filter(plIsBelum);
+    else if (plFilter === 'null') groups = groups.filter(plIsNull);
+    renderPlSummary();
     const tbody = document.getElementById('plTbody');
     tbody.innerHTML = groups.map(g =>
-        `<tr><td><b>${escapeHtml(g.no_pl)}</b></td>` +
+        `<tr class="${plIsNull(g) ? 'pl-has-null' : ''}"><td><b>${escapeHtml(g.no_pl)}</b>` +
+          (plIsNull(g) ? `<span class="pl-tag null">${g.nullCount} inv NULL</span>` : '') +
+          (g.carry ? `<span class="pl-tag old">bulan lalu</span>` : '') + `</td>` +
         `<td class="num">${(Number(g.total_kubikasi) || 0).toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</td>` +
         `<td>${escapeHtml(g.pl_area || '-')}</td>` +
         `<td class="sopir-td">${escapeHtml(g.sopir || '-')}</td>` +
         `<td>${escapeHtml(g.tgl || '-')}</td>` +
         `<td class="num">${g.count}</td>` +
         `<td>${g.tgl_antar ? fmtDateShort(g.tgl_antar) : '-'}</td>` +
-        `<td class="pl-summary-actions">` +
-          `<button type="button" class="btn btn-sm pl-reprint-btn" data-pl="${escapeHtml(g.no_pl)}">Cetak Ulang</button>` +
+        `<td class="pl-summary-actions"><div class="pl-act-wrap">` +
           `<button type="button" class="btn btn-sm pl-view-detail-btn" data-pl="${escapeHtml(g.no_pl)}">Lihat Invoice</button>` +
-        `</td></tr>`).join('');
+          `<button type="button" class="btn btn-sm pl-reprint-btn" data-pl="${escapeHtml(g.no_pl)}" title="Cetak ulang" aria-label="Cetak ulang">` +
+            `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>` +
+          `</button>` +
+        `</div></td></tr>`).join('');
 
     document.getElementById('plEmpty').classList.toggle('hidden', groups.length > 0);
     document.getElementById('plMeta').textContent = groups.length + ' packing list';
@@ -1689,7 +1827,140 @@
     if (!exp.error) (exp.data || []).forEach(e => expMap.set(e.id, e.exported_at));
     trackItems = (data || []).map(r => ({ ...r, exported_at: expMap.get(r.id) || null }));
     renderTrackingTable();
+    refreshTrackJobInfo();
   }
+
+  // ---- Proses FULL -> antrian bot (bot_listener.py jalankan Tracking DAF.py) ----
+  async function refreshTrackJobInfo(){
+    const el = document.getElementById('trackJobInfo');
+    if (!currentPin) return;
+    const { data, error } = await sb.rpc('get_latest_tracking_job', { p_pin: currentPin });
+    if (error || !data || !data.length){ el.textContent = ''; return; }
+    const j = data[0];
+    const jam = new Date(j.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    const label = { PENDING: 'menunggu bot', DIPROSES: 'diproses bot', DIJALANKAN: 'tracking jalan', GAGAL: 'GAGAL' }[j.status] || j.status;
+    el.textContent = `Job #${j.id} (${jam}): ${label}` + (j.status === 'GAGAL' && j.note ? ' - ' + j.note : '');
+    el.style.color = j.status === 'GAGAL' ? '#dc2626' : '';
+  }
+  setInterval(() => {
+    if (currentPin && document.visibilityState === 'visible') refreshTrackJobInfo();
+  }, 60000);
+
+  // review list: id -> '' | 'ok' | 'cancel'
+  let trRows = [];
+  const trState = new Map();
+
+  document.getElementById('trackProsesBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('trackProsesBtn');
+    btn.disabled = true;
+    try{
+      const res = await rpcAll('get_tracking_items', { p_pin: currentPin }, q => q.eq('status', 'FULL').eq('exported', false));
+      if (res.error){ alert('Gagal memuat data: ' + res.error.message); return; }
+      const rows = res.data || [];
+      if (!rows.length){ alert('Tidak ada invoice FULL yang belum diproses.'); return; }
+      const bOrder = { DAF: 0, ABP: 1, KSI: 2 };
+      trRows = rows.slice().sort((a, b) =>
+        ((bOrder[a.branch] ?? 9) - (bOrder[b.branch] ?? 9)) ||
+        String(a.no_pl || '').localeCompare(String(b.no_pl || '')) ||
+        String(a.no_invoice || '').localeCompare(String(b.no_invoice || '')));
+      trState.clear();
+      trRows.forEach(r => trState.set(String(r.id), ''));
+      renderTrackReview();
+      document.getElementById('trackReviewOverlay').classList.remove('hidden');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  function renderTrackReview(){
+    const html = [];
+    let lastBranch = null;
+    trRows.forEach(r => {
+      if (r.branch !== lastBranch){
+        lastBranch = r.branch;
+        const n = trRows.filter(x => x.branch === r.branch).length;
+        html.push(`<tr class="pl-group-row"><td colspan="7"><b>${escapeHtml(r.branch || '-')}</b> &middot; ${n} invoice</td></tr>`);
+      }
+      const id = String(r.id);
+      const st = trState.get(id);
+      html.push(
+        `<tr data-id="${escapeHtml(id)}" class="${st === 'ok' ? 'tr-ok' : st === 'cancel' ? 'tr-cancel' : ''}">` +
+        `<td class="tr-inv"><span class="tr-box-ic">${st === 'ok' ? '\u2714' : ''}</span>${escapeHtml(r.no_invoice)}</td>` +
+        `<td>${escapeHtml(displayToko(r.nama_toko, r.no_invoice))}</td>` +
+        `<td>${escapeHtml(r.no_pl || '-')}</td>` +
+        `<td>${escapeHtml(String(r.tgl || '').slice(0, 10) || '-')}</td>` +
+        `<td class="num">${fmtNumber(r.kubikasi)}</td>` +
+        `<td>${escapeHtml(r.branch)}</td>` +
+        `<td class="tr-act">${st === 'cancel'
+          ? '<button class="btn btn-sm" type="button" data-act="restore">Pulihkan</button>'
+          : '<button class="btn btn-sm danger" type="button" data-act="cancel">Batal</button>'}</td></tr>`);
+    });
+    document.getElementById('trTbody').innerHTML = html.join('');
+    updateTrackReviewStats();
+  }
+
+  function updateTrackReviewStats(){
+    let ok = 0, cancel = 0;
+    const cnt = { DAF: 0, ABP: 0, KSI: 0 };
+    trRows.forEach(r => {
+      const st = trState.get(String(r.id));
+      if (st === 'ok'){ ok++; if (cnt[r.branch] !== undefined) cnt[r.branch]++; }
+      else if (st === 'cancel') cancel++;
+    });
+    const sisa = trRows.length - ok - cancel;
+    document.getElementById('trTotal').textContent = trRows.length;
+    document.getElementById('trOk').textContent = ok;
+    document.getElementById('trCancel').textContent = cancel;
+    document.getElementById('trBranch').textContent = `Diproses: DAF ${cnt.DAF} | ABP ${cnt.ABP} | KSI ${cnt.KSI}`;
+    document.getElementById('trHint').textContent = sisa
+      ? `${sisa} invoice belum dicek.`
+      : (ok ? `Semua sudah dicek. ${ok} invoice siap diproses.` : 'Semua invoice dibatalkan.');
+    document.getElementById('trSubmitBtn').disabled = sisa > 0 || ok === 0;
+  }
+
+  document.getElementById('trTbody').addEventListener('click', (e) => {
+    const tr = e.target.closest('tr[data-id]');
+    if (!tr) return;
+    const id = tr.dataset.id;
+    const actBtn = e.target.closest('button[data-act]');
+    if (actBtn){
+      trState.set(id, actBtn.dataset.act === 'cancel' ? 'cancel' : '');
+    } else if (e.target.closest('.tr-inv')){
+      const st = trState.get(id);
+      if (st === 'cancel') return;
+      trState.set(id, st === 'ok' ? '' : 'ok');
+    } else return;
+    renderTrackReview();
+  });
+
+  function closeTrackReview(){
+    const done = [...trState.values()].some(v => v);
+    if (done && !confirm('Tutup tanpa proses? Centang yang sudah dibuat akan hilang.')) return;
+    document.getElementById('trackReviewOverlay').classList.add('hidden');
+  }
+  document.getElementById('trCloseBtn').addEventListener('click', closeTrackReview);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !document.getElementById('trackReviewOverlay').classList.contains('hidden')) closeTrackReview();
+  });
+
+  document.getElementById('trSubmitBtn').addEventListener('click', async () => {
+    const okRows = trRows.filter(r => trState.get(String(r.id)) === 'ok');
+    if (!okRows.length) return;
+    const btn = document.getElementById('trSubmitBtn');
+    btn.disabled = true;
+    try{
+      const { data: jobId, error } = await sb.rpc('create_tracking_job', { p_pin: currentPin, p_ids: okRows.map(r => String(r.id)) });
+      if (error){ alert('Gagal kirim ke bot: ' + error.message); updateTrackReviewStats(); return; }
+
+      const mk = await sb.rpc('mark_invoices_exported', { p_pin: currentPin, p_ids: okRows.map(r => r.id) });
+      document.getElementById('trackReviewOverlay').classList.add('hidden');
+      if (mk.error) alert(`Job #${jobId} terkirim, tapi gagal menandai exported: ` + mk.error.message);
+      else alert(`Job #${jobId} terkirim (${okRows.length} invoice). Bot akan menjalankan Tracking otomatis.`);
+      await loadTrackingItems();
+    } finally {
+      refreshTrackJobInfo();
+    }
+  });
 
   function filteredTrackItems(){
     const term = document.getElementById('trackSearch').value.trim().toLowerCase();
@@ -1747,44 +2018,6 @@
 
   }
   document.getElementById('trackSearch').addEventListener('input', debounce(renderTrackingTable, 250));
-
-  document.getElementById('trackExportBtn').addEventListener('click', async () => {
-    // export covers ALL months, not just the selected one
-    const btn = document.getElementById('trackExportBtn');
-    btn.disabled = true;
-    const res = await rpcAll('get_tracking_items', { p_pin: currentPin }, q => q.eq('status', 'FULL').eq('exported', false));
-    btn.disabled = false;
-    if (res.error){ alert('Gagal memuat data export: ' + res.error.message); return; }
-    const exportable = res.data || [];
-    if (!exportable.length){ alert('Tidak ada invoice FULL yang belum di-export.'); return; }
-
-    const byBranch = { DAF: [], ABP: [], KSI: [] };
-    exportable.forEach(r => {
-      if (byBranch[r.branch]) byBranch[r.branch].push(r.no_invoice);
-    });
-
-    const maxLen = Math.max(byBranch.DAF.length, byBranch.ABP.length, byBranch.KSI.length);
-    const aoa = [[], []]; // rows 1-2 blank
-    for (let i = 0; i < maxLen; i++){
-      aoa.push([byBranch.DAF[i] || '', byBranch.ABP[i] || '', byBranch.KSI[i] || '']);
-    }
-
-    btn.disabled = true;
-    try{
-      await ensureXLSX();
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.aoa_to_sheet(aoa);
-      XLSX.utils.book_append_sheet(wb, ws, 'Manifest');
-      XLSX.writeFile(wb, 'TRACKING_' + todayISO() + '.xlsx');
-
-      const ids = exportable.map(r => r.id);
-      const { error } = await sb.rpc('mark_invoices_exported', { p_pin: currentPin, p_ids: ids });
-      if (error){ alert('Export dibuat, tapi gagal menandai exported: ' + error.message); return; }
-      await loadTrackingItems();
-    } finally {
-      btn.disabled = false;
-    }
-  });
 
   // ---- Sopir / Tgl Antar inline edit (inside PL detail modal) ----
   document.getElementById('plDetailHdrSaveBtn').addEventListener('click', async function(){
@@ -1929,6 +2162,7 @@
       tr.dataset.id = r.id;
       if (plSelected.has(r.id)) tr.classList.add('row-selected');
       if (r.status === 'REKAP ULANG') tr.classList.add('pl-rekap');
+      if (!r.status && r.tgl_antar) tr.classList.add('pl-null-row');
       const checked = plSelected.has(r.id) ? 'checked' : '';
       const stClassMap = { FULL: 'st-FULL', BATAL: 'st-BATAL', CORETAN: 'st-CORETAN' };
       const stClass = stClassMap[r.status] || 'st-REKAP';
