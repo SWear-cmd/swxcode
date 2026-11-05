@@ -697,10 +697,12 @@
   async function unlockApp(){
     // cek di server: PIN ini boleh buka Packing List?
     let allowed = false;
+    let denyMsg = 'PIN ini tidak punya akses ke Packing List';
     try{
       const { data, error } = await sb.rpc('can_open_packinglist', { p_pin: currentPin });
+      if (error) denyMsg = 'Gagal cek akses: ' + error.message;
       allowed = !error && data === true;
-    }catch(e){ allowed = false; }
+    }catch(e){ allowed = false; denyMsg = 'Gagal cek akses (koneksi)'; }
     if (!allowed){
       currentPin = null; currentLabel = ''; isFullAccess = false;
       safeSession.removeItem(SESSION_KEY);
@@ -708,14 +710,14 @@
       document.getElementById('mainWrap').style.display = 'none';
       document.getElementById('pinOverlay').classList.remove('hidden');
       document.getElementById('pinInput').value = '';
-      document.getElementById('pinError').textContent = 'PIN ini tidak punya akses ke Packing List';
+      document.getElementById('pinError').textContent = denyMsg;
       document.getElementById('pinSubmitBtn').disabled = false;
       return;
     }
     document.getElementById('pinOverlay').classList.add('hidden');
     document.getElementById('mainWrap').style.display = '';
     try{
-      const { data } = await sb.rpc('is_full_access_pin', { p_pin: currentPin });
+      const { data } = await sb.rpc('is_full_access_pl', { p_pin: currentPin });
       isFullAccess = !!data;
     }catch(e){ isFullAccess = false; }
     applyLabelPermissions();
