@@ -195,7 +195,7 @@
   <div class="pin-box">
     <h2>Masuk</h2>
     <p>Masukkan PIN untuk membuka Invoice &amp; Packing List</p>
-    <input type="password" id="pinInput" inputmode="numeric" autocomplete="off" placeholder="••••" maxlength="12">
+    <input type="text" id="pinInput" name="pl-kode-akses" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" style="-webkit-text-security:disc;text-security:disc;" placeholder="••••" maxlength="12">
     <button class="btn" id="pinSubmitBtn">Masuk</button>
     <div class="pin-error" id="pinError"></div>
   </div>
@@ -695,6 +695,23 @@
   }
 
   async function unlockApp(){
+    // cek di server: PIN ini boleh buka Packing List?
+    let allowed = false;
+    try{
+      const { data, error } = await sb.rpc('can_open_packinglist', { p_pin: currentPin });
+      allowed = !error && data === true;
+    }catch(e){ allowed = false; }
+    if (!allowed){
+      currentPin = null; currentLabel = ''; isFullAccess = false;
+      safeSession.removeItem(SESSION_KEY);
+      safeSession.removeItem(SESSION_PIN_KEY);
+      document.getElementById('mainWrap').style.display = 'none';
+      document.getElementById('pinOverlay').classList.remove('hidden');
+      document.getElementById('pinInput').value = '';
+      document.getElementById('pinError').textContent = 'PIN ini tidak punya akses ke Packing List';
+      document.getElementById('pinSubmitBtn').disabled = false;
+      return;
+    }
     document.getElementById('pinOverlay').classList.add('hidden');
     document.getElementById('mainWrap').style.display = '';
     try{
@@ -1222,7 +1239,7 @@
   });
 
   async function loadInvoices(){
-    const { data, error } = await rpcAll('get_invoices', { p_pin: currentPin });
+    const { data, error } = await rpcAll('get_invoices_pl', { p_pin: currentPin });
     if (error){ alert('Gagal memuat invoice: ' + error.message); return; }
     const all = data;
     invoices = all;
