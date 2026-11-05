@@ -1,0 +1,2627 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Piutang & Penagihan</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #12141A; --surface: #1B1E27; --surface-2: #21242F; --border: #2A2E3A;
+    --text: #E8E9ED; --text-muted: #8B90A0;
+    --ok: #4CAF7D; --warn: #E8C43D; --urgent: #E15554; --paid: #5B8DEF; --cicil: #B07CE8; --giro: #3DC3D8;
+    --font-display: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
+    --font-body: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); min-height: 100vh; }
+  button, input, select { font-family: inherit; }
+  .hidden { display: none !important; }
+
+  #gate { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  #gate .box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 32px 28px; width: 320px; text-align: center; }
+  #gate h2 { font-family: var(--font-display); margin: 0 0 4px; font-size: 20px; }
+  #gate .sub { color: var(--text-muted); font-size: 13px; margin-bottom: 18px; }
+  #gate input { width: 100%; padding: 11px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 15px; text-align: center; letter-spacing: .2em; outline: none; }
+  #gate input:focus { border-color: var(--paid); }
+  #gate button { width: 100%; margin-top: 12px; padding: 11px; border: 0; border-radius: 8px; background: var(--paid); color: #fff; font-weight: 600; cursor: pointer; }
+  #gate button:disabled { opacity: .6; cursor: default; }
+  #gate .err { margin-top: 10px; font-size: 12px; color: #E0637A; min-height: 16px; }
+
+  .wrap { max-width: 2400px; margin: 0 auto; padding: 20px 24px 40px; }
+  .topbar { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+  .branchPills { display: flex; gap: 6px; margin-bottom: 10px; }
+  .pill { padding: 5px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-muted); font-size: 13px; cursor: pointer; }
+  .pill.active { border-color: var(--paid); color: var(--paid); background: rgba(91,141,239,.12); }
+  h1 { font-family: var(--font-display); font-size: 24px; margin: 0; }
+  h3 { font-family: var(--font-display); font-size: 16px; margin: 0; }
+  .meta { color: var(--text-muted); font-size: 12px; font-family: var(--font-mono); }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .btn { padding: 8px 14px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: 13px; cursor: pointer; white-space: nowrap; }
+  .btn:hover { border-color: var(--text-muted); }
+  .btn.primary { background: var(--text); color: var(--bg); border-color: var(--text); font-weight: 600; }
+  .btn.blue { background: var(--paid); border-color: var(--paid); color: #fff; font-weight: 600; }
+  .btn.red { color: var(--urgent); border-color: rgba(225,85,84,.5); }
+  .btn.sm { padding: 4px 9px; font-size: 12px; }
+  .btn:disabled { opacity: .45; cursor: default; }
+
+  .tabBar { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 16px; overflow-x: auto; }
+  .tabBtn { padding: 10px 14px; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--text-muted); font-size: 14px; cursor: pointer; white-space: nowrap; }
+  .tabBtn.active { color: var(--paid); border-bottom-color: var(--paid); font-weight: 600; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; cursor: pointer; text-align: left; color: var(--text); }
+  .tile.static { cursor: default; }
+  .tile.active { border-color: var(--paid); box-shadow: inset 0 0 0 1px var(--paid); }
+  .tile .lbl { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+  .tile .val { font-family: var(--font-display); font-size: 20px; font-weight: 600; margin-top: 4px; }
+  .tile .cnt { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  #hsTiles { gap: 8px; margin-bottom: 10px; }
+  #hsTiles .tile { padding: 7px 10px; }
+  #hsTiles .tile .val { font-size: 16px; margin-top: 1px; }
+  #hsTiles .brRow { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--text-muted); line-height: 1.35; }
+  #hsTiles .brRow b { color: var(--text); font-weight: 500; font-variant-numeric: tabular-nums; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+  .controls { display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 10px; margin-bottom: 10px; }
+  .inp, .controls input, .controls select { padding: 9px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 13px; outline: none; }
+  .inp:focus, .controls input:focus { border-color: var(--paid); }
+  .inp.sm { padding: 5px 8px; font-size: 12.5px; border-radius: 6px; }
+  select.inp, .controls select { cursor: pointer; }
+  input[type="date"].inp { color-scheme: dark; }
+  .seg { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .seg button { padding: 0 14px; background: var(--surface); color: var(--text-muted); border: 0; font-size: 13px; cursor: pointer; white-space: nowrap; }
+  .seg button.active { background: var(--surface-2); color: var(--text); font-weight: 600; }
+  .bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .bar label { font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+
+  .pager { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 8px 0; font-size: 13px; color: var(--text-muted); flex-wrap: wrap; }
+  .pager .btns { display: flex; align-items: center; gap: 8px; }
+
+  .tableWrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: auto; }
+  .tableWrap.tall { max-height: calc(100vh - 340px); min-height: 240px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th { position: sticky; top: 0; background: var(--surface); z-index: 1; text-align: left; padding: 11px 12px; font-size: 11.5px; letter-spacing: .04em; color: var(--text-muted); border-bottom: 1px solid var(--border); white-space: nowrap; user-select: none; }
+  thead.sortable th { cursor: pointer; }
+  thead th[data-k="days"] { white-space: normal; line-height: 1.25; }
+  th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tbody td { padding: 9px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; vertical-align: middle; }
+  tbody td.wrapTxt { white-space: normal; min-width: 180px; }
+  tbody tr:hover { background: var(--surface-2); }
+  tbody tr.clickable { cursor: pointer; }
+  tr.grp td { background: var(--surface-2); font-weight: 600; font-size: 12.5px; }
+  /* Report Urgent: klik toko -> rincian invoice */
+  tr.rpRow { cursor: pointer; }
+  tr.rpRow td:nth-child(2)::before { content: '▸ '; color: var(--text-muted); }
+  tr.rpRow.open td:nth-child(2)::before { content: '▾ '; }
+  tr.rpRow.open td { background: var(--surface-2); }
+  tr.rpDet > td { padding: 0 12px 12px 34px; background: var(--surface-2); }
+  tr.rpDet table { font-size: 12.5px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  tr.rpDet thead th { position: static; padding: 7px 10px; background: var(--surface); }
+  tr.rpDet tbody td { padding: 6px 10px; }
+  .invNo { font-family: var(--font-mono); font-size: 12.5px; }
+  .muted { color: var(--text-muted); }
+  .sisa { font-weight: 600; }
+  .small { font-size: 12px; }
+  .badge { display: inline-block; padding: 3px 8px; border-radius: 5px; font-size: 11px; font-weight: 700; letter-spacing: .03em; white-space: nowrap; }
+  .badge.OK, .badge.BAYAR, .badge.CAIR, .badge.DICEK { background: rgba(76,175,125,.15); color: var(--ok); }
+  .badge.WARNING, .badge.SEBAGIAN { background: rgba(232,196,61,.18); color: var(--warn); }
+  .badge.URGENT, .badge.GAGAL, .badge.TOLAK { background: rgba(225,85,84,.18); color: var(--urgent); }
+  .badge.BELUM, .badge.NONE { background: rgba(139,144,160,.15); color: var(--text-muted); }
+  .badge.CICILAN { background: rgba(176,124,232,.16); color: var(--cicil); }
+  .badge.DITAGIH, .badge.PENDING { background: rgba(91,141,239,.15); color: var(--paid); }
+  .badge.GIRO { background: rgba(61,195,216,.15); color: var(--giro); }
+  .empty { padding: 36px; text-align: center; color: var(--text-muted); }
+  .errNote { background: rgba(225,85,84,.12); border: 1px solid rgba(225,85,84,.4); color: #f2a3a2; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; font-size: 13px; }
+  .infoNote { background: rgba(91,141,239,.10); border: 1px solid rgba(91,141,239,.35); border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; font-size: 13px; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 16px; overflow: hidden; }
+  .card .hd { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+  .card .tot { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--text-muted); }
+  .card .tot b { color: var(--text); font-variant-numeric: tabular-nums; }
+  #tab-hasil td.chk { cursor: pointer; user-select: none; }
+  #tab-hasil tr.picked td { background: rgba(91,141,239,.14); }
+  #tab-hasil tr.grpRow td { border-top: 1px solid var(--border); }
+  #tab-hasil tr.grpDet td { font-size: 12px; color: var(--text-muted); padding-top: 5px; padding-bottom: 5px; }
+  #hsSelBar { position: sticky; bottom: 0; z-index: 5; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 10px 14px; margin-top: 8px;
+    background: var(--surface-2); border: 1px solid var(--paid); border-radius: 10px; font-size: 13px; }
+  #hsSelBar.hidden { display: none; }
+  .alloc { margin-top: 10px; font-size: 12px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .alloc div { display: flex; justify-content: space-between; gap: 10px; padding: 4px 10px; border-bottom: 1px solid var(--border); }
+  .alloc div:last-child { border-bottom: 0; }
+  .brRekap { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+  .brBox { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; min-width: 260px; font-size: 12.5px; }
+  .brBox .brHd { margin-bottom: 4px; }
+  .brBox .r { display: grid; grid-template-columns: 90px 1fr auto; gap: 8px; color: var(--text-muted); line-height: 1.6; }
+  .brBox .r b { color: var(--text); font-weight: 500; text-align: right; font-variant-numeric: tabular-nums; }
+  .brBox .r .n { font-size: 11.5px; }
+  .brBox .r.tt { border-top: 1px solid var(--border); margin-top: 3px; padding-top: 3px; color: var(--text); font-weight: 700; }
+  .brBox .r.tt b { font-weight: 700; }
+  .card .tableWrap { border: 0; border-radius: 0; }
+  .lhGrid { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+  .lhGrid .card { flex: 0 0 auto; }
+  .lhGrid table { font-size: 12.5px; }
+  .lhGrid th, .lhGrid td { padding: 4px 10px; white-space: nowrap; }
+  .lhGrid tr.sun td { color: var(--text-muted); opacity: .5; }
+  .lhGrid tr.tt td { font-weight: 700; border-top: 2px solid var(--border); }
+  .lhGrid td.num { font-variant-numeric: tabular-nums; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  .modalBg { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; width: 720px; max-width: 100%; max-height: 90vh; overflow: auto; }
+  .modal .hd { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; gap: 10px; }
+  .modal .bd { padding: 14px 18px 18px; }
+  .warnBg { position: fixed; inset: 0; background: rgba(0,0,0,.7); display: flex; align-items: center; justify-content: center; z-index: 60; padding: 16px; }
+  .warnBg.hidden { display: none; }
+  .warnBg .modal { width: 980px; border-top: 4px solid var(--urgent); display: flex; flex-direction: column; }
+  .warnBg .wList { max-height: 48vh; overflow: auto; border: 1px solid var(--border); border-radius: 8px; }
+  .warnBg table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .warnBg th { position: sticky; top: 0; background: var(--surface); text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .warnBg th.num, .warnBg td.num { text-align: right; }
+  .warnBg td { padding: 5px 8px; border-bottom: 1px solid var(--border); }
+  .warnBg tr.wU td:first-child { box-shadow: inset 4px 0 0 var(--urgent); }
+  .warnBg tr.wW td:first-child { box-shadow: inset 4px 0 0 #f2b134; }
+  .warnBg .wSum { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 10px; font-size: 14px; }
+  .warnBg textarea { width: 100%; min-height: 80px; resize: vertical; font: inherit; }
+  .warnBg .wList { max-height: 58vh; }
+  .warnBg td.wAl { min-width: 260px; }
+  .warnBg td.wAl .inp { width: 100%; }
+  .warnBg td.wAl .inp.miss { border-color: var(--urgent); }
+  .modal .ft { padding: 12px 18px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .sumRow { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; margin-bottom: 12px; }
+  .sumRow b { font-variant-numeric: tabular-nums; }
+  .x { background: none; border: 0; color: var(--text-muted); font-size: 20px; cursor: pointer; line-height: 1; }
+  .line { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; padding: 8px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; background: var(--surface-2); }
+  .line .inp { min-width: 0; }
+  .modeSeg { display: flex; gap: 6px; margin-bottom: 12px; }
+  .modeSeg button { flex: 1; padding: 9px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-muted); cursor: pointer; font-weight: 600; }
+  .modeSeg button.on.bayar { border-color: var(--ok); color: var(--ok); }
+  .modeSeg button.on.gagal { border-color: var(--urgent); color: var(--urgent); }
+  .hariBox { display: flex; gap: 4px; }
+  .hariBox label { display: flex; align-items: center; gap: 3px; font-size: 12px; padding: 4px 7px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; color: var(--text); }
+  .chk { width: 34px; text-align: center; }
+  .chk input { cursor: pointer; width: 15px; height: 15px; }
+  td.dragChk { cursor: pointer; touch-action: none; user-select: none; }
+  td.dragChk input { pointer-events: none; }
+  .umurY { color: var(--warn); font-weight: 600; }
+  .umurR { color: var(--urgent); font-weight: 600; }
+  tr.br-DAF td { background: rgba(134,239,172,.09); }
+  tr.br-ABP td { background: rgba(147,197,253,.10); }
+  tr.br-KSI td { background: rgba(253,186,116,.10); }
+  .brTag { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 4px; color: #111; margin-right: 6px; }
+  .brTag.DAF { background: #c6f6d5; } .brTag.ABP { background: #cfe3fd; } .brTag.KSI { background: #fed9b4; }
+  .selBar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; font-size: 13px; }
+  .selBar:empty { display: none; }
+  .ageBoxes { display: inline-flex; gap: 4px; margin-right: 6px; vertical-align: middle; }
+  .ageBox { width: 14px; height: 14px; border-radius: 3px; border: 2px solid transparent; opacity: .45; cursor: pointer; display: inline-block; }
+  .ageBox.on { opacity: 1; border-color: var(--text); }
+  .ageBox.R { background: var(--urgent); } .ageBox.Y { background: var(--warn); }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; z-index: 99; }
+
+  @media (max-width: 860px) {
+    .wrap { padding: 14px 12px 30px; }
+    .controls { grid-template-columns: 1fr; }
+    .seg { height: 38px; }
+    .tableWrap.tall { max-height: none; }
+    .grid2 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="box">
+    <h2>🔒 Piutang</h2>
+    <div class="sub">Masukkan PIN Full Access / Admin Kolektor.</div>
+    <input type="password" id="pinIn" placeholder="PIN" autocomplete="off" inputmode="numeric">
+    <button id="pinBtn">Masuk</button>
+    <div class="err" id="pinErr"></div>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+  <div class="wrap">
+    <div class="topbar">
+      <div>
+        <h1>Piutang & Penagihan</h1>
+        <div class="meta" id="updated">—</div>
+      </div>
+      <div class="actions">
+        <span class="meta" id="roleTag"></span>
+        <button class="btn primary" id="refreshBtn">Refresh</button>
+        <button class="btn red" id="logoutBtn">Logout</button>
+      </div>
+    </div>
+    <div id="errNote" class="errNote hidden"></div>
+
+    <div class="tabBar" id="tabBar">
+      <button class="tabBtn active" data-tab="piutang">Piutang</button>
+      <button class="tabBtn" data-tab="rekap">Rekap Tagih</button>
+      <button class="tabBtn" data-tab="hasil">Hasil Tagih</button>
+      <button class="tabBtn" data-tab="lh">Laporan Harian Kolektor</button>
+      <button class="tabBtn" data-tab="kasus">Tagihan Kasus</button>
+      <button class="tabBtn" data-tab="cash">Customer Cash</button>
+      <button class="tabBtn" data-tab="giro">Giro Pending</button>
+      <button class="tabBtn" data-tab="report">Report Urgent</button>
+      <button class="tabBtn" data-tab="master">Master Kolektor</button>
+    </div>
+
+    <!-- ============ PIUTANG ============ -->
+    <section id="tab-piutang">
+      <div class="topbar" style="margin-bottom:8px;">
+        <div class="branchPills" id="branchPills">
+          <button class="pill active" data-b="">Semua</button>
+          <button class="pill" data-b="DAF">DAF</button>
+          <button class="pill" data-b="ABP">ABP</button>
+          <button class="pill" data-b="KSI">KSI</button>
+        </div>
+        <button class="btn" id="exportBtn">Export Excel</button>
+      </div>
+      <div class="controls">
+        <input type="text" id="q1" placeholder="Search invoice, customer, salesman, atau tanggal (29/09/2026)...">
+        <input type="text" id="q2" placeholder="Search invoice, customer, salesman, atau tanggal (29/09/2026)...">
+        <select id="kolFilter"></select>
+        <div class="seg" id="viewSeg">
+          <button class="active" data-v="inv">Per Invoice</button>
+          <button data-v="cust">Per Customer</button>
+        </div>
+      </div>
+      <div class="selBar" id="selBar"></div>
+      <div class="pager" id="pagerTop"></div>
+      <div class="tableWrap tall">
+        <table>
+          <thead id="thead" class="sortable"></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+        <div class="empty hidden" id="empty">Tidak ada piutang yang cocok.</div>
+      </div>
+    </section>
+
+    <!-- ============ REKAP TAGIH ============ -->
+    <section id="tab-rekap" class="hidden">
+      <div class="bar">
+        <label>Tanggal tagih <input type="date" class="inp" id="rkDate"></label>
+        <span class="meta" id="rkDay"></span>
+        <div class="branchPills" id="rkBranchPills" style="margin-bottom:0;">
+          <button class="pill" data-b="DAF">DAF</button>
+          <button class="pill" data-b="ABP">ABP</button>
+          <button class="pill" data-b="KSI">KSI</button>
+        </div>
+        <label>Kolektor <select class="inp" id="rkKol"></select></label>
+        <label><input type="checkbox" id="rkIgnoreHari"> Abaikan hari tagih toko</label>
+        <input type="text" class="inp" id="rkQ" placeholder="Cari toko / invoice..." style="min-width:200px;">
+      </div>
+      <div id="rkNote"></div>
+      <div>
+        <div class="topbar" style="margin-bottom:8px;">
+          <h3>Usulan tagihan</h3>
+        </div>
+        <div id="rkProposal"></div>
+        <div id="rkDone"></div>
+      </div>
+    </section>
+
+    <!-- ============ HASIL TAGIH ============ -->
+    <section id="tab-hasil" class="hidden">
+      <div class="bar">
+        <label>Tanggal tagih <input type="date" class="inp" id="hsDate"></label>
+        <span class="meta" id="hsDay"></span>
+        <div class="branchPills" id="hsBranchPills" style="margin-bottom:0;">
+          <button class="pill active" data-b="">Semua</button>
+          <button class="pill" data-b="KSI">KSI</button>
+          <button class="pill" data-b="ABP">ABP</button>
+          <button class="pill" data-b="DAF">DAF</button>
+        </div>
+        <label>Kolektor <select class="inp" id="hsKol"><option value="">Semua</option></select></label>
+        <div class="actions" style="margin-left:auto;">
+          <button class="btn" id="hsPrintAll">Print Hasil Semua</button>
+          <button class="btn blue" id="hsPostBtn">Posting Tanggal Ini</button>
+        </div>
+      </div>
+      <div id="hsDayInfo"></div>
+      <div id="hsCards"></div>
+      <div id="hsSelBar" class="hidden"></div>
+    </section>
+
+    <!-- ============ LAPORAN HARIAN KOLEKTOR ============ -->
+    <section id="tab-lh" class="hidden">
+      <div class="bar">
+        <label>Bulan <input type="month" class="inp" id="lhMonth"></label>
+        <div class="seg" id="lhSeg">
+          <button class="active" data-v="kol">Per Kolektor</button>
+          <button data-v="bayar">Per Pembayaran</button>
+        </div>
+        <button class="btn" id="lhReload">Muat Ulang</button>
+        <span class="meta" id="lhInfo"></span>
+      </div>
+      <div id="lhBody"></div>
+    </section>
+
+    <!-- ============ REPORT URGENT ============ -->
+    <section id="tab-report" class="hidden">
+      <div class="bar">
+        <div class="branchPills" id="rpBranchPills" style="margin-bottom:0;">
+          <button class="pill active" data-b="">Semua</button>
+          <button class="pill" data-b="DAF">DAF</button>
+          <button class="pill" data-b="ABP">ABP</button>
+          <button class="pill" data-b="KSI">KSI</button>
+        </div>
+        <div class="seg" id="rpSeg" style="height:36px;">
+          <button class="active" data-s="ALL">Urgent + Warning</button>
+          <button data-s="URGENT">Urgent</button>
+          <button data-s="WARNING">Warning</button>
+        </div>
+        <input type="text" class="inp" id="rpQ" placeholder="Cari toko..." style="min-width:200px;">
+        <span class="meta" id="rpSum"></span>
+        <div class="actions" style="margin-left:auto;">
+          <button class="btn" id="rpExport">Export Excel</button>
+          <button class="btn" id="rpPrint">Print</button>
+        </div>
+      </div>
+      <div class="tableWrap tall">
+        <table>
+          <thead><tr><th class="num">#</th><th>Nama Toko</th><th>Branch</th><th class="num">Lembar</th><th class="num">Urgent</th><th class="num">Warning</th><th class="num">Total Nilai (Sisa)</th><th class="num">Tertua</th><th>Status</th></tr></thead>
+          <tbody id="rpBody"></tbody>
+        </table>
+        <div class="empty hidden" id="rpEmpty">Tidak ada toko urgent/warning.</div>
+      </div>
+    </section>
+
+    <!-- ============ GIRO PENDING ============ -->
+    <section id="tab-giro" class="hidden">
+      <div class="bar">
+        <div class="seg" id="giroSeg" style="height:36px;">
+          <button class="active" data-s="PENDING">Pending</button>
+          <button data-s="CAIR">Cair</button>
+          <button data-s="TOLAK">Tolak</button>
+          <button data-s="ALL">Semua</button>
+        </div>
+        <input type="text" class="inp" id="giroQ" placeholder="Cari toko / no giro / bank..." style="min-width:220px;">
+        <span class="meta" id="giroSum"></span>
+      </div>
+      <div class="tableWrap tall">
+        <table>
+          <thead><tr><th>JT</th><th>Branch</th><th>Customer</th><th>Invoice</th><th>Bank</th><th>No Giro</th><th class="num">Nilai</th><th>Tgl Tagih</th><th>Status</th><th>Aksi</th></tr></thead>
+          <tbody id="giroBody"></tbody>
+        </table>
+        <div class="empty hidden" id="giroEmpty">Tidak ada giro.</div>
+      </div>
+    </section>
+
+    <!-- ============ MASTER ============ -->
+    <section id="tab-master" class="hidden">
+      <div class="card">
+        <div class="hd">
+          <h3>Toko → Kolektor</h3>
+          <div class="actions">
+            <button class="btn sm blue" id="kolOpen">Kelola Kolektor</button>
+            <button class="btn sm" id="impOpen">Import Excel</button>
+            <button class="btn sm" id="topOpen" title="Import hari TOP per toko (untuk kolom JT & warna umur)">Import TOP</button>
+            <button class="btn sm" id="tkNoKol" title="Tampilkan toko yang Kolektor 1 dan Kolektor 2-nya kosong">Belum ada kolektor</button>
+            <button class="btn sm" id="tkNoTop" title="Tampilkan toko yang hari TOP-nya belum diisi">TOP kosong</button>
+            <select class="inp sm" id="tkBranch"><option value="">Semua branch</option><option>DAF</option><option>ABP</option><option>KSI</option></select>
+            <select class="inp sm" id="tkAssign"></select>
+            <input type="text" class="inp sm" id="tkQ" placeholder="Cari toko..." style="min-width:180px;">
+          </div>
+        </div>
+        <div class="bar" style="padding:10px 14px; margin:0; border-bottom:1px solid var(--border);">
+          <span class="small"><b id="tkSelCount">0</b> toko dipilih</span>
+          <select class="inp sm" id="tkSlot" title="Kolektor 2 = khusus invoice DAF salesman Mayora"><option value="1">Kolektor 1</option><option value="2">Kolektor 2 (DAF Mayora)</option></select>
+          <select class="inp sm" id="tkSetKol"></select>
+          <div class="hariBox" id="tkHari"></div>
+          <span class="meta">(tidak dicentang = tiap hari)</span>
+          <button class="btn sm blue" id="tkApply">Terapkan ke yang dipilih</button>
+          <button class="btn sm" id="tkClearSel">Kosongkan pilihan</button>
+        </div>
+        <div class="pager" id="tkPager" style="padding:0 14px;"></div>
+        <div class="tableWrap" style="max-height:60vh;">
+          <table>
+            <thead><tr><th class="chk"><input type="checkbox" id="tkAll" title="Pilih semua hasil filter"></th><th>Branch</th><th>Customer</th><th>Kolektor 1</th><th title="Khusus DAF salesman Mayora">Kolektor 2 (DAF Mayora)</th><th>Hari Tagih</th><th class="num" title="Hari TOP (jatuh tempo)">TOP</th><th class="num">Invoice</th><th class="num">Sisa</th></tr></thead>
+            <tbody id="tkBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- Modal: kelola kolektor (lihat / edit / tambah / hapus) -->
+<div id="kolModal" class="modalBg hidden">
+  <div class="modal">
+    <div class="hd"><div><h3>Kelola Kolektor</h3><div class="meta">Hapus hanya bisa kalau kolektor belum punya toko & belum pernah dipakai di rekap tagih</div></div><button class="x" data-close="kolModal">×</button></div>
+    <div class="bd">
+      <div class="actions" style="margin-bottom:10px;">
+        <input type="text" class="inp sm" id="kolNewNama" placeholder="Nama kolektor baru" style="min-width:200px;">
+        <button class="btn sm blue" id="kolAdd">+ Tambah</button>
+      </div>
+      <div class="tableWrap">
+        <table>
+          <thead><tr><th>Nama</th><th>Aktif</th><th class="num">Toko</th><th></th></tr></thead>
+          <tbody id="kolBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: import toko → kolektor dari Excel -->
+<div id="impModal" class="modalBg hidden">
+  <div class="modal" style="max-width:900px;">
+    <div class="hd"><div><h3>Import Toko → Kolektor</h3><div class="meta">Kolom: nama toko (kolom pertama), kolektor, JADWAL1, JADWAL2. Kolom BRANCH/CABANG opsional.</div></div><button class="x" data-close="impModal">×</button></div>
+    <div class="bd">
+      <div class="actions" style="margin-bottom:10px; flex-wrap:wrap;">
+        <input type="file" id="impFile" accept=".xlsx,.xls,.csv">
+        <select class="inp sm" id="impSheet" style="display:none;"></select>
+        <label class="small">Cabang <select class="inp sm" id="impBranch"><option value="">Semua cabang</option><option>DAF</option><option>ABP</option><option>KSI</option></select></label>
+        <label class="small"><input type="checkbox" id="impOver" checked> Timpa toko yang sudah ada kolektornya</label>
+      </div>
+      <div id="impBody" class="small muted">Pilih file Excel.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: import hari TOP toko dari Excel -->
+<div id="topModal" class="modalBg hidden">
+  <div class="modal" style="max-width:900px;">
+    <div class="hd"><div><h3>Import Hari TOP Toko</h3><div class="meta">Kolom: Customer Name, HARI TOP. Kolom BRANCH/CABANG opsional. Toko yang sama di beberapa cabang ikut semua (kecuali pilih cabang).</div></div><button class="x" data-close="topModal">×</button></div>
+    <div class="bd">
+      <div class="actions" style="margin-bottom:10px; flex-wrap:wrap;">
+        <input type="file" id="topFile" accept=".xlsx,.xls,.csv">
+        <select class="inp sm" id="topSheet" style="display:none;"></select>
+        <label class="small">Cabang <select class="inp sm" id="topBranch"><option value="">Semua cabang</option><option>DAF</option><option>ABP</option><option>KSI</option></select></label>
+      </div>
+      <div id="topBody" class="small muted">Pilih file Excel.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: riwayat pembayaran ERP -->
+<div id="payModal" class="modalBg hidden">
+  <div class="modal">
+    <div class="hd"><div><h3 id="pmTitle">—</h3><div class="meta" id="pmSub"></div></div><button class="x" data-close="payModal">×</button></div>
+    <div class="bd" id="pmBody"></div>
+  </div>
+</div>
+
+<!-- Modal: input hasil tagih -->
+<div id="hasilModal" class="modalBg hidden">
+  <div class="modal">
+    <div class="hd"><div><h3 id="hmTitle">—</h3><div class="meta" id="hmSub"></div></div><button class="x" data-close="hasilModal">×</button></div>
+    <div class="bd">
+      <div class="sumRow" id="hmSum"></div>
+      <div class="modeSeg">
+        <button class="bayar" data-m="bayar">✓ Bayar</button>
+        <button class="gagal" data-m="gagal">✕ Gagal Tagih</button>
+      </div>
+      <div id="hmBayar">
+        <div id="hmLines"></div>
+        <div class="actions" style="margin-bottom:10px;">
+          <button class="btn sm" data-add="CASH">+ Cash</button>
+          <button class="btn sm" data-add="TF">+ Transfer</button>
+          <button class="btn sm" data-add="GIRO">+ Giro</button>
+          <button class="btn sm" data-add="CN_RETUR">+ CN/Retur</button>
+        </div>
+        <input type="text" class="inp" id="hmNote" placeholder="Catatan (opsional, mis. sisa dibayar minggu depan)" style="width:100%;">
+      </div>
+      <div id="hmGagal" class="hidden">
+        <select class="inp" id="hmAlasan" style="width:100%; margin-bottom:8px;"></select>
+        <input type="text" class="inp" id="hmCatatan" placeholder="Catatan tambahan" style="width:100%;">
+      </div>
+      <div class="errNote hidden" id="hmErr" style="margin:12px 0 0;"></div>
+    </div>
+    <div class="ft">
+      <span class="small" id="hmTotal"></span>
+      <div class="actions">
+        <button class="btn red" id="hmReset">Reset</button>
+        <button class="btn blue" id="hmSave">Simpan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Pop up warning: wajib isi alasan sebelum buat Rekap Tagih (tidak bisa ditutup tanpa alasan) -->
+<div id="warnModal" class="warnBg hidden">
+  <div class="modal">
+    <div class="hd"><div><h3 style="color:var(--urgent);">⚠ Peringatan Piutang Kuning &amp; Merah</h3>
+      <div class="meta">Top 50 toko dengan sisa terbesar (invoice 33–60 hari / &gt; 60 hari, tanpa tagihan kasus &amp; customer cash) — cukup diisi 1x per hari</div></div></div>
+    <div class="bd">
+      <div class="wSum" id="wmSum"></div>
+      <div class="wList"><table>
+        <thead><tr><th>#</th><th>Toko</th><th>Cabang</th><th>Kolektor</th><th class="num">Sisa</th><th>Alasan / tindak lanjut (wajib)</th></tr></thead>
+        <tbody id="wmBody"></tbody>
+      </table></div>
+      <div class="errNote hidden" id="wmErr" style="margin:10px 0 0;"></div>
+    </div>
+    <div class="ft">
+      <span class="small" id="wmHint">Isi alasan dulu untuk lanjut ke Rekap Tagih.</span>
+      <div class="actions">
+        <button class="btn" id="wmBack">← Kembali ke Piutang</button>
+        <button class="btn hidden" id="wmSkip" title="Khusus full access">Lewati</button>
+        <button class="btn blue" id="wmSave" disabled>Simpan &amp; lanjut</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://swxgkuaoctrcfbgncwaz.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_0e8sOfljWkkin-hwhNweEw_CWqt1Az-';
+  const TOL = 300;
+  const PAGE_SIZE = 100;
+  const HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+  const HARI_S = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+  const ALASAN = ['TOKO TUTUP', 'BELUM ADA UANG', 'PEMILIK TIDAK ADA', 'JANJI BAYAR NANTI', 'KOMPLAIN / TIDAK MAU BAYAR', 'TIDAK SEMPAT DIKUNJUNGI', 'TITIP FAKTUR', 'LAINNYA'];
+  const METODE_LBL = { CASH: 'Cash', TF: 'Transfer', GIRO: 'Giro', CN_RETUR: 'CN/Retur' };
+
+  let _sb = null;
+  function sb() { if (!_sb) _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); return _sb; }
+
+  let pin = '';
+  let rows = [];
+  let kasusMap = new Map(), pScope = 'normal';
+  const pSel = new Set();
+  const isCashCust = c => /cash/i.test(c || '');
+  let ctx = { kolektor: [], toko: [], libur: [], active: [], recent: [] };
+  let kol2Map = new Map(), kol2Ok = false;
+  let tkNoTopOn = false; // filter Master Kolektor: hanya toko TOP kosong
+  let topMap = new Map(), topOk = false; // hari TOP per toko (tabel toko_top)
+  const topOf = (br, cust) => { const v = topMap.get(tokoKey(br, cust)); return v === undefined ? null : v; };
+  // umur > TOP → kuning; umur > TOP + 30 → merah. Toko tanpa TOP: > 14 kuning, > 30 merah (aturan lama)
+  const umurCls = (days, top) => { if (days === null || days === undefined) return ''; const t = top === null ? 14 : top, r = top === null ? 30 : top + 30; return days > r ? 'umurR' : days > t ? 'umurY' : ''; };
+  const isMayora = r => r.branch === 'DAF' && /MAYORA/i.test(r.salesman || '');
+  let kolById = new Map(), tokoMap = new Map(), activeMap = new Map(), recentMap = new Map();
+  let currentTab = 'piutang';
+  let kkMap = null, kkLoading = null, kkErr = '';
+
+  /* ================= helpers ================= */
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+  const fmt = n => { const x = Number(n); return isNaN(x) ? '' : Math.round(x).toLocaleString('en-US'); };
+  const sumBy = (arr, f) => arr.reduce((s, x) => s + (Number(f(x)) || 0), 0);
+  function parseAnyDate(v) {
+    if (!v) return null;
+    if (v instanceof Date) return v;
+    const s = String(v).trim();
+    let m = s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})$/);
+    if (m) {
+      let [, d, mo, y] = m.map(Number); if (y < 100) y += 2000;
+      if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+      return new Date(y, mo - 1, d);
+    }
+    m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+    const d = new Date(s); return isNaN(d) ? null : new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+  // warna cabang (muda) untuk print: DAF hijau, ABP biru, KSI orange
+  const BR_COL = { DAF: '#dcf5e3', ABP: '#dceafb', KSI: '#fde6cf', TFDAF: '#e9f7ec' };
+  const BLN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  // format tanggal print: dd-mmm (05-Nov)
+  const dMon = v => { const x = parseAnyDate(v); return x ? `${String(x.getDate()).padStart(2, '0')}-${BLN[x.getMonth()]}` : ''; };
+  const dmy = d => { d = parseAnyDate(d); return d ? `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}` : ''; };
+  const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const todayD = () => { const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), t.getDate()); };
+  const daysBetween = (a, b) => (a && b) ? Math.round((b - a) / 86400000) : null;
+  function ageOf(days) { if (days === null || days === undefined) return ''; if (days <= 32) return 'OK'; if (days > 60) return 'URGENT'; return 'WARNING'; }
+  const invKey = (b, n) => String(b || '').trim().toUpperCase() + '|' + String(n || '').trim();
+  const tokoKey = (b, c) => String(b || '').trim().toUpperCase() + '|' + String(c || '');
+  const tokoName = c => String(c || '').replace(/\s*\(CST[^)]*\)\s*$/i, '').trim();
+  function nextTagihDate() { const d = todayD(); d.setDate(d.getDate() + 1); if (d.getDay() === 0) d.setDate(d.getDate() + 1); return d; }
+  function hariLabel(arr) { return (arr && arr.length) ? arr.slice().sort().map(n => HARI_S[n]).join(', ') : 'Tiap hari'; }
+  function toast(msg) {
+    const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2200);
+  }
+  async function rpc(name, params) {
+    const { data, error } = await sb().rpc(name, { p_pin: pin, ...(params || {}) });
+    if (error) {
+      if (/pin|akses|access/i.test(error.message || '') && /invalid|salah|tidak|denied|full/i.test(error.message || '')) lockOut('Sesi PIN tidak valid: ' + error.message);
+      throw error;
+    }
+    return typeof data === 'string' && /^[\[{]/.test(data) ? JSON.parse(data) : data;
+  }
+  function showErr(msg) { const e = document.getElementById('errNote'); e.textContent = msg; e.classList.toggle('hidden', !msg); }
+  document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => document.getElementById(b.dataset.close).classList.add('hidden')));
+  document.querySelectorAll('.modalBg').forEach(m => m.addEventListener('click', e => { if (e.target === m) m.classList.add('hidden'); }));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.modalBg').forEach(m => m.classList.add('hidden')); });
+
+  /* ================= PIN gate ================= */
+  const DEV_KEY = 'piutang_device_id';
+  let deviceId;
+  try { deviceId = localStorage.getItem(DEV_KEY); if (!deviceId) { deviceId = crypto.randomUUID(); localStorage.setItem(DEV_KEY, deviceId); } }
+  catch (e) { deviceId = crypto.randomUUID(); }
+
+  async function checkPin(p) {
+    const { data, error } = await sb().rpc('verify_access_pin', { p_pin: p, p_device_id: deviceId });
+    if (error) return { ok: false, msg: 'Gagal memverifikasi PIN: ' + error.message };
+    if (!data || !data.success) return { ok: false, msg: (data && data.error === 'locked') ? 'Terkunci, coba lagi nanti' : 'PIN salah' };
+    if (!roleOf(data.label)) return { ok: false, msg: 'PIN ini tidak punya akses ke Piutang' };
+    return { ok: true, label: data.label };
+  }
+  /* ---- peran: 'full' | 'adminkol' | '' (ditolak).
+     Ini hanya untuk tampilan; pengaman sebenarnya ada di server (assert_piutang_access). ---- */
+  const ADMINKOL_TABS = ['piutang', 'rekap', 'hasil', 'master'];
+  let role = '';
+  function roleOf(label) {
+    const l = String(label || '').trim().toUpperCase();
+    if (/FULL/.test(l)) return 'full';
+    if (l === 'ADMIN KOLEKTOR') return 'adminkol';
+    return '';
+  }
+  const isAdminKol = () => role === 'adminkol';
+  function applyRole() {
+    document.querySelectorAll('#tabBar .tabBtn').forEach(b => {
+      b.style.display = (isAdminKol() && !ADMINKOL_TABS.includes(b.dataset.tab)) ? 'none' : '';
+    });
+    document.getElementById('hsPostBtn').style.display = isAdminKol() ? 'none' : '';
+    document.getElementById('roleTag').textContent = isAdminKol() ? 'Admin Kolektor' : 'Full Access';
+    if (isAdminKol() && !ADMINKOL_TABS.includes(currentTab)) document.querySelector('#tabBar .tabBtn[data-tab="piutang"]').click();
+  }
+  async function submitPin() {
+    const p = document.getElementById('pinIn').value.trim();
+    const btn = document.getElementById('pinBtn'), err = document.getElementById('pinErr');
+    if (!p) return;
+    btn.disabled = true; err.textContent = '';
+    try {
+      const r = await checkPin(p);
+      if (!r.ok) { err.textContent = r.msg; return; }
+      pin = p; role = roleOf(r.label);
+      try { sessionStorage.setItem('piutang_pin', p); sessionStorage.setItem('piutang_pin_label', r.label); } catch (e) {}
+      start();
+    } catch (e) { err.textContent = 'Gagal memverifikasi PIN'; }
+    finally { btn.disabled = false; }
+  }
+  document.getElementById('pinBtn').addEventListener('click', submitPin);
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    if (!confirm('Logout dari Piutang?')) return;
+    document.querySelectorAll('.modalBg').forEach(m => m.classList.add('hidden'));
+    lockOut('');
+    location.reload();
+  });
+  document.getElementById('pinIn').addEventListener('keydown', e => { if (e.key === 'Enter') submitPin(); });
+  function start() {
+    document.getElementById('gate').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    applyRole();
+    document.getElementById('rkDate').value = iso(nextTagihDate());
+    document.getElementById('hsDate').value = iso(todayD());
+    loadAll();
+  }
+  function lockOut(msg) {
+    try { sessionStorage.removeItem('piutang_pin'); sessionStorage.removeItem('piutang_pin_label'); } catch (e) {}
+    pin = ''; role = '';
+    document.getElementById('app').classList.add('hidden');
+    document.getElementById('gate').classList.remove('hidden');
+    document.getElementById('pinErr').textContent = msg || '';
+  }
+
+  /* ================= load ================= */
+  async function loadPiutang() {
+    const arr = (await rpc('get_piutang', { p_tol: TOL })) || [];
+    const t0 = todayD();
+    rows = arr.map(r => {
+      const td = parseAnyDate(r.tracking_date), pd = parseAnyDate(r.print_date);
+      const days = daysBetween(td, t0);
+      return {
+        branch: String(r.branch || '').toUpperCase(), invoiceNo: r.invoice_no, customer: r.customer || '', salesman: r.salesman || '',
+        printDate: pd, trackDate: td, trackRaw: r.tracking_date, amount: +r.amount || 0, paid: +r.paid || 0, sisa: +r.sisa || 0,
+        payCount: r.pay_count || 0, jenis: r.jenis, days, age: ageOf(days),
+        _q: [r.invoice_no, r.customer, r.salesman, dmy(td), dmy(pd)].join(' ').toLowerCase()
+      };
+    });
+  }
+  async function loadCtx() {
+    ctx = (await rpc('get_tagih_context')) || ctx;
+    kolById = new Map((ctx.kolektor || []).map(k => [String(k.id), k]));
+    tokoMap = new Map((ctx.toko || []).map(t => [tokoKey(t.branch, t.customer), t]));
+    // slot kolektor 2 (DAF Mayora). Kalau SQL toko_kolektor2.sql belum di-run → kosong saja.
+    try {
+      const { data, error } = await sb().rpc('get_toko_kolektor2', { p_pin: pin });
+      if (error) throw error;
+      kol2Ok = true; kol2Map = new Map((data || []).map(t => [tokoKey(t.branch, t.customer), String(t.kolektor_id)]));
+    } catch (e) { kol2Ok = false; kol2Map = new Map(); }
+    // hari TOP per toko. Kalau SQL toko_top.sql belum di-run → kosong saja.
+    try {
+      const { data, error } = await sb().rpc('get_toko_top', { p_pin: pin });
+      if (error) throw error;
+      topOk = true; topMap = new Map((data || []).map(t => [tokoKey(t.branch, t.customer), +t.hari_top]));
+    } catch (e) { topOk = false; topMap = new Map(); }
+    activeMap = new Map((ctx.active || []).map(a => [invKey(a.branch, a.invoice_no), a]));
+    recentMap = new Map();
+    (ctx.recent || []).forEach(x => recentMap.set(invKey(x.branch, x.invoice_no), x)); // sorted asc -> keeps latest
+    enrich();
+  }
+  async function loadKasus() {
+    const arr = (await rpc('get_piutang_kasus')) || [];
+    kasusMap = new Map(arr.map(x => [invKey(x.branch, x.invoice_no), x]));
+  }
+  function enrich() {
+    rows.forEach(r => {
+      const t = tokoMap.get(tokoKey(r.branch, r.customer));
+      r.kolId = t ? String(t.kolektor_id) : '';
+      // DAF + salesman Mayora → Kolektor 2 (kalau diisi)
+      const k2 = kol2Map.get(tokoKey(r.branch, r.customer));
+      if (k2 && isMayora(r)) r.kolId = k2;
+      r.kolNama = t && kolById.get(r.kolId) ? kolById.get(r.kolId).nama : '';
+      r.hari = t ? (t.hari_tagih || []) : [];
+      r.top = topOf(r.branch, r.customer);
+      r.jt = r.trackDate && r.top !== null ? new Date(r.trackDate.getFullYear(), r.trackDate.getMonth(), r.trackDate.getDate() + r.top) : null;
+      r.umurCls = umurCls(r.days, r.top);
+      const k = invKey(r.branch, r.invoiceNo);
+      r.active = activeMap.get(k) || null;
+      r.recent = recentMap.get(k) || null;
+      const ks = kasusMap.get(k);
+      r.kasus = !!ks; r.kasusAlasan = ks ? (ks.alasan || '') : ''; r.kasusTgl = ks ? parseAnyDate(ks.created_at) : null;
+      r.isCash = isCashCust(r.customer);
+    });
+  }
+  async function loadAll() {
+    const upd = document.getElementById('updated'), rb = document.getElementById('refreshBtn');
+    upd.textContent = 'Loading...'; rb.disabled = true; showErr('');
+    try {
+      kkMap = null; kkErr = '';
+      await Promise.all([loadPiutang(), loadCtx(), loadKasus()]);
+      enrich();
+      upd.textContent = 'Updated ' + new Date().toLocaleTimeString();
+      fillKolSelects();
+      await renderCurrent();
+      postIssues();
+      openWarn();
+      if (wantReport) openReportTab();
+    } catch (e) {
+      if (!pin) return;
+      upd.textContent = 'Gagal load';
+      showErr('Gagal memuat: ' + (e.message || e));
+    } finally { rb.disabled = false; }
+  }
+  async function reloadCtx() { await loadCtx(); fillKolSelects(); }
+  document.getElementById('refreshBtn').addEventListener('click', loadAll);
+
+  function kolOptions(withAll, allLbl) {
+    const ks = (ctx.kolektor || []).filter(k => k.aktif);
+    return (withAll ? `<option value="">${allLbl}</option>` : '') + ks.map(k => `<option value="${k.id}">${esc(k.nama)}</option>`).join('');
+  }
+  function fillKolSelects() {
+    const keep = (id, html) => { const el = document.getElementById(id); const v = el.value; el.innerHTML = html; if ([...el.options].some(o => o.value === v)) el.value = v; };
+    keep('kolFilter', kolOptions(true, 'Semua kolektor') + '<option value="-">— Belum ada kolektor —</option>');
+    keep('rkKol', kolOptions(true, '— pilih kolektor —'));
+    keep('tkAssign', kolOptions(true, 'Semua kolektor') + '<option value="-">— Belum ada kolektor —</option>');
+    keep('tkSetKol', '<option value="">— pilih kolektor —</option>' + kolOptions(false) + '<option value="-">✕ Lepas kolektor</option>');
+  }
+
+  /* ================= tabs ================= */
+  document.querySelectorAll('#tabBar .tabBtn').forEach(b => b.addEventListener('click', () => {
+    if (isAdminKol() && !ADMINKOL_TABS.includes(b.dataset.tab)) return;
+    currentTab = b.dataset.tab;
+    document.querySelectorAll('#tabBar .tabBtn').forEach(x => x.classList.toggle('active', x === b));
+    const sec = ['kasus', 'cash'].includes(currentTab) ? 'piutang' : currentTab;
+    ['piutang', 'rekap', 'hasil', 'lh', 'giro', 'report', 'master'].forEach(t => document.getElementById('tab-' + t).classList.toggle('hidden', t !== sec));
+    if (currentTab === 'rekap') { rkWarnOk = false; openWarn(); }
+    renderCurrent();
+  }));
+
+  /* ================= WARNING sebelum Rekap Tagih =================
+     Buka tab Rekap Tagih: tampil top 50 toko kuning/merah (by sisa), cukup 1x per hari (WIT).
+     Admin wajib isi alasan (disimpan ke piutang_warning_alasan) baru bisa lanjut. */
+  let rkWarnOk = false, wmList = [], wmAll = null;
+  function warnGroups() {
+    const m = new Map();
+    rows.forEach(r => {
+      if (r.kasus || r.isCash) return;
+      if (r.age !== 'URGENT' && r.age !== 'WARNING') return;
+      const nama = tokoName(r.customer).replace(/\s+/g, ' ').toUpperCase();
+      let g = m.get(nama);
+      if (!g) { g = { nama, branches: new Set(), kol: new Set(), nU: 0, nW: 0, sisa: 0, days: null }; m.set(nama, g); }
+      g.sisa += r.sisa; g.branches.add(r.branch); if (r.kolNama) g.kol.add(r.kolNama);
+      if (r.age === 'URGENT') g.nU++; else g.nW++;
+      if (r.days !== null && (g.days === null || r.days > g.days)) g.days = r.days;
+    });
+    return [...m.values()].sort((a, b) => b.sisa - a.sisa);
+  }
+  // Tanggal hari ini jam WIT (UTC+9), format YYYY-MM-DD
+  const wmToday = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+  const WM_TOP = 50;
+  let wmDoneDay = '', wmChecking = false;
+  // draft alasan per hari disimpan di browser, supaya kalau ditutup/dibuka ulang isian tidak hilang
+  const wmDraftKey = () => 'piutang_warn_draft_' + wmToday();
+  function wmDraftGet() { try { return JSON.parse(localStorage.getItem(wmDraftKey()) || '{}'); } catch (e) { return {}; } }
+  function wmDraftSet(o) { try { localStorage.setItem(wmDraftKey(), JSON.stringify(o)); } catch (e) {} }
+  async function openWarn() {
+    if (rkWarnOk || currentTab !== 'rekap') return;
+    if (!rows.length) return; // data belum dimuat; dipanggil lagi setelah loadAll
+    // sudah diisi hari ini? → lewati (1x per hari)
+    if (wmDoneDay === wmToday()) { rkWarnOk = true; return; }
+    if (wmChecking) return;
+    wmChecking = true;
+    try {
+      const done = await rpc('cek_piutang_warning_hari_ini', {});
+      if (done) { wmDoneDay = wmToday(); rkWarnOk = true; return; }
+    } catch (e) { /* fungsi belum ada → tetap tampilkan pop up */ }
+    finally { wmChecking = false; }
+    if (rkWarnOk || currentTab !== 'rekap') return;
+    const all = warnGroups();
+    if (!all.length) { rkWarnOk = true; return; }
+    const draft = wmDraftGet();
+    wmAll = all; wmList = all.slice(0, WM_TOP);
+    const nU = sumBy(all, g => g.nU), nW = sumBy(all, g => g.nW);
+    document.getElementById('wmSum').innerHTML =
+      `<span><b>${all.length}</b> toko</span><span style="color:var(--urgent)"><b>${nU}</b> lembar merah (&gt; 60 hari)</span>` +
+      `<span style="color:#f2b134"><b>${nW}</b> lembar kuning (33–60 hari)</span><span>Total sisa <b>${fmt(sumBy(all, g => g.sisa))}</b></span>` +
+      (all.length > WM_TOP ? `<span class="muted">ditampilkan ${WM_TOP} teratas</span>` : '');
+    document.getElementById('wmBody').innerHTML = wmList.map((g, i) => `<tr class="${g.nU ? 'wU' : 'wW'}">
+      <td>${i + 1}</td><td>${esc(g.nama)}</td><td>${esc([...g.branches].sort().join(', '))}</td>
+      <td class="small">${esc([...g.kol].join(', ') || '—')}</td>
+      <td class="num sisa">${fmt(g.sisa)}</td>
+      <td class="wAl"><input class="inp sm wmAl" data-i="${i}" value="${esc(draft[g.nama] || '')}" placeholder="Alasan toko ini (min. ${WM_MIN} huruf)"></td></tr>`).join('');
+    document.getElementById('wmErr').classList.add('hidden');
+    document.getElementById('wmSkip').classList.toggle('hidden', role !== 'full');
+    wmCheck();
+    document.getElementById('warnModal').classList.remove('hidden');
+    setTimeout(() => { const f = document.querySelector('#wmBody .wmAl'); if (f) f.focus(); }, 50);
+  }
+  const WM_MIN = 5;
+  function wmCheck() {
+    const ins = [...document.querySelectorAll('#wmBody .wmAl')];
+    const n = ins.filter(x => x.value.trim().length >= WM_MIN).length;
+    document.getElementById('wmSave').disabled = n < ins.length;
+    document.getElementById('wmHint').textContent = n < ins.length
+      ? `Alasan terisi ${n} / ${ins.length} toko. Isi semua untuk lanjut ke Rekap Tagih.`
+      : `Semua ${ins.length} toko sudah ada alasan.`;
+  }
+  document.getElementById('wmBody').addEventListener('input', e => {
+    if (!e.target.classList.contains('wmAl')) return;
+    e.target.classList.toggle('miss', false);
+    const d = wmDraftGet(), g = wmList[+e.target.dataset.i];
+    if (g) { d[g.nama] = e.target.value; wmDraftSet(d); }
+    wmCheck();
+  });
+  document.getElementById('wmBody').addEventListener('keydown', e => {
+    if (e.key !== 'Enter' || !e.target.classList.contains('wmAl')) return;
+    e.preventDefault();
+    const nx = document.querySelector(`#wmBody .wmAl[data-i="${+e.target.dataset.i + 1}"]`);
+    if (nx) nx.focus();
+  });
+  document.getElementById('wmBack').addEventListener('click', () => {
+    document.getElementById('warnModal').classList.add('hidden');
+    document.querySelector('#tabBar .tabBtn[data-tab="piutang"]').click();
+  });
+  // full access boleh lewati warning (tidak dicatat sebagai sudah isi hari ini)
+  document.getElementById('wmSkip').addEventListener('click', () => {
+    if (role !== 'full') return;
+    rkWarnOk = true;
+    document.getElementById('warnModal').classList.add('hidden');
+  });
+  document.getElementById('wmSave').addEventListener('click', async () => {
+    const err = document.getElementById('wmErr'), btn = document.getElementById('wmSave');
+    const ins = [...document.querySelectorAll('#wmBody .wmAl')];
+    const kosong = ins.filter(x => x.value.trim().length < WM_MIN);
+    if (kosong.length) { kosong.forEach(x => x.classList.add('miss')); kosong[0].focus(); return; }
+    const alTok = ins.map(x => x.value.trim().replace(/\s+/g, ' '));
+    const alasan = wmList.map((g, i) => `${g.nama}: ${alTok[i]}`).join('\n');
+    btn.disabled = true; err.classList.add('hidden');
+    let lbl = ''; try { lbl = sessionStorage.getItem('piutang_pin_label') || ''; } catch (e) {}
+    const all = wmAll || [];
+    try {
+      await rpc('save_piutang_warning_alasan', {
+        p_tgl_rekap: document.getElementById('rkDate').value || null, p_alasan: alasan, p_label: lbl,
+        p_n_toko: all.length, p_n_merah: sumBy(all, g => g.nU), p_n_kuning: sumBy(all, g => g.nW),
+        p_total: Math.round(sumBy(all, g => g.sisa)),
+        p_top: wmList.map((g, i) => ({ toko: g.nama, branch: [...g.branches].join(','), sisa: Math.round(g.sisa), merah: g.nU, kuning: g.nW, alasan: alTok[i] }))
+      });
+      rkWarnOk = true; wmDoneDay = wmToday();
+      document.getElementById('warnModal').classList.add('hidden');
+      toast('Alasan tersimpan — tidak perlu isi lagi sampai besok');
+    } catch (e) {
+      err.textContent = 'Gagal simpan alasan: ' + (e.message || e) + (/function|schema/i.test(e.message || '') ? ' — jalankan piutang_warning_alasan.sql di Supabase dulu.' : '');
+      err.classList.remove('hidden'); btn.disabled = false;
+    }
+  });
+  async function renderCurrent() {
+    try {
+      if (['piutang', 'kasus', 'cash'].includes(currentTab)) {
+        const sc = currentTab === 'piutang' ? 'normal' : currentTab;
+        if (sc !== pScope) { pScope = sc; pSel.clear(); page = 0; }
+        renderPiutang();
+      }
+      else if (currentTab === 'rekap') await loadRekap();
+      else if (currentTab === 'hasil') await loadHasil();
+      else if (currentTab === 'lh') await loadLH();
+      else if (currentTab === 'giro') await loadGiro();
+      else if (currentTab === 'report') renderReport();
+      else if (currentTab === 'master') renderMaster();
+    } catch (e) { showErr(e.message || String(e)); }
+  }
+
+  /* ================= Kas Kecil match (tab Customer Cash) ================= */
+  const kkNorm = s => String(s || '').trim().toUpperCase();
+  async function loadKasKecil() {
+    if (kkMap || kkLoading) return kkLoading;
+    kkLoading = (async () => {
+      const LIM = 1000; let all = [], from = 0;
+      while (true) {
+        const { data, error } = await sb().rpc('get_kas_kecil_data', { p_pin: pin, p_days: null }).order('id').range(from, from + LIM - 1);
+        if (error) throw error;
+        all = all.concat(data || []);
+        if (!data || data.length < LIM) break;
+        from += LIM;
+      }
+      const seen = new Set();
+      all = all.filter(x => { if (seen.has(x.id)) return false; seen.add(x.id); return true; });
+      const m = new Map();
+      all.forEach(x => String(x.no_faktur || '').split(/[,;\s]+/).map(kkNorm).filter(Boolean).forEach(f => {
+        let g = m.get(f); if (!g) { g = { nilai: 0, list: [] }; m.set(f, g); }
+        g.nilai += Number(x.nilai) || 0; g.list.push(x);
+      }));
+      kkMap = m; kkErr = '';
+    })().catch(e => { kkErr = e.message || String(e); kkMap = new Map(); }).finally(() => { kkLoading = null; });
+    return kkLoading;
+  }
+  function kkApply() {
+    rows.forEach(r => {
+      const g = kkMap ? kkMap.get(kkNorm(r.invoiceNo)) : null;
+      r.kk = g || null;
+      r.kkNilai = g ? g.nilai : 0;
+      r.kkStat = !g ? '' : Math.abs(g.nilai - r.sisa) <= TOL ? 'PAS' : g.nilai < r.sisa ? 'KURANG' : 'LEBIH';
+    });
+  }
+  function kkCell(r) {
+    if (kkLoading) return '<span class="muted">…</span>';
+    if (kkErr) return `<span class="muted" title="${esc(kkErr)}">error</span>`;
+    if (!r.kk) return '<span class="muted">—</span>';
+    const tip = r.kk.list.map(x => `${dmy(x.tgl)} · ${x.status || ''} · ${fmt(x.nilai)}`).join('\n');
+    const cls = { PAS: 'OK', KURANG: 'WARNING', LEBIH: 'URGENT' }[r.kkStat];
+    const tgl = dmy(r.kk.list[r.kk.list.length - 1].tgl).slice(0, 5);
+    const diff = r.kkStat === 'PAS' ? '' : ` ${r.kkStat === 'KURANG' ? '−' : '+'}${fmt(Math.abs(r.kkNilai - r.sisa))}`;
+    return `<span class="badge ${cls}" title="${esc(tip)}">${r.kkStat}${diff}</span><div class="small muted">${fmt(r.kkNilai)} · ${tgl}</div>`;
+  }
+
+  /* ================= TAB: PIUTANG ================= */
+  let fBranch = '', fAge = '', fJenis = '', view = 'inv', page = 0, sortKey = 'days', sortDir = -1;
+  function pBase() {
+    const q1 = document.getElementById('q1').value.trim().toLowerCase();
+    const q2 = document.getElementById('q2').value.trim().toLowerCase();
+    const kf = document.getElementById('kolFilter').value;
+    return rows.filter(r => (pScope === 'kasus' ? r.kasus : pScope === 'cash' ? (!r.kasus && r.isCash) : (!r.kasus && !r.isCash))
+      && (!fBranch || r.branch === fBranch) && (!q1 || r._q.includes(q1)) && (!q2 || r._q.includes(q2))
+      && (!kf || (kf === '-' ? !r.kolId : r.kolId === kf)));
+  }
+  const pFiltered = base => base.filter(r => (!fAge || r.age === fAge) && (!fJenis || r.jenis === fJenis));
+
+  function renderTiles(base) {
+    const sum = arr => sumBy(arr, r => r.sisa);
+    const g = k => base.filter(r => r.age === k), j = k => base.filter(r => r.jenis === k);
+    const tiles = [
+      { key: '', label: 'Total Sisa Piutang', list: base, dot: 'var(--paid)', st: 1 },
+      { key: 'J:BELUM', label: 'Belum Bayar', list: j('BELUM'), dot: 'var(--text-muted)' },
+      { key: 'J:CICILAN', label: 'Cicilan (belum lunas)', list: j('CICILAN'), dot: 'var(--cicil)' },
+      { key: 'A:OK', label: 'OK (≤ 32 d)', list: g('OK'), dot: 'var(--ok)' },
+      { key: 'A:WARNING', label: 'Warning (33–60 d)', list: g('WARNING'), dot: 'var(--warn)' },
+      { key: 'A:URGENT', label: 'Urgent (> 60 d)', list: g('URGENT'), dot: 'var(--urgent)' }
+    ];
+    const el = document.getElementById('tiles');
+    el.innerHTML = tiles.map(t => {
+      const active = (fAge && t.key === 'A:' + fAge) || (fJenis && t.key === 'J:' + fJenis);
+      return `<button class="tile ${t.st ? 'static' : ''} ${active ? 'active' : ''}" data-k="${t.key}">
+        <div class="lbl"><span class="dot" style="background:${t.dot}"></span>${t.label}</div>
+        <div class="val">${fmt(sum(t.list))}</div><div class="cnt">${t.list.length.toLocaleString('en-US')} invoice</div></button>`;
+    }).join('');
+    el.querySelectorAll('.tile:not(.static)').forEach(b => b.addEventListener('click', () => {
+      const [type, val] = b.dataset.k.split(':');
+      if (type === 'A') fAge = fAge === val ? '' : val; else fJenis = fJenis === val ? '' : val;
+      page = 0; renderPiutang();
+    }));
+  }
+  const INV_COLS = [
+    { k: 'branch', t: 'Branch' }, { k: 'invoiceNo', t: 'Invoice No' }, { k: 'customer', t: 'Customer' },
+    { k: 'trackDate', t: 'Tracking' }, { k: 'salesman', t: 'Salesman' }, { k: 'kolNama', t: 'Kolektor' },
+    { k: 'amount', t: 'Amount', num: 1 }, { k: 'paid', t: 'Dibayar', num: 1 }, { k: 'sisa', t: 'Sisa', num: 1 },
+    { k: 'days', t: 'Umur<br>Nota', num: 1 }, { k: 'age', t: 'Status' }, { k: 'jenis', t: 'Jenis' }, { k: 'tagih', t: 'Tagih' }
+  ];
+  const CUST_COLS = [
+    { k: 'branch', t: 'Branch' }, { k: 'customer', t: 'Customer' }, { k: 'kolNama', t: 'Kolektor' }, { k: 'salesman', t: 'Salesman' },
+    { k: 'count', t: 'Invoice', num: 1 }, { k: 'cicil', t: 'Cicilan', num: 1 },
+    { k: 'amount', t: 'Amount', num: 1 }, { k: 'sisa', t: 'Sisa', num: 1 }, { k: 'days', t: 'Tertua (d)', num: 1 }, { k: 'age', t: 'Status' }
+  ];
+  const AGE_RANK = { URGENT: 3, WARNING: 2, OK: 1, '': 0 };
+  function groupCustomers(list) {
+    const m = new Map();
+    list.forEach(r => {
+      const k = tokoKey(r.branch, r.customer);
+      let g = m.get(k);
+      if (!g) { g = { branch: r.branch, customer: r.customer, kolNama: r.kolNama, sales: new Set(), count: 0, cicil: 0, amount: 0, sisa: 0, days: null }; m.set(k, g); }
+      g.count++; if (r.jenis === 'CICILAN') g.cicil++;
+      g.amount += r.amount; g.sisa += r.sisa;
+      if (r.salesman) g.sales.add(r.salesman);
+      if (r.days !== null && (g.days === null || r.days > g.days)) g.days = r.days;
+    });
+    return [...m.values()].map(g => ({ ...g, salesman: [...g.sales].join(', '), age: ageOf(g.days) }));
+  }
+  function tagihTxt(r) {
+    if (r.active) return 'DITAGIH ' + dmy(r.active.tgl);
+    if (r.recent) return r.recent.hasil + ' ' + dmy(r.recent.tgl);
+    return '';
+  }
+  function sortList(list) {
+    const k = sortKey, d = sortDir;
+    return list.sort((a, b) => {
+      let x = k === 'tagih' ? tagihTxt(a) : a[k], y = k === 'tagih' ? tagihTxt(b) : b[k];
+      if (k === 'age') { x = AGE_RANK[x]; y = AGE_RANK[y]; }
+      if (x instanceof Date || y instanceof Date) { x = x ? x.getTime() : -Infinity; y = y ? y.getTime() : -Infinity; }
+      if (x === null || x === undefined) x = typeof y === 'number' ? -Infinity : '';
+      if (y === null || y === undefined) y = typeof x === 'number' ? -Infinity : '';
+      let c = (typeof x === 'number' && typeof y === 'number') ? (x - y) * d : String(x).localeCompare(String(y)) * d;
+      if (c === 0 && k !== 'days') c = (b.days ?? -1) - (a.days ?? -1);
+      if (c === 0) c = (b.sisa ?? 0) - (a.sisa ?? 0);
+      return c;
+    });
+  }
+  function tagihBadge(r) {
+    if (r.active) return `<span class="badge DITAGIH">DITAGIH ${dmy(r.active.tgl).slice(0, 5)}</span>`;
+    if (r.recent) return `<span class="badge ${r.recent.hasil}" title="${esc(r.recent.alasan || '')}">${hasilLbl(r.recent.hasil)} ${dmy(r.recent.tgl).slice(0, 5)}${r.recent.bayar ? ' · ' + fmt(r.recent.bayar) : ''}</span>`;
+    return '<span class="muted">—</span>';
+  }
+  function renderPiutang() {
+    const base = pBase();
+    const inv = pFiltered(base);
+    if (pScope === 'cash') {
+      if (!kkMap && !kkLoading) loadKasKecil().then(() => { kkApply(); if (pScope === 'cash') renderPiutang(); });
+      kkApply();
+    }
+    const cols = view === 'inv' ? [{ k: '_sel', t: '' }, ...INV_COLS, ...(pScope === 'kasus' ? [{ k: 'kasusAlasan', t: 'Alasan Kasus' }, { k: 'kasusTgl', t: 'Tgl Kasus' }] : []), ...(pScope === 'cash' ? [{ k: 'kkNilai', t: 'Kas Kecil', num: 1 }] : [])] : CUST_COLS;
+    if (!cols.some(c => c.k === sortKey)) { sortKey = 'days'; sortDir = -1; }
+    const list = sortList(view === 'inv' ? inv : groupCustomers(inv));
+    document.getElementById('thead').innerHTML = '<tr>' + cols.map(c =>
+      c.k === '_sel' ? `<th class="chk" data-k="_sel"><input type="checkbox" id="selPage" title="Pilih semua di halaman ini"></th>` :
+      `<th class="${c.num ? 'num' : ''}" data-k="${c.k}">${c.k === 'age' ? `<div class="ageBoxes"><span class="ageBox R ${fAge === 'URGENT' ? 'on' : ''}" data-af="URGENT" title="Filter Urgent"></span><span class="ageBox Y ${fAge === 'WARNING' ? 'on' : ''}" data-af="WARNING" title="Filter Warning"></span></div><br>` : ''}${c.t}${sortKey === c.k ? (sortDir < 0 ? ' ▼' : ' ▲') : ''}</th>`).join('') + '</tr>';
+    document.querySelectorAll('#thead .ageBox').forEach(bx => bx.addEventListener('click', e => {
+      e.stopPropagation();
+      fAge = fAge === bx.dataset.af ? '' : bx.dataset.af;
+      page = 0; renderPiutang();
+    }));
+    document.querySelectorAll('#thead th').forEach(th => th.addEventListener('click', () => {
+      const k = th.dataset.k;
+      if (k === '_sel') return;
+      if (sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = ['amount', 'paid', 'sisa', 'days', 'count', 'cicil', 'age', 'kkNilai'].includes(k) ? -1 : 1; }
+      page = 0; renderPiutang();
+    }));
+    const totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+    page = Math.min(Math.max(page, 0), totalPages - 1);
+    const s = page * PAGE_SIZE, pageRows = list.slice(s, s + PAGE_SIZE);
+    const tb = document.getElementById('tbody');
+    if (view === 'inv') {
+      tb.innerHTML = pageRows.map((r, i) => `
+        <tr class="${r.payCount ? 'clickable' : ''}" data-i="${s + i}">
+          <td class="chk dragChk" data-dk="${esc(invKey(r.branch, r.invoiceNo))}"><input type="checkbox" ${pSel.has(invKey(r.branch, r.invoiceNo)) ? 'checked' : ''}></td>
+          <td>${esc(r.branch)}</td><td class="invNo">${esc(r.invoiceNo)}</td><td class="wrapTxt">${esc(r.customer)}</td>
+          <td>${r.trackDate ? dmy(r.trackDate) : '—'}</td><td>${esc(r.salesman)}</td>
+          <td>${r.kolNama ? esc(r.kolNama) : '<span class="muted">—</span>'}</td>
+          <td class="num">${fmt(r.amount)}</td><td class="num ${r.paid ? '' : 'muted'}">${r.paid ? fmt(r.paid) : '—'}</td>
+          <td class="num sisa">${fmt(r.sisa)}</td><td class="num">${r.days === null ? '—' : r.days + ' d'}</td>
+          <td>${r.age ? `<span class="badge ${r.age}">${r.age}</span>` : '—'}</td>
+          <td><span class="badge ${r.jenis}">${r.jenis === 'CICILAN' ? 'CICILAN ×' + r.payCount : 'BELUM BAYAR'}</span></td>
+          <td>${tagihBadge(r)}</td>
+          ${pScope === 'kasus' ? `<td class="wrapTxt small">${esc(r.kasusAlasan) || '—'}</td><td>${r.kasusTgl ? dmy(r.kasusTgl) : '—'}</td>` : ''}
+          ${pScope === 'cash' ? `<td class="num">${kkCell(r)}</td>` : ''}
+        </tr>`).join('');
+      tb.querySelectorAll('tr.clickable').forEach(tr => tr.addEventListener('click', e => { if (e.target.closest('td.dragChk')) return; openPayments(list[+tr.dataset.i]); }));
+      tb.querySelectorAll('td.dragChk').forEach(td => td.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        const on = !td.querySelector('input').checked;
+        const apply = cell => { if (!cell) return; cell.querySelector('input').checked = on; on ? pSel.add(cell.dataset.dk) : pSel.delete(cell.dataset.dk); };
+        apply(td);
+        const move = ev => { const t = document.elementFromPoint(ev.clientX, ev.clientY); apply(t && t.closest('tr')?.querySelector('td.dragChk')); };
+        const up = () => { document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', up); document.removeEventListener('pointercancel', up); renderSelBar(); };
+        document.addEventListener('pointermove', move); document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up);
+      }));
+      const sp = document.getElementById('selPage'), pageKeys = pageRows.map(r => invKey(r.branch, r.invoiceNo));
+      sp.checked = pageKeys.length > 0 && pageKeys.every(k => pSel.has(k));
+      sp.addEventListener('click', e => e.stopPropagation());
+      sp.addEventListener('change', () => { pageKeys.forEach(k => sp.checked ? pSel.add(k) : pSel.delete(k)); renderPiutang(); });
+    } else {
+      tb.innerHTML = pageRows.map(g => `
+        <tr class="clickable" data-c="${esc(g.customer)}" data-b="${esc(g.branch)}">
+          <td>${esc(g.branch)}</td><td class="wrapTxt">${esc(g.customer)}</td><td>${g.kolNama ? esc(g.kolNama) : '<span class="muted">—</span>'}</td>
+          <td class="wrapTxt">${esc(g.salesman)}</td><td class="num">${g.count}</td><td class="num ${g.cicil ? '' : 'muted'}">${g.cicil || '—'}</td>
+          <td class="num">${fmt(g.amount)}</td><td class="num sisa">${fmt(g.sisa)}</td>
+          <td class="num">${g.days === null ? '—' : g.days + ' d'}</td><td>${g.age ? `<span class="badge ${g.age}">${g.age}</span>` : '—'}</td>
+        </tr>`).join('');
+      tb.querySelectorAll('tr.clickable').forEach(tr => tr.addEventListener('click', () => {
+        document.getElementById('q1').value = tr.dataset.c; setBranch(tr.dataset.b); setView('inv');
+      }));
+    }
+    document.getElementById('empty').classList.toggle('hidden', list.length > 0);
+    const unit = view === 'inv' ? 'invoice' : 'customer';
+    document.getElementById('pagerTop').innerHTML = `
+      <span>${list.length ? `Showing ${s + 1}-${Math.min(s + PAGE_SIZE, list.length)} of ${list.length.toLocaleString('en-US')} ${unit} · Sisa ${fmt(sumBy(inv, r => r.sisa))}` : 'No rows'}</span>
+      <div class="btns"><button class="btn" id="pPrev" ${page === 0 ? 'disabled' : ''}>Prev</button>
+      <span>Page ${page + 1} of ${totalPages}</span><button class="btn" id="pNext" ${page >= totalPages - 1 ? 'disabled' : ''}>Next</button></div>`;
+    renderSelBar();
+    document.getElementById('pPrev').onclick = () => { page--; renderPiutang(); };
+    document.getElementById('pNext').onclick = () => { page++; renderPiutang(); };
+  }
+  function renderSelBar() {
+    const bar = document.getElementById('selBar');
+    // buang pilihan yang sudah tidak ada di scope ini
+    const inScope = new Set(pBase().map(r => invKey(r.branch, r.invoiceNo)));
+    [...pSel].forEach(k => { if (!inScope.has(k)) pSel.delete(k); });
+    if (view !== 'inv' || !pSel.size) { bar.innerHTML = ''; return; }
+    const sel = rows.filter(r => pSel.has(invKey(r.branch, r.invoiceNo)));
+    bar.innerHTML = `<span><b>${sel.length}</b> invoice dipilih · Sisa <b>${fmt(sumBy(sel, r => r.sisa))}</b></span>
+      ${isAdminKol() ? ''
+        : pScope === 'kasus'
+        ? `<button class="btn sm blue" id="selUnkasus">Kembalikan ke Piutang</button>`
+        : `<input class="inp sm" id="selAlasan" placeholder="Alasan kasus (opsional)" style="min-width:220px;"><button class="btn sm red" id="selKasus">Pindah ke Tagihan Kasus</button>`}
+      <button class="btn sm" id="selClear">Batal pilih</button>`;
+    document.getElementById('selClear').onclick = () => { pSel.clear(); renderPiutang(); };
+    if (isAdminKol()) return;
+    const items = sel.map(r => ({ branch: r.branch, invoice_no: r.invoiceNo }));
+    const run = async (btn, fn, params, msg) => {
+      if (!confirm(msg)) return;
+      btn.disabled = true;
+      try { await rpc(fn, params); await loadKasus(); enrich(); pSel.clear(); renderPiutang(); }
+      catch (e) { alert(e.message || e); btn.disabled = false; }
+    };
+    if (pScope === 'kasus') {
+      const b = document.getElementById('selUnkasus');
+      b.onclick = () => run(b, 'unset_piutang_kasus', { p_items: items }, `Kembalikan ${sel.length} invoice ke piutang normal?`);
+    } else {
+      const b = document.getElementById('selKasus');
+      b.onclick = () => run(b, 'set_piutang_kasus', { p_items: items, p_alasan: document.getElementById('selAlasan').value.trim() || null },
+        `Pindahkan ${sel.length} invoice ke Tagihan Kasus?\nInvoice ini hilang dari piutang normal & usulan rekap tagih.`);
+    }
+  }
+  async function openPayments(r) {
+    const bg = document.getElementById('payModal'), body = document.getElementById('pmBody');
+    document.getElementById('pmTitle').textContent = r.invoiceNo + ' · ' + r.branch;
+    document.getElementById('pmSub').textContent = r.customer;
+    body.innerHTML = '<div class="muted">Loading...</div>'; bg.classList.remove('hidden');
+    try {
+      const list = (await rpc('get_piutang_payments', { p_branch: r.branch, p_invoice_no: r.invoiceNo })) || [];
+      body.innerHTML = `<div class="sumRow"><span>Amount <b>${fmt(r.amount)}</b></span><span>Dibayar <b>${fmt(r.paid)}</b></span><span>Sisa <b style="color:var(--urgent)">${fmt(r.sisa)}</b></span></div>
+        <div class="tableWrap"><table><thead><tr><th>Tanggal</th><th>No Dokumen</th><th>Metode</th><th>Giro</th><th class="num">Dibayar</th></tr></thead>
+        <tbody>${list.map(p => `<tr><td>${esc(dmy(p.doc_date) || p.doc_date || '—')}</td><td class="invNo">${esc(p.document_no || '—')}</td>
+        <td>${esc(p.payment_method || '—')}</td><td>${esc(p.giro_no || '—')}</td><td class="num">${fmt(p.amount_paid)}</td></tr>`).join('')
+        || '<tr><td colspan="5" class="muted">Tidak ada pembayaran.</td></tr>'}</tbody></table></div>`;
+    } catch (e) { body.innerHTML = `<div class="errNote">Gagal: ${esc(e.message || e)}</div>`; }
+  }
+  function setBranch(b) { fBranch = b; page = 0; document.querySelectorAll('#branchPills .pill').forEach(p => p.classList.toggle('active', p.dataset.b === b)); }
+  function setView(v) { view = v; page = 0; document.querySelectorAll('#viewSeg button').forEach(b => b.classList.toggle('active', b.dataset.v === v)); renderPiutang(); }
+  document.querySelectorAll('#branchPills .pill').forEach(p => p.addEventListener('click', () => { setBranch(p.dataset.b); renderPiutang(); }));
+  document.querySelectorAll('#viewSeg button').forEach(b => b.addEventListener('click', () => setView(b.dataset.v)));
+  document.getElementById('kolFilter').addEventListener('change', () => { page = 0; renderPiutang(); });
+  let qTimer = null;
+  ['q1', 'q2'].forEach(id => document.getElementById(id).addEventListener('input', () => { clearTimeout(qTimer); qTimer = setTimeout(() => { page = 0; renderPiutang(); }, 250); }));
+  document.getElementById('exportBtn').addEventListener('click', () => {
+    if (typeof XLSX === 'undefined') { alert('Library Excel belum termuat.'); return; }
+    const inv = sortList(pFiltered(pBase()));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(inv.map(r => ({
+      Branch: r.branch, 'Invoice No': r.invoiceNo, Customer: r.customer, 'Print Date': dmy(r.printDate), 'Tracking Date': dmy(r.trackDate),
+      Salesman: r.salesman, Kolektor: r.kolNama, Amount: Math.round(r.amount), Dibayar: Math.round(r.paid), Sisa: Math.round(r.sisa),
+      'Umur Nota': r.days, Status: r.age, Jenis: r.jenis, Tagih: tagihTxt(r),
+      ...(pScope === 'kasus' ? { 'Alasan Kasus': r.kasusAlasan, 'Tgl Kasus': dmy(r.kasusTgl) } : {}),
+      ...(pScope === 'cash' ? { 'Kas Kecil Nilai': r.kk ? Math.round(r.kkNilai) : '', 'Kas Kecil Status': r.kkStat || '', 'Kas Kecil Selisih': r.kk ? Math.round(r.kkNilai - r.sisa) : '' } : {})
+    }))), 'Per Invoice');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(groupCustomers(inv).sort((a, b) => b.sisa - a.sisa).map(g => ({
+      Branch: g.branch, Customer: g.customer, Kolektor: g.kolNama, Salesman: g.salesman, Invoice: g.count, Cicilan: g.cicil,
+      Amount: Math.round(g.amount), Sisa: Math.round(g.sisa), 'Tertua (d)': g.days, Status: g.age
+    }))), 'Per Customer');
+    XLSX.writeFile(wb, `${{ normal: 'Piutang', kasus: 'PiutangKasus', cash: 'PiutangCash' }[pScope]}_${fBranch || 'ALL'}_${iso(new Date()).replace(/-/g, '')}.xlsx`);
+  });
+
+  /* ================= ISSUE untuk lobi master.html =================
+     Toko yang punya invoice kuning (WARNING 33–60 d) / merah (URGENT > 60 d),
+     tanpa tagihan kasus & customer cash — sama dengan tab Report Urgent. */
+  let wantReport = location.hash === '#issues';
+  function piutangIssueSummary() {
+    const m = new Map(); let nU = 0, nW = 0, tot = 0;
+    rows.forEach(r => {
+      if (r.kasus || r.isCash) return;
+      if (r.age !== 'URGENT' && r.age !== 'WARNING') return;
+      const nama = tokoName(r.customer).replace(/\s+/g, ' ').toUpperCase();
+      m.set(nama, (m.get(nama) || 0) + r.sisa);
+      if (r.age === 'URGENT') nU++; else nW++;
+      tot += r.sisa;
+    });
+    const top = [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 50);
+    const items = [];
+    if (nU) items.push({ n: nU, text: 'lembar merah (> 60 hari)', level: 'red' });
+    if (nW) items.push({ n: nW, text: 'lembar kuning (33–60 hari)', level: 'yellow' });
+    if (m.size) items.push({ n: 'Rp ' + fmt(tot), text: 'total sisa', level: '' });
+    return { state: 'ok', total: m.size, unit: 'toko', level: nU ? 'red' : (m.size ? 'yellow' : 'green'), items,
+      lines: top.slice(0, 3).map(t => t[0] + ' · ' + fmt(t[1])),
+      list: top.map(t => ({ name: t[0], amt: t[1] })), listTitle: 'Top ' + top.length + ' toko (sisa terbesar)', at: Date.now() };
+  }
+  function postIssues() {
+    try { if (window.parent && window.parent !== window) window.parent.postMessage({ type: 'office:issues', tool: 'piutang', summary: piutangIssueSummary() }, '*'); } catch (e) {}
+  }
+  function openReportTab() {
+    wantReport = false;
+    if (isAdminKol()) return;
+    const b = document.querySelector('#tabBar .tabBtn[data-tab="report"]');
+    if (b) b.click();
+  }
+  window.addEventListener('message', e => {
+    if (!e.data || e.data.type !== 'office:showIssues') return;
+    wantReport = true;
+    if (pin && rows.length) openReportTab();
+  });
+
+  /* ================= TAB: REPORT URGENT ================= */
+  let rpBranch = '', rpStatus = 'ALL', rpList = [];
+  const rpOpen = new Set(); // nama toko yang sedang dibuka rinciannya
+  // Rincian invoice toko: hanya WARNING/URGENT (sudah difilter di reportGroups, ikut filter branch & status)
+  function rpDetail(g) {
+    const inv = g.invs.slice().sort((a, b) => (b.days || 0) - (a.days || 0));
+    return `<tr class="rpDet"><td colspan="9"><table>
+      <thead><tr><th>Branch</th><th>Invoice No</th><th>Customer</th><th>Tracking</th><th class="num">Umur</th><th>Status</th><th>Salesman</th><th>Kolektor</th><th class="num">Amount</th><th class="num">Sisa</th></tr></thead>
+      <tbody>${inv.map(r => `<tr>
+        <td>${esc(r.branch)}</td><td class="invNo">${esc(r.invoiceNo)}</td><td class="wrapTxt">${esc(r.customer)}</td>
+        <td>${esc(dmy(r.trackDate))}</td><td class="num ${r.age === 'URGENT' ? 'umurR' : 'umurY'}">${r.days === null ? '—' : r.days + ' d'}</td>
+        <td><span class="badge ${r.age}">${r.age}</span></td><td>${esc(r.salesman)}</td><td>${esc(r.kolNama || '—')}</td>
+        <td class="num">${fmt(r.amount)}</td><td class="num sisa">${fmt(r.sisa)}</td></tr>`).join('')}
+      <tr><td colspan="8"><b>${inv.length} lembar</b></td><td></td><td class="num sisa">${fmt(sumBy(inv, r => r.sisa))}</td></tr>
+      </tbody></table></td></tr>`;
+  }
+  document.getElementById('rpBody').addEventListener('click', e => {
+    const tr = e.target.closest('tr.rpRow');
+    if (!tr) return;
+    const g = rpList[+tr.dataset.i];
+    if (!g) return;
+    if (rpOpen.has(g.nama)) rpOpen.delete(g.nama); else rpOpen.add(g.nama);
+    renderReport();
+  });
+  function reportGroups() {
+    const q = document.getElementById('rpQ').value.trim().toLowerCase();
+    const m = new Map();
+    rows.forEach(r => {
+      if (r.kasus || r.isCash) return;
+      if (r.age !== 'URGENT' && r.age !== 'WARNING') return;
+      if (rpStatus !== 'ALL' && r.age !== rpStatus) return;
+      if (rpBranch && r.branch !== rpBranch) return;
+      const nama = tokoName(r.customer).replace(/\s+/g, ' ').toUpperCase();
+      if (q && !nama.toLowerCase().includes(q)) return;
+      let g = m.get(nama);
+      if (!g) { g = { nama, branches: new Set(), count: 0, nU: 0, nW: 0, sisa: 0, days: null, invs: [] }; m.set(nama, g); }
+      g.invs.push(r);
+      g.count++; g.sisa += r.sisa; g.branches.add(r.branch);
+      if (r.age === 'URGENT') g.nU++; else g.nW++;
+      if (r.days !== null && (g.days === null || r.days > g.days)) g.days = r.days;
+    });
+    return [...m.values()].map(g => ({ ...g, branch: [...g.branches].sort().join(', '), status: g.nU ? 'URGENT' : 'WARNING' }))
+      .sort((a, b) => AGE_RANK[b.status] - AGE_RANK[a.status] || b.sisa - a.sisa);
+  }
+  function renderReport() {
+    const list = reportGroups();
+    const tot = sumBy(list, g => g.sisa), lb = sumBy(list, g => g.count);
+    document.getElementById('rpSum').innerHTML = `${list.length} toko · ${lb} lembar · Total <b>${fmt(tot)}</b>`;
+    document.getElementById('rpEmpty').classList.toggle('hidden', list.length > 0);
+    rpList = list;
+    document.getElementById('rpBody').innerHTML = list.map((g, i) => `<tr class="rpRow${rpOpen.has(g.nama) ? ' open' : ''}" data-i="${i}">
+      <td class="num muted">${i + 1}</td><td class="wrapTxt">${esc(g.nama)}</td><td>${esc(g.branch)}</td>
+      <td class="num"><b>${g.count}</b></td><td class="num ${g.nU ? '' : 'muted'}">${g.nU || '—'}</td><td class="num ${g.nW ? '' : 'muted'}">${g.nW || '—'}</td>
+      <td class="num sisa">${fmt(g.sisa)}</td><td class="num">${g.days === null ? '—' : g.days + ' d'}</td>
+      <td><span class="badge ${g.status}">${g.status}</span></td></tr>${rpOpen.has(g.nama) ? rpDetail(g) : ''}`).join('')
+      + (list.length ? `<tr><td></td><td><b>TOTAL</b></td><td></td><td class="num"><b>${lb}</b></td><td class="num"><b>${sumBy(list, g => g.nU)}</b></td><td class="num"><b>${sumBy(list, g => g.nW)}</b></td><td class="num sisa">${fmt(tot)}</td><td></td><td></td></tr>` : '');
+  }
+  document.querySelectorAll('#rpBranchPills .pill').forEach(p => p.addEventListener('click', () => {
+    rpBranch = p.dataset.b;
+    document.querySelectorAll('#rpBranchPills .pill').forEach(x => x.classList.toggle('active', x === p));
+    renderReport();
+  }));
+  document.querySelectorAll('#rpSeg button').forEach(b => b.addEventListener('click', () => {
+    rpStatus = b.dataset.s;
+    document.querySelectorAll('#rpSeg button').forEach(x => x.classList.toggle('active', x === b));
+    renderReport();
+  }));
+  let rpTimer = null;
+  document.getElementById('rpQ').addEventListener('input', () => { clearTimeout(rpTimer); rpTimer = setTimeout(renderReport, 250); });
+  const rpTitle = () => `REPORT PIUTANG ${rpStatus === 'ALL' ? 'URGENT + WARNING' : rpStatus}${rpBranch ? ' — ' + rpBranch : ''}`;
+  document.getElementById('rpExport').addEventListener('click', () => {
+    if (typeof XLSX === 'undefined') { alert('Library Excel belum termuat.'); return; }
+    const list = reportGroups();
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(list.map((g, i) => ({
+      No: i + 1, 'Nama Toko': g.nama, Branch: g.branch, Lembar: g.count, Urgent: g.nU, Warning: g.nW,
+      'Total Nilai': Math.round(g.sisa), 'Tertua (d)': g.days, Status: g.status
+    }))), 'Report');
+    XLSX.writeFile(wb, `ReportUrgent_${rpStatus}_${rpBranch || 'ALL'}_${iso(new Date()).replace(/-/g, '')}.xlsx`);
+  });
+  document.getElementById('rpPrint').addEventListener('click', () => {
+    const list = reportGroups(), tot = sumBy(list, g => g.sisa), lb = sumBy(list, g => g.count);
+    printDoc(rpTitle(), `<h2>${esc(rpTitle())}</h2><div class="sub">Per ${dmy(new Date())} · ${list.length} toko · ${lb} lembar · Total <b>${fmt(tot)}</b></div>
+      <table><thead><tr><th>#</th><th>Nama Toko</th><th>Branch</th><th class="num">Lembar</th><th class="num">Total Nilai</th><th class="num">Tertua</th><th>Status</th></tr></thead><tbody>
+      ${list.map((g, i) => `<tr><td>${i + 1}</td><td>${esc(g.nama)}</td><td>${esc(g.branch)}</td><td class="num">${g.count}</td><td class="num">${fmt(g.sisa)}</td><td class="num">${g.days ?? ''} d</td><td>${g.status}</td></tr>`).join('')}
+      <tr class="tot"><td colspan="3">TOTAL</td><td class="num">${lb}</td><td class="num">${fmt(tot)}</td><td colspan="2"></td></tr></tbody></table>`);
+  });
+
+  /* ================= PRINT ================= */
+  const PRINT_CSS = `
+    @page { size: A4 portrait; margin: 10mm; }
+    body { font-family: Arial, sans-serif; font-size: 10.5px; color: #000; margin: 0; }
+    h2 { font-size: 15px; margin: 0 0 2px; } .sub { font-size: 11px; margin-bottom: 8px; }
+    h4 { font-size: 12px; margin: 12px 0 4px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+    th, td { border: 1px solid #888; padding: 3px 5px; vertical-align: top; }
+    th { background: #eee; text-align: left; }
+    .num { text-align: right; white-space: nowrap; } .grp td { background: #f4f4f4; font-weight: bold; }
+    .tot td { font-weight: bold; background: #eee; }
+    .page { page-break-after: always; } .page:last-child { page-break-after: auto; }
+    .sign { display: flex; justify-content: space-around; margin-top: 30px; text-align: center; }
+    .sign div { width: 30%; } .sign .ln { border-top: 1px solid #000; margin-top: 45px; padding-top: 3px; }
+    .box { display: inline-block; border: 1px solid #000; padding: 4px 10px; margin: 2px 6px 2px 0; }`;
+  // hitung jumlah halaman tiap rekap hasil tagih (A4, margin 3mm → area 204×291mm), ditulis di header
+  function countHasilPages() {
+    const mm = 96 / 25.4, H = 291 * mm, W = 204 * mm;
+    document.querySelectorAll('.hasilP').forEach(pg => {
+      const out = pg.querySelector('.pgCount'), tb = pg.querySelector('table.rk tbody'), th = pg.querySelector('table.rk thead');
+      if (!out || !tb) return;
+      pg.style.width = W + 'px'; out.textContent = '1 halaman';
+      let n = 1, used = tb.getBoundingClientRect().top - pg.getBoundingClientRect().top;
+      const thH = th ? th.getBoundingClientRect().height : 0;
+      tb.querySelectorAll('tr').forEach(tr => { const h = tr.getBoundingClientRect().height; if (used + h > H) { n++; used = thH + h; } else used += h; });
+      const sg = pg.querySelector('.sign');
+      if (sg) { const s = sg.getBoundingClientRect().height + parseFloat(getComputedStyle(sg).marginTop || 0); if (used + s > H) n++; }
+      out.textContent = n + ' halaman';
+      pg.style.width = '';
+    });
+  }
+  function printDoc(title, html) {
+    const w = window.open('', '_blank');
+    if (!w) { alert('Popup diblokir browser. Izinkan popup untuk halaman ini.'); return; }
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>${PRINT_CSS}</style></head><body>${html}<script>(${countHasilPages.toString()})();window.onload=function(){window.print();}<\/script></body></html>`);
+    w.document.close();
+  }
+  // buat PDF di iframe tersembunyi (pakai html2pdf) lalu langsung terunduh
+  const HTML2PDF_URL = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+  function pdfDownload(name, html) {
+    return new Promise((resolve, reject) => {
+      const fr = document.createElement('iframe');
+      fr.style.cssText = 'position:fixed;left:-10000px;top:0;width:800px;height:1200px;border:0;';
+      document.body.appendChild(fr);
+      const done = err => { setTimeout(() => fr.remove(), 500); err ? reject(err) : resolve(); };
+      const W = Math.round(204 * 96 / 25.4); // lebar isi A4 (margin 3mm)
+      const d = fr.contentDocument;
+      d.open();
+      fr.contentWindow.__pdfDone = done;
+      d.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><style>${PRINT_CSS} body{width:${W}px;background:#fff;} .page{page-break-after:auto;}</style></head><body>${html}
+        <script>(${countHasilPages.toString()})();<\/script>
+        <script src="${HTML2PDF_URL}" onerror="__pdfDone(new Error('Library PDF gagal dimuat'))"><\/script>
+        <script>
+          if (window.html2pdf) html2pdf().set({
+            margin: 3, filename: ${JSON.stringify(name)},
+            image: { type: 'jpeg', quality: 0.95 },
+            html2canvas: { scale: 2, windowWidth: ${W}, backgroundColor: '#ffffff' },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak: { mode: ['css', 'legacy'], avoid: 'tr' }
+          }).from(document.body).save().then(() => __pdfDone(), e => __pdfDone(e));
+        <\/script></body></html>`);
+      d.close();
+      setTimeout(() => done(new Error('Waktu habis membuat PDF')), 60000);
+    });
+  }
+  const dayName = isoStr => { const d = parseAnyDate(isoStr); return d ? HARI[d.getDay()] + ', ' + dMon(d) : isoStr; };
+  // label tampilan saja — nilai di database tetap BAYAR / SEBAGIAN
+  const HASIL_LBL = { BAYAR: 'LUNAS', SEBAGIAN: 'CICIL' };
+  const hasilLbl = h => HASIL_LBL[h] || h;
+  function byToko(items) {
+    const m = new Map();
+    items.forEach(i => { const k = tokoKey(i.branch, i.customer); if (!m.has(k)) m.set(k, []); m.get(k).push(i); });
+    return [...m.values()];
+  }
+  function printRekapPage(b, tgl) {
+    const tglD = parseAnyDate(tgl); let no = 0;
+    const groups = byToko(b.items);
+    const body = groups.map(g => {
+      const sub = sumBy(g, i => i.sisa);
+      const bc = BR_COL[String(g[0].branch || '').toUpperCase()];
+      const st = bc ? ` style="background:${bc};-webkit-print-color-adjust:exact;print-color-adjust:exact;"` : '';
+      return `<tr class="grp"><td colspan="6"${st}>${esc(g[0].branch)} · ${esc(g[0].customer)}</td><td class="num"${st}>${fmt(sub)}</td><td colspan="3"${st}></td></tr>` +
+        g.map(i => `<tr><td>${++no}</td><td>${esc(i.invoice_no)}</td><td>${dMon(i.tracking_date)}</td>
+          <td class="num">${(() => { const d = daysBetween(parseAnyDate(i.tracking_date), tglD); return d === null ? '' : d + ' d'; })()}</td>
+          <td>${esc(i.salesman || '')}</td><td class="num">${fmt(i.amount)}</td><td class="num">${fmt(i.sisa)}</td>
+          <td style="width:80px"></td><td style="width:60px"></td><td style="width:110px"></td></tr>`).join('');
+    }).join('');
+    return `<div class="page"><h2>REKAP TAGIH — ${esc(b.kolektor)}${b.branch ? ' — ' + esc(b.branch) : ''}</h2>
+      <div class="sub">Tanggal tagih: <b>${dayName(tgl)}</b> · ${b.items.length} invoice · ${groups.length} toko · Total sisa <b>${fmt(sumBy(b.items, i => i.sisa))}</b></div>
+      <table><thead><tr><th>#</th><th>Invoice</th><th>Tracking</th><th class="num">Umur</th><th>Salesman</th><th class="num">Amount</th><th class="num">Sisa</th><th>Dibayar</th><th>Cara</th><th>Keterangan</th></tr></thead>
+      <tbody>${body}<tr class="tot"><td colspan="6">TOTAL</td><td class="num">${fmt(sumBy(b.items, i => i.sisa))}</td><td colspan="3"></td></tr></tbody></table>
+      <div class="sign"><div><div class="ln">Admin</div></div><div><div class="ln">Kolektor (${esc(b.kolektor)})</div></div></div></div>`;
+  }
+
+  /* ================= TAB: REKAP TAGIH ================= */
+  let rkData = { hari: null, batches: [] };
+  let rkUnchecked = new Set();
+  let rkBranch = '';
+  // pecah tiap batch kolektor jadi per-branch, difilter branch aktif
+  function rkSplit(batches) {
+    const out = [];
+    batches.forEach(b => {
+      const brs = [...new Set(b.items.map(i => i.branch))].sort();
+      brs.forEach(br => { if (!rkBranch || br === rkBranch) out.push({ ...b, branch: br, items: b.items.filter(i => i.branch === br) }); });
+    });
+    return out;
+  }
+  async function loadRekap() {
+    const tgl = document.getElementById('rkDate').value;
+    const d = parseAnyDate(tgl);
+    document.getElementById('rkDay').textContent = d ? HARI[d.getDay()] : '';
+    rkData = (await rpc('get_tagih_batches', { p_tgl: tgl })) || { batches: [] };
+    rkData.batches = rkData.batches || [];
+    renderRekap();
+  }
+  function rkProposals() {
+    const tgl = document.getElementById('rkDate').value, d = parseAnyDate(tgl);
+    const wd = d ? d.getDay() : -1;
+    const kol = document.getElementById('rkKol').value;
+    const ign = document.getElementById('rkIgnoreHari').checked;
+    const q = document.getElementById('rkQ').value.trim().toLowerCase();
+    const inToday = new Set();
+    rkData.batches.forEach(b => b.items.forEach(i => inToday.add(invKey(i.branch, i.invoice_no))));
+    const t0 = todayD();
+    return rows.filter(r => {
+      if (r.kasus) return false;
+      if (!r.kolId || !kolById.get(r.kolId) || !kolById.get(r.kolId).aktif) return false;
+      if (kol && r.kolId !== kol) return false;
+      if (rkBranch && r.branch !== rkBranch) return false;
+      if (!ign && r.hari.length && !r.hari.includes(wd)) return false;
+      const k = invKey(r.branch, r.invoiceNo);
+      if (activeMap.has(k) || inToday.has(k)) return false;
+      if (r.recent && r.recent.hasil === 'BAYAR' && daysBetween(parseAnyDate(r.recent.tgl), t0) <= 7) return false; // menunggu ERP
+      if (q && !r._q.includes(q)) return false;
+      return true;
+    });
+  }
+  // invoice umur kuning / merah (lewat TOP toko) wajib ditagih → centang terkunci
+  const rkLocked = r => !!r.umurCls;
+  const rkIsSel = r => rkLocked(r) || !rkUnchecked.has(invKey(r.branch, r.invoiceNo));
+  function renderRekap() {
+    const tgl = document.getElementById('rkDate').value;
+    const posted = rkData.hari && rkData.hari.posted_at;
+    document.getElementById('rkNote').innerHTML = posted ? `<div class="infoNote">Tanggal ini sudah diposting — tidak bisa tambah rekap.</div>` :
+      (parseAnyDate(tgl) && parseAnyDate(tgl).getDay() === 0 ? `<div class="infoNote">Hari Minggu — toko tutup.</div>` : '');
+    renderRekapDone();
+    const el = document.getElementById('rkProposal');
+    const kid = document.getElementById('rkKol').value, br = rkBranch;
+    // alur: tanggal → cabang → kolektor → centang → Buat Rekap
+    if (!tgl || !br || !kid) {
+      const step = !tgl ? 'Pilih tanggal tagih dulu.' : !br ? 'Pilih cabang dulu (DAF / ABP / KSI).' : 'Pilih kolektor dulu.';
+      el.innerHTML = `<div class="card"><div class="empty">${step}</div></div>`; return;
+    }
+    const list = rkProposals();
+    if (!list.length) { el.innerHTML = `<div class="card"><div class="empty">Tidak ada invoice untuk ${esc(kolById.get(kid) ? kolById.get(kid).nama : '')} · ${esc(br)} di tanggal ini.</div></div>`; return; }
+    list.sort((a, b) => a.customer.localeCompare(b.customer) || (b.days ?? 0) - (a.days ?? 0));
+    const sel = list.filter(rkIsSel), nLock = list.filter(rkLocked).length;
+    el.innerHTML = `<div class="card"><div class="hd"><div><h3>${esc(kolById.get(kid).nama)} <span class="badge">${esc(br)}</span></h3>
+      <div class="tot"><span><b>${sel.length}</b>/${list.length} invoice</span><span>Sisa <b>${fmt(sumBy(sel, r => r.sisa))}</b></span>
+      ${nLock ? `<span class="meta">${nLock} invoice umur kuning/merah wajib ikut</span>` : ''}</div></div>
+      <button class="btn sm blue" id="rkCreateBtn" ${posted || !sel.length ? 'disabled' : ''}>Buat Rekap (${sel.length})</button></div>
+      <div class="tableWrap" style="max-height:420px;"><table><thead><tr><th class="chk"></th><th>Toko</th><th>Invoice</th><th>Tracking</th><th>JT</th><th class="num">Umur</th><th class="num">Sisa</th><th>Ket</th></tr></thead><tbody>
+      ${list.map(r => { const lk = rkLocked(r); return `<tr><td class="chk ${lk ? '' : 'dragChk'}" data-dk="${esc(invKey(r.branch, r.invoiceNo))}" ${lk ? 'title="Umur lewat TOP — wajib ditagih"' : ''}>
+            <input type="checkbox" ${rkIsSel(r) ? 'checked' : ''} ${lk ? 'disabled' : ''}></td>
+            <td>${esc(r.customer)}</td>
+            <td class="invNo">${esc(r.invoiceNo)}</td><td>${dmy(r.trackDate)}</td><td title="${r.top === null ? 'TOP toko belum diisi' : 'TOP ' + r.top + ' hari'}">${r.jt ? dmy(r.jt) : '<span class="muted">—</span>'}</td><td class="num ${r.umurCls}">${r.days === null ? '—' : r.days + ' d'}</td>
+            <td class="num">${fmt(r.sisa)}</td><td>${r.jenis === 'CICILAN' ? '<span class="badge CICILAN">CICIL</span> ' : ''}${r.recent ? tagihBadge(r) : ''}</td></tr>`; }).join('')}</tbody></table></div></div>`;
+    // klik / drag pilih: tekan di kotak centang lalu geser ke atas/bawah (yang terkunci dilewati)
+    el.querySelectorAll('td.dragChk').forEach(td => td.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      const on = !td.querySelector('input').checked;
+      const apply = cell => { if (!cell) return; cell.querySelector('input').checked = on; on ? rkUnchecked.delete(cell.dataset.dk) : rkUnchecked.add(cell.dataset.dk); };
+      apply(td);
+      const move = ev => { const t = document.elementFromPoint(ev.clientX, ev.clientY); apply(t && t.closest('tr')?.querySelector('td.dragChk')); };
+      const up = () => { document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', up); document.removeEventListener('pointercancel', up); renderRekap(); };
+      document.addEventListener('pointermove', move); document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up);
+    }));
+    document.getElementById('rkCreateBtn').addEventListener('click', () => rkCreate(kid, br));
+  }
+  // daftar rekap yang sudah dibuat di tanggal ini → tombol 🖨 untuk cetak ulang
+  function renderRekapDone() {
+    const kid = document.getElementById('rkKol').value, kn = kid && kolById.get(kid) ? kolById.get(kid).nama : '';
+    const list = rkSplit(rkData.batches).filter(b => !kn || b.kolektor === kn)
+      .sort((a, b) => a.branch.localeCompare(b.branch) || String(a.kolektor).localeCompare(String(b.kolektor)));
+    const el = document.getElementById('rkDone');
+    el.innerHTML = list.length ? `<h3 style="margin:16px 0 8px;">Rekap sudah dibuat</h3><div class="card"><div class="tableWrap"><table>
+      <thead><tr><th>Cabang</th><th>Kolektor</th><th class="num">Invoice</th><th class="num">Sisa</th><th>Status</th><th></th></tr></thead><tbody>
+      ${list.map(b => `<tr><td>${esc(b.branch)}</td><td>${esc(b.kolektor)}</td><td class="num">${b.items.length}</td><td class="num">${fmt(sumBy(b.items, i => i.sisa))}</td>
+        <td><span class="badge ${esc(b.status || '')}">${esc(b.status || '')}</span></td>
+        <td class="actions"><button class="btn sm" data-rkre="${b.id}|${esc(b.branch)}" title="Cetak ulang PDF">&#128424; PDF</button></td></tr>`).join('')}
+      </tbody></table></div></div>` : '';
+    el.querySelectorAll('[data-rkre]').forEach(btn => btn.addEventListener('click', () => {
+      const [id, br] = btn.dataset.rkre.split('|');
+      const b = rkData.batches.find(x => String(x.id) === id);
+      if (b) rkPdf(b, br, btn);
+    }));
+  }
+  // PDF rekap kosong (format = print Hasil Tagih, kolom bayar kosong) → langsung terunduh
+  async function rkPdf(b, br, btn) {
+    const tgl = document.getElementById('rkDate').value;
+    const html = printHasilPage({ kolektor: b.kolektor, items: b.items }, tgl, br, true);
+    const name = `RekapTagih_${br}_${String(b.kolektor).replace(/[^A-Za-z0-9]+/g, '_')}_${tgl}.pdf`;
+    const old = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Membuat PDF...'; }
+    try { await pdfDownload(name, html); }
+    catch (e) { alert('PDF gagal dibuat, dibuka jendela print sebagai gantinya.\n' + (e.message || e)); printDoc(name, html); }
+    finally { if (btn) { btn.disabled = false; btn.innerHTML = old; } }
+  }
+  async function rkCreate(kid, br) {
+    const tgl = document.getElementById('rkDate').value;
+    if (!tgl) return;
+    if (!rkWarnOk) { await openWarn(); if (!rkWarnOk) return; }
+    const items = rkProposals().filter(r => r.kolId === kid && r.branch === br && rkIsSel(r)).map(r => ({
+      branch: r.branch, invoice_no: r.invoiceNo, customer: r.customer, salesman: r.salesman,
+      tracking_date: r.trackDate ? iso(r.trackDate) : (r.trackRaw || ''), amount: r.amount, sisa: r.sisa
+    }));
+    if (!items.length) return;
+    const btn = document.getElementById('rkCreateBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Membuat rekap...'; }
+    try {
+      const res = await rpc('create_tagih_batch', { p_tgl: tgl, p_kolektor_id: +kid, p_items: items });
+      toast(`${res.added || 0} invoice masuk rekap` + (res.skipped ? ` · ${res.skipped} dilewati` : ''));
+      await reloadCtx(); enrich(); await loadRekap();
+      // langsung unduh PDF rekap kolektor × cabang ini
+      const kn = kolById.get(kid) ? kolById.get(kid).nama : '';
+      const b = rkData.batches.find(x => x.kolektor === kn && x.items.some(i => i.branch === br));
+      if (b) await rkPdf({ ...b, items: b.items.filter(i => i.branch === br) }, br);
+    } catch (e) { alert('Gagal buat rekap: ' + (e.message || e)); renderRekap(); }
+  }
+  document.getElementById('rkDate').addEventListener('change', () => { rkUnchecked.clear(); loadRekap().catch(e => showErr(e.message)); });
+  document.querySelectorAll('#rkBranchPills .pill').forEach(p => p.addEventListener('click', () => {
+    rkBranch = p.dataset.b;
+    document.querySelectorAll('#rkBranchPills .pill').forEach(x => x.classList.toggle('active', x === p));
+    renderRekap();
+  }));
+  ['rkKol', 'rkIgnoreHari'].forEach(id => document.getElementById(id).addEventListener('change', renderRekap));
+  let rkTimer = null;
+  document.getElementById('rkQ').addEventListener('input', () => { clearTimeout(rkTimer); rkTimer = setTimeout(renderRekap, 250); });
+
+  /* ================= TAB: HASIL TAGIH ================= */
+  let hsData = { hari: null, batches: [] };
+  let hsSel = { bid: null, ids: new Set() };
+  const hsOpenGrp = new Set();   // baris gabungan yang sedang dibuka rinciannya
+  // kunci "alat bayar": faktur yang memakai alat bayar sama (Cash / TF tgl sama / Giro no sama / CN) digabung jadi 1 baris
+  const payKeys = i => (i.bayar || []).filter(p => +p.nilai).map(p =>
+    p.metode === 'TF' ? 'TF|' + (p.tgl_trf || '') : p.metode === 'GIRO' ? 'GIRO|' + (p.giro_bank || '') + '|' + (p.giro_no || '') : p.metode);
+  function paySegments(g) {
+    // g = faktur 1 toko, urut tampilan. Hasil: daftar segmen; segmen >1 faktur = baris gabungan
+    const paid = g.filter(i => (i.hasil === 'BAYAR' || i.hasil === 'SEBAGIAN') && payKeys(i).length);
+    const par = new Map(paid.map(i => [i, i]));
+    const find = x => { while (par.get(x) !== x) x = par.get(x); return x; };
+    const owner = new Map();
+    paid.forEach(i => payKeys(i).forEach(k => { if (owner.has(k)) par.set(find(i), find(owner.get(k))); else owner.set(k, i); }));
+    const comp = new Map();
+    paid.forEach(i => { const r = find(i); if (!comp.has(r)) comp.set(r, []); comp.get(r).push(i); });
+    const done = new Set(), out = [];
+    g.forEach(i => {
+      if (done.has(i)) return;
+      const c = par.has(i) ? comp.get(find(i)) : [i];
+      c.forEach(x => done.add(x)); out.push(c);
+    });
+    return out;
+  }
+  // giro/TF gabungan (beda cabang dan/atau beda toko):
+  // gabung_id → { masuk: cabang tujuan, per: { cabang: nilai }, cust: { tokoKey: {br, customer, n} }, top: tokoKey toko paling atas di cabang tujuan }
+  let hsGab = new Map();
+  function buildGab() {
+    hsGab = new Map();
+    hsData.batches.forEach(b => b.items.forEach(i => (i.bayar || []).forEach(p => {
+      if (!p.gabung_id) return;
+      if (!hsGab.has(p.gabung_id)) hsGab.set(p.gabung_id, { masuk: p.masuk_branch || i.branch, per: {}, cust: {} });
+      const g = hsGab.get(p.gabung_id), n = +p.nilai || 0, k = tokoKey(i.branch, i.customer);
+      g.per[i.branch] = (g.per[i.branch] || 0) + n;
+      if (!g.cust[k]) g.cust[k] = { br: i.branch, customer: i.customer, n: 0 };
+      g.cust[k].n += n;
+    })));
+    hsGab.forEach(g => {
+      const ks = Object.keys(g.cust).filter(k => g.cust[k].br === g.masuk);
+      g.top = (ks.length ? ks : Object.keys(g.cust)).sort((a, b) =>
+        tokoName(g.cust[a].customer).localeCompare(tokoName(g.cust[b].customer)) || String(g.cust[a].customer).localeCompare(String(g.cust[b].customer)))[0];
+    });
+  }
+  const gabOf = p => { const g = p.gabung_id && hsGab.get(p.gabung_id); return g && Object.keys(g.cust).length > 1 ? g : null; };
+  // toko paling atas (pemegang TF/giro): "(gabung ABP, DAF > ABP 7,507,036; gabung SAGA ENTROP, SAGA FRESH)"
+  function gabNote(p, br, cust) {
+    const g = gabOf(p); if (!g || tokoKey(br, cust) !== g.top) return '';
+    const parts = [];
+    const ob = Object.keys(g.per).filter(x => x !== br);
+    if (ob.length) parts.push(`gabung ${ob.join(', ')}, ${br} > ${ob.map(o => o + ' ' + fmt(g.per[o])).join(', ')}`);
+    const ot = Object.keys(g.cust).filter(k => k !== g.top && g.cust[k].br === br).map(k => esc(tokoName(g.cust[k].customer)));
+    if (ot.length) parts.push(`gabung ${ot.join(', ')}`);
+    return parts.length ? ` (${parts.join('; ')})` : '';
+  }
+  // bukan pemegang: rincian bayar diganti cukup "gabung DAF" (beda cabang) / "gabung NAMA TOKO" (cabang sama)
+  function gabOther(p, br, cust) {
+    const g = gabOf(p); if (!g || tokoKey(br, cust) === g.top) return '';
+    return g.masuk !== br ? `gabung ${esc(g.masuk)}` : `gabung ${esc(tokoName(g.cust[g.top].customer))}`;
+  }
+  // gabungan alat bayar untuk baris gabungan: Cash 10jt · Transfer 12jt (05/11/2026) · Giro BRI 123 JT ..
+  function grpDetail(items) {
+    const m = new Map();
+    items.forEach(i => (i.bayar || []).forEach(p => {
+      const k = payKeys({ bayar: [p] })[0]; if (!k) return;
+      if (!m.has(k)) m.set(k, { ...p, nilai: 0 });
+      m.get(k).nilai += +p.nilai || 0;
+    }));
+    return [...m.values()].map(p => {
+      const go = gabOther(p, items[0].branch, items[0].customer); if (go) return go;
+      let s = `${METODE_LBL[p.metode]} <b>${fmt(p.nilai)}</b>`;
+      if (p.metode === 'TF') s += ` (${dmy(p.tgl_trf)})`;
+      if (p.metode === 'GIRO') s += ` (${esc(p.giro_bank)} ${esc(p.giro_no)} JT ${dmy(p.giro_jt)})`;
+      return s + gabNote(p, items[0].branch, items[0].customer);
+    }).join(' · ');
+  }
+  async function loadHasil() {
+    hsSel = { bid: null, ids: new Set() };
+    const tgl = document.getElementById('hsDate').value;
+    const d = parseAnyDate(tgl);
+    document.getElementById('hsDay').textContent = d ? HARI[d.getDay()] : '';
+    hsData = (await rpc('get_tagih_batches', { p_tgl: tgl })) || { batches: [] };
+    hsData.batches = hsData.batches || [];
+    renderHasil(); renderSelBar();
+  }
+  function itemTotals(i) {
+    const t = { CASH: 0, TF: 0, GIRO: 0, CN_RETUR: 0 };
+    (i.bayar || []).forEach(b => { t[b.metode] = (t[b.metode] || 0) + (+b.nilai || 0); });
+    t.total = t.CASH + t.TF + t.GIRO + t.CN_RETUR;
+    return t;
+  }
+  function batchTotals(items) {
+    const t = { CASH: 0, TF: 0, GIRO: 0, CN_RETUR: 0, total: 0, sisa: 0, gagalN: 0, gagalSisa: 0, bayarN: 0, belumN: 0 };
+    items.forEach(i => {
+      const x = itemTotals(i);
+      ['CASH', 'TF', 'GIRO', 'CN_RETUR', 'total'].forEach(k => t[k] += x[k]);
+      t.sisa += +i.sisa || 0;
+      if (i.hasil === 'GAGAL') { t.gagalN++; t.gagalSisa += +i.sisa || 0; }
+      else if (i.hasil) t.bayarN++;
+      else t.belumN++;
+    });
+    return t;
+  }
+  function bayarDetail(i) {
+    return (i.bayar || []).map(b => {
+      const go = gabOther(b, i.branch, i.customer); if (go) return go;
+      let s = `${METODE_LBL[b.metode]} ${fmt(b.nilai)}`;
+      if (b.metode === 'TF') s += ` (${dmy(b.tgl_trf)})`;
+      if (b.metode === 'GIRO') s += ` (${esc(b.giro_bank)} ${esc(b.giro_no)} JT ${dmy(b.giro_jt)})`;
+      return s + gabNote(b, i.branch, i.customer);
+    }).join(' · ');
+  }
+  // Rekap per cabang untuk 1 kolektor: Tunai / Giro (jumlah lembar) / Transfer (jumlah entry) / CN-Retur / Total
+  function branchRekap(items) {
+    const boxes = ['DAF', 'ABP', 'KSI'].filter(br => !hsBranch || br === hsBranch).map(br => {
+      const its = items.filter(i => i.branch === br);
+      if (!its.length) return '';
+      const t = batchTotals(its);
+      const pays = its.flatMap(i => (i.bayar || []).map(p => ({ ...p, customer: i.customer })));
+      const giroN = new Set(pays.filter(p => p.metode === 'GIRO').map((p, k) => p.giro_no ? (p.giro_bank || '') + '|' + p.giro_no : 'x' + k)).size; // 1 giro bisa bayar beberapa invoice → hitung per nomor giro
+      const tfN = new Set(pays.filter(p => p.metode === 'TF').map(p => p.customer + '|' + (p.tgl_trf || ''))).size; // 1 TF dibagi ke beberapa faktur toko yg sama = 1 entry
+      const row = (l, n, v) => `<div class="r"><span>${l}</span><span class="n">${n}</span><b>${fmt(v)}</b></div>`;
+      return `<div class="brBox"><div class="brHd"><span class="brTag ${br}">${br}</span></div>
+        ${row('TUNAI', '', t.CASH)}
+        ${row('GIRO', giroN ? `(${giroN} giro)` : '', t.GIRO)}
+        ${row('TRANSFER', tfN ? `(${tfN} TF)` : '', t.TF)}
+        ${row('CN/RETUR', '', t.CN_RETUR)}
+        <div class="r tt"><span style="grid-column:span 2">TOTAL TERTAGIH</span><b>${fmt(t.total)}</b></div></div>`;
+    }).join('');
+    return `<div class="brRekap">${boxes}</div>`;
+  }
+  var hsBranch = '';
+  document.querySelectorAll('#hsBranchPills .pill').forEach(p => p.addEventListener('click', () => {
+    hsBranch = p.dataset.b;
+    document.querySelectorAll('#hsBranchPills .pill').forEach(x => x.classList.toggle('active', x === p));
+    renderHasil();
+  }));
+  document.getElementById('hsKol').addEventListener('change', () => renderHasil());
+  function renderHasil() {
+    buildGab();
+    const kolSel = document.getElementById('hsKol');
+    const kols = [...new Set(hsData.batches.map(b => b.kolektor))].sort();
+    if (kolSel.value && !kols.includes(kolSel.value)) kolSel.value = '';
+    const kolNow = kolSel.value;
+    kolSel.innerHTML = '<option value="">Semua</option>' + kols.map(k => `<option value="${esc(k)}">${esc(k)}</option>`).join('');
+    kolSel.value = kolNow;
+    const tgl = document.getElementById('hsDate').value;
+    const posted = hsData.hari && hsData.hari.posted_at;
+    const trfDone = hsData.hari && hsData.hari.trf_posted_at;
+    const all = hsData.batches.flatMap(b => b.items);
+    const T = batchTotals(all);
+    const allCek = hsData.batches.length && hsData.batches.every(b => b.status === 'DICEK');
+    const info = document.getElementById('hsDayInfo');
+    if (posted && !trfDone && isAdminKol()) info.innerHTML = `<div class="errNote">Giro sudah masuk Giro Pending, tapi TF/Cash belum masuk Transfer. Minta Full Access posting ulang.</div>`;
+    else if (posted && !trfDone) info.innerHTML = `<div class="errNote">Giro sudah masuk Giro Pending, tapi TF/Cash belum masuk Transfer. <button class="btn sm" id="hsRetry">Coba posting Transfer lagi</button></div>`;
+    else if (posted) info.innerHTML = `<div class="infoNote">✓ Sudah diposting ${new Date(posted).toLocaleString()} — TF & Cash masuk Transfer, Giro masuk Giro Pending.</div>`;
+    else info.innerHTML = '';
+    const pb = document.getElementById('hsPostBtn');
+    pb.disabled = !!posted || !allCek;
+    pb.title = posted ? 'Sudah diposting' : (!allCek ? 'Semua kolektor harus Selesai Cek dulu' : '');
+    document.getElementById('hsRetry')?.addEventListener('click', () => postTransfer(tgl, true));
+
+    const el = document.getElementById('hsCards');
+    if (!hsData.batches.length) { el.innerHTML = `<div class="card"><div class="empty">Tidak ada rekap tagih di tanggal ini.</div></div>`; return; }
+    const shown = hsData.batches.filter(b => (!kolNow || b.kolektor === kolNow) && (!hsBranch || b.items.some(i => i.branch === hsBranch)));
+    if (!shown.length) { el.innerHTML = `<div class="card"><div class="empty">Tidak ada data untuk filter ini.</div></div>`; renderSelBar(); return; }
+    el.innerHTML = shown.map(b => {
+      const t = batchTotals(b.items), open = b.status === 'DITAGIH';
+      return `<div class="card"><div class="hd"><div><h3>${esc(b.kolektor)} <span class="badge ${b.status}">${b.status}</span></h3>
+        <div class="tot"><span>Total <b>${fmt(t.total)}</b></span><span>Gagal <b>${t.gagalN}</b></span>
+        <span>Belum diisi <b style="color:${t.belumN ? 'var(--warn)' : 'inherit'}">${t.belumN}</b></span></div>
+        ${branchRekap(b.items)}</div>
+        <div class="actions"><button class="btn sm" data-hprint="${b.id}">Print Hasil</button>
+        ${open ? `<button class="btn sm blue" data-close-b="${b.id}" ${t.belumN ? 'disabled title="Isi semua hasil dulu"' : ''}>Selesai Cek</button>`
+               : (!posted && !isAdminKol() ? `<button class="btn sm" data-reopen="${b.id}">Buka Lagi</button>` : '')}</div></div>
+        <div class="tableWrap"><table><thead><tr>${open ? `<th class="chk" title="Klik / tahan & geser untuk pilih banyak"></th>` : ''}<th>Toko · Invoice</th><th>Tracking</th><th class="num">Sisa</th><th>Hasil</th><th>Detail</th><th class="num">Dibayar</th><th></th></tr></thead><tbody>
+        ${byToko(b.items.filter(i => !hsBranch || i.branch === hsBranch)).map(g => {
+          const gagalToko = open && g.length > 1 && g.some(y => !y.hasil)
+            ? `<button class="btn sm red" data-gagal-toko="${b.id}|${esc(tokoKey(g[0].branch, g[0].customer))}" title="Gagal semua invoice toko ini">Gagal toko</button>` : '';
+          const pkOf = items => hsSel.bid === String(b.id) && items.every(i => hsSel.ids.has(String(i.id)));
+          const chk = pk => open ? `<td class="chk"><input type="checkbox" tabindex="-1" ${pk ? 'checked' : ''}></td>` : '';
+          const oneRow = (i, extra, sub, gt) => {
+            const x = itemTotals(i), pk = pkOf([i]);
+            return `<tr class="br-${esc(i.branch)}${pk ? ' picked' : ''}${extra || ''}" data-row="${i.id}" data-bid="${b.id}">${chk(pk)}<td class="wrapTxt">${sub ? '<span class="muted" style="margin-left:14px;">└ </span>' : `<span class="brTag ${esc(i.branch)}">${esc(i.branch)}</span>${esc(tokoName(i.customer))} · `}<span class="invNo">${esc(i.invoice_no)}</span></td><td>${dmy(i.tracking_date)}</td><td class="num">${fmt(i.sisa)}</td>
+              <td>${i.hasil ? `<span class="badge ${i.hasil}">${hasilLbl(i.hasil)}</span>` : '<span class="badge NONE">BELUM DIISI</span>'}</td>
+              <td class="wrapTxt small">${i.hasil === 'GAGAL' ? esc(i.alasan) : bayarDetail(i) + (i.alasan ? ` <span class="muted">— ${esc(i.alasan)}</span>` : '')}</td>
+              <td class="num">${x.total ? fmt(x.total) : '—'}</td>
+              <td>${open ? `<div class="actions"><button class="btn sm" data-edit="${i.id}">Input</button>
+                ${!i.hasil ? `<button class="btn sm" data-lunas="${i.id}" title="Lunas cash sebesar sisa">Lunas Cash</button>` : ''}${gt || ''}</div>` : ''}</td></tr>`;
+          };
+          const grpRow = items => {
+            const key = items.map(i => i.id).join(','), pk = pkOf(items), isOpen = hsOpenGrp.has(key);
+            const T = batchTotals(items), cicil = items.some(i => i.hasil === 'SEBAGIAN');
+            const tr = items.map(i => i.tracking_date).filter(Boolean).sort();
+            const head = `<tr class="br-${esc(items[0].branch)} grpRow${pk ? ' picked' : ''}" data-rows="${key}" data-bid="${b.id}">${chk(pk)}
+              <td class="wrapTxt"><span class="brTag ${esc(items[0].branch)}">${esc(items[0].branch)}</span>${esc(tokoName(items[0].customer))} · <b>${items.length} faktur</b>
+                <button class="btn sm" data-grp-toggle="${key}" style="margin-left:6px;">${isOpen ? '▾ tutup' : '▸ rincian'}</button></td>
+              <td>${tr.length ? dmy(tr[0]) + (tr.length > 1 && tr[0] !== tr[tr.length - 1] ? ' – ' + dmy(tr[tr.length - 1]) : '') : ''}</td><td class="num">${fmt(T.sisa)}</td>
+              <td><span class="badge ${cicil ? 'SEBAGIAN' : 'BAYAR'}">${cicil ? 'CICIL' : 'LUNAS'}</span></td>
+              <td class="wrapTxt small">${grpDetail(items)}</td><td class="num"><b>${fmt(T.total)}</b></td>
+              <td>${open ? `<div class="actions"><button class="btn sm" data-grp-edit="${key}">Ubah</button></div>` : ''}</td></tr>`;
+            return head + items.map(i => oneRow(i, ' grpDet' + (isOpen ? '' : ' hidden'), true)).join('');
+          };
+          const firstUnpaid = g.find(y => !y.hasil);   // tombol "Gagal toko" ditaruh di faktur belum diisi pertama
+          return paySegments(g).map(s => s.length > 1 ? grpRow(s) : oneRow(s[0], '', false, s[0] === firstUnpaid ? gagalToko : '')).join('');
+        }).join('')}
+        </tbody></table></div></div>`;
+    }).join('');
+    const findItem = id => { for (const b of hsData.batches) { const i = b.items.find(x => String(x.id) === String(id)); if (i) return { b, i }; } return null; };
+    // pilih banyak: klik kotak, atau tahan & geser ke atas/bawah
+    let drag = null;
+    const rowIds = tr => (tr.dataset.rows || tr.dataset.row).split(',');
+    const isPicked = tr => hsSel.bid === tr.dataset.bid && rowIds(tr).every(id => hsSel.ids.has(id));
+    const setPick = (tr, on) => {
+      const bid = tr.dataset.bid;
+      if (hsSel.bid !== bid) hsSel = { bid, ids: new Set() };
+      rowIds(tr).forEach(id => on ? hsSel.ids.add(id) : hsSel.ids.delete(id));
+      el.querySelectorAll('tr[data-bid]').forEach(r => { const p = isPicked(r); r.classList.toggle('picked', p); const c = r.querySelector('.chk input'); if (c) c.checked = p; });
+    };
+    el.querySelectorAll('[data-grp-toggle]').forEach(btn => btn.addEventListener('click', () => {
+      const k = btn.dataset.grpToggle; hsOpenGrp.has(k) ? hsOpenGrp.delete(k) : hsOpenGrp.add(k); renderHasil();
+    }));
+    el.querySelectorAll('[data-grp-edit]').forEach(btn => btn.addEventListener('click', () => {
+      const ids = btn.dataset.grpEdit.split(','), f = findItem(ids[0]);
+      openHasil(ids.map(id => findItem(id).i), f.b);
+    }));
+    el.querySelectorAll('td.chk').forEach(td => {
+      const tr = td.parentElement;
+      td.addEventListener('mousedown', e => { e.preventDefault(); drag = !isPicked(tr); setPick(tr, drag); renderSelBar(); });
+      td.querySelector('input').addEventListener('click', e => e.preventDefault());
+      tr.addEventListener('mouseenter', () => { if (drag !== null && tr.dataset.bid === hsSel.bid) { setPick(tr, drag); renderSelBar(); } });
+    });
+    document.onmouseup = () => { drag = null; };
+    renderSelBar();
+    el.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', () => { const f = findItem(btn.dataset.edit); openHasil([f.i], f.b); }));
+    el.querySelectorAll('[data-lunas]').forEach(btn => btn.addEventListener('click', async () => {
+      const f = findItem(btn.dataset.lunas); btn.disabled = true;
+      try { await rpc('save_tagih_hasil', { p_item_id: f.i.id, p_gagal: false, p_alasan: null, p_bayar: [{ metode: 'CASH', nilai: Math.round(f.i.sisa) }] }); await loadHasil(); }
+      catch (e) { alert(e.message || e); btn.disabled = false; }
+    }));
+    el.querySelectorAll('[data-gagal-toko]').forEach(btn => btn.addEventListener('click', () => {
+      const [bid, ...rest] = btn.dataset.gagalToko.split('|'); const tk = rest.join('|');
+      const b = hsData.batches.find(x => String(x.id) === bid);
+      openHasil(b.items.filter(i => !i.hasil && tokoKey(i.branch, i.customer) === tk), b, true);
+    }));
+    el.querySelectorAll('[data-close-b]').forEach(btn => btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      try { await rpc('close_tagih_batch', { p_batch_id: +btn.dataset.closeB }); await reloadCtx(); await loadHasil(); }
+      catch (e) { alert(e.message || e); btn.disabled = false; }
+    }));
+    el.querySelectorAll('[data-reopen]').forEach(btn => btn.addEventListener('click', async () => {
+      if (!confirm('Buka lagi rekap ini untuk diedit?')) return;
+      try { await rpc('reopen_tagih_batch', { p_batch_id: +btn.dataset.reopen }); await reloadCtx(); await loadHasil(); }
+      catch (e) { alert(e.message || e); }
+    }));
+    el.querySelectorAll('[data-hprint]').forEach(btn => btn.addEventListener('click', () => {
+      const b = hsData.batches.find(x => String(x.id) === btn.dataset.hprint);
+      // per cabang per kolektor: kalau filter cabang dipilih → cabang itu saja, kalau Semua → 1 halaman per cabang
+      const brs = ['DAF', 'ABP', 'KSI'].filter(br => (!hsBranch || br === hsBranch) && b.items.some(i => i.branch === br));
+      if (!brs.length) { alert('Tidak ada invoice untuk cabang ini.'); return; }
+      if (!cekBelumDiisi(b.items.filter(i => brs.includes(i.branch)), b.kolektor)) return;
+      printDoc('Hasil Tagih ' + b.kolektor + ' ' + brs.join('-') + ' ' + tgl, brs.map(br => printHasilPage(b, tgl, br)).join(''));
+    }));
+  }
+
+  function selItems() {
+    // urut sesuai tampilan di layar
+    const b = hsData.batches.find(x => String(x.id) === hsSel.bid);
+    if (!b) return { b: null, items: [] };
+    return { b, items: byToko(b.items).flat().filter(i => hsSel.ids.has(String(i.id))) };
+  }
+  function renderSelBar() {
+    const bar = document.getElementById('hsSelBar');
+    const { b, items } = selItems();
+    if (!items.length) { bar.classList.add('hidden'); bar.innerHTML = ''; return; }
+    bar.classList.remove('hidden');
+    bar.innerHTML = `<span><b>${items.length}</b> faktur dipilih · ${esc(b.kolektor)} · Sisa <b>${fmt(sumBy(items, i => i.sisa))}</b></span>
+      <div class="actions" style="margin-left:auto;">
+        <button class="btn sm blue" id="hsSelBayar">Bayar (Cash / TF / Giro / CN)</button>
+        <button class="btn sm red" id="hsSelGagal">Gagal Tagih</button>
+        <button class="btn sm" id="hsSelClear">Batal pilih</button></div>`;
+    document.getElementById('hsSelBayar').onclick = () => openHasil(items, b);
+    document.getElementById('hsSelGagal').onclick = () => openHasil(items, b, true);
+    document.getElementById('hsSelClear').onclick = () => { hsSel = { bid: null, ids: new Set() }; renderHasil(); };
+  }
+  // bagi baris pembayaran ke faktur sesuai urutan: tiap faktur diisi sampai sisanya habis, kelebihan masuk faktur terakhir
+  function allocate(items, lines) {
+    const pool = lines.map(l => ({ ...l, rem: Math.round(l.nilai) }));
+    return items.map((it, k) => {
+      const last = k === items.length - 1;
+      let need = Math.round(it.sisa);
+      const got = [];
+      for (const p of pool) {
+        if (p.rem <= 0) continue;
+        if (!last && need <= 0) break;
+        const take = last ? p.rem : Math.min(need, p.rem);
+        const { rem, ...l } = p;
+        got.push({ ...l, nilai: take });
+        p.rem -= take; need -= take;
+      }
+      return { item: it, lines: got };
+    });
+  }
+
+  /* ---- modal input hasil ---- */
+  let hmItems = [], hmMode = 'bayar', hmLines = [];
+  function openHasil(items, batch, gagalOnly) {
+    if (!items.length) return;
+    hmItems = items;
+    const one = items.length === 1 ? items[0] : null;
+    document.getElementById('hmTitle').textContent = one ? one.invoice_no : `${items.length} invoice${gagalOnly ? ' · Gagal tagih' : ''}`;
+    document.getElementById('hmSub').textContent = [...new Set(items.map(i => tokoName(i.customer)))].join(', ') + ' · ' + batch.kolektor;
+    const sisa = sumBy(items, i => i.sisa);
+    document.getElementById('hmSum').innerHTML = `<span>Sisa ditagih <b>${fmt(sisa)}</b></span>${one ? `<span>Tracking <b>${dmy(one.tracking_date)}</b></span>` : ''}`;
+    document.querySelector('.modeSeg [data-m="bayar"]').classList.toggle('hidden', !!gagalOnly);
+    document.getElementById('hmReset').classList.toggle('hidden', !one || !one.hasil);
+    // isi awal: gabungan pembayaran yang sudah ada (1 TF dibagi ke 3 faktur → tampil 1 baris TF total)
+    hmLines = [];
+    if (!gagalOnly && items.every(i => i.hasil && i.hasil !== 'GAGAL')) {
+      const m = new Map();
+      items.forEach(i => (i.bayar || []).forEach(b => {
+        const k = payKeys({ bayar: [b] })[0]; if (!k) return;
+        if (!m.has(k)) m.set(k, { metode: b.metode, nilai: 0, tgl_trf: b.tgl_trf || '', giro_bank: b.giro_bank || '', giro_no: b.giro_no || '', giro_jt: b.giro_jt || '', masuk_branch: b.masuk_branch || '', gabung_id: b.gabung_id || '' });
+        m.get(k).nilai += Math.round(+b.nilai || 0);
+      }));
+      hmLines = [...m.values()];
+    }
+    const al = (one && one.hasil === 'GAGAL' && one.alasan) || '';
+    const base = ALASAN.find(a => al.startsWith(a)) || '';
+    document.getElementById('hmAlasan').innerHTML = '<option value="">— pilih alasan —</option>' + ALASAN.map(a => `<option ${a === base ? 'selected' : ''}>${a}</option>`).join('');
+    document.getElementById('hmCatatan').value = base ? al.slice(base.length).replace(/^:\s*/, '') : al;
+    document.getElementById('hmNote').value = one && one.hasil !== 'GAGAL' ? (one.alasan || '') : '';
+    setHmMode(gagalOnly || (one && one.hasil === 'GAGAL') ? 'gagal' : 'bayar');
+    if (hmMode === 'bayar' && !hmLines.length) hmLines.push({ metode: 'CASH', nilai: Math.round(sisa) });
+    renderLines();
+    document.getElementById('hmErr').classList.add('hidden');
+    document.getElementById('hasilModal').classList.remove('hidden');
+  }
+  function setHmMode(m) {
+    hmMode = m;
+    document.querySelectorAll('.modeSeg button').forEach(b => b.classList.toggle('on', b.dataset.m === m));
+    document.getElementById('hmBayar').classList.toggle('hidden', m !== 'bayar');
+    document.getElementById('hmGagal').classList.toggle('hidden', m !== 'gagal');
+    updHmTotal();
+  }
+  document.querySelectorAll('.modeSeg button').forEach(b => b.addEventListener('click', () => {
+    setHmMode(b.dataset.m);
+    if (b.dataset.m === 'bayar' && !hmLines.length) { hmLines.push({ metode: 'CASH', nilai: Math.round(sumBy(hmItems, i => i.sisa)) }); renderLines(); }
+  }));
+  const GIRO_BANKS = ['PANIN', 'BCA', 'BRI', 'MAYBANK', 'BNI', 'DANAMON', 'PAPUA', 'MANDIRI'];
+  // cabang yang ikut di invoice terpilih; >1 cabang → giro/TF harus pilih masuk cabang mana
+  const hmBranches = () => [...new Set(hmItems.map(i => i.branch))];
+  const hmDefBranch = () => { const s = {}; hmItems.forEach(i => s[i.branch] = (s[i.branch] || 0) + (+i.sisa || 0)); return Object.keys(s).sort((a, b) => s[b] - s[a])[0]; };
+  const isGabMetode = m => m === 'GIRO' || m === 'TF';
+  const hmMulti = () => new Set(hmItems.map(i => tokoKey(i.branch, i.customer))).size > 1;   // invoice dari >1 toko
+  function renderLines() {
+    const today = iso(todayD());
+    const brs = hmBranches();
+    hmLines.forEach(l => { if (brs.length > 1 && isGabMetode(l.metode) && !brs.includes(l.masuk_branch)) l.masuk_branch = hmDefBranch(); });
+    document.getElementById('hmLines').innerHTML = hmLines.map((l, idx) => `
+      <div class="line">
+        <select class="inp sm" data-f="metode" data-i="${idx}">${Object.entries(METODE_LBL).map(([k, v]) => `<option value="${k}" ${l.metode === k ? 'selected' : ''}>${v}</option>`).join('')}</select>
+        <input class="inp sm" type="number" min="0" step="1" placeholder="Nilai" data-f="nilai" data-i="${idx}" value="${l.nilai || ''}" style="width:130px;">
+        ${l.metode === 'TF' ? `<label class="small muted">Tgl TF <input class="inp sm" type="date" data-f="tgl_trf" data-i="${idx}" value="${l.tgl_trf || today}"></label>` : ''}
+        ${l.metode === 'GIRO' ? `<select class="inp sm" data-f="giro_bank" data-i="${idx}" style="width:110px;"><option value="">Bank…</option>${(GIRO_BANKS.includes(l.giro_bank) || !l.giro_bank ? GIRO_BANKS : [l.giro_bank, ...GIRO_BANKS]).map(k => `<option ${l.giro_bank === k ? 'selected' : ''}>${esc(k)}</option>`).join('')}</select>
+          <input class="inp sm" placeholder="No Giro" data-f="giro_no" data-i="${idx}" value="${esc(l.giro_no || '')}" maxlength="6" inputmode="numeric" style="width:90px;">
+          <label class="small muted">JT <input class="inp sm" type="date" data-f="giro_jt" data-i="${idx}" value="${l.giro_jt || ''}"></label>` : ''}
+        ${brs.length > 1 && isGabMetode(l.metode) ? `<label class="small muted" title="Giro/TF gabungan beda cabang: masuk ke cabang mana">Masuk cabang <select class="inp sm" data-f="masuk_branch" data-i="${idx}">${brs.map(b => `<option ${l.masuk_branch === b ? 'selected' : ''}>${b}</option>`).join('')}</select></label>` : ''}
+        <button class="btn sm" data-fill="${idx}" title="Isi dengan sisa yang belum tertutup">= Sisa</button>
+        <button class="btn sm red" data-del="${idx}">✕</button>
+      </div>`).join('') || '<div class="muted small" style="margin-bottom:8px;">Belum ada baris pembayaran.</div>';
+    hmLines.forEach(l => { if (l.metode === 'TF' && !l.tgl_trf) l.tgl_trf = today; });
+    document.querySelectorAll('#hmLines [data-f]').forEach(inp => {
+      const ev = inp.tagName === 'SELECT' ? 'change' : 'input';
+      inp.addEventListener(ev, () => {
+        const l = hmLines[+inp.dataset.i], f = inp.dataset.f;
+        if (f === 'giro_no') inp.value = inp.value.replace(/\D/g, '').slice(0, 6);
+        l[f] = f === 'nilai' ? (parseFloat(inp.value) || 0) : inp.value;
+        if (f === 'metode') renderLines(); else updHmTotal();
+      });
+    });
+    document.querySelectorAll('#hmLines [data-del]').forEach(b => b.addEventListener('click', () => { hmLines.splice(+b.dataset.del, 1); renderLines(); }));
+    document.querySelectorAll('#hmLines [data-fill]').forEach(b => b.addEventListener('click', () => {
+      const idx = +b.dataset.fill, other = sumBy(hmLines.filter((_, j) => j !== idx), l => l.nilai);
+      hmLines[idx].nilai = Math.max(0, Math.round(sumBy(hmItems, i => i.sisa) - other)); renderLines();
+    }));
+    updHmTotal();
+  }
+  document.querySelectorAll('#hmBayar [data-add]').forEach(b => b.addEventListener('click', () => {
+    const rest = Math.max(0, Math.round(sumBy(hmItems, i => i.sisa) - sumBy(hmLines, l => l.nilai)));
+    hmLines.push({ metode: b.dataset.add, nilai: rest, tgl_trf: '', giro_bank: '', giro_no: '', giro_jt: '' }); renderLines();
+  }));
+  function updHmTotal() {
+    const el = document.getElementById('hmTotal');
+    if (hmMode !== 'bayar') { el.textContent = ''; return; }
+    const sisa = sumBy(hmItems, i => i.sisa), tot = sumBy(hmLines, l => l.nilai), rest = sisa - tot;
+    el.innerHTML = `Total bayar <b>${fmt(tot)}</b> · ${Math.abs(rest) <= TOL ? '<span style="color:var(--ok)">LUNAS</span>' : rest > 0 ? `Sisa <b style="color:var(--warn)">${fmt(rest)}</b> (CICIL)` : `<b style="color:var(--urgent)">Lebih ${fmt(-rest)}</b>`}`;
+    renderAlloc();
+  }
+  function renderAlloc() {
+    let box = document.getElementById('hmAlloc');
+    if (!box) { box = document.createElement('div'); box.id = 'hmAlloc'; document.getElementById('hmBayar').appendChild(box); }
+    if (hmItems.length < 2 || hmMode !== 'bayar') { box.innerHTML = ''; return; }
+    const al = allocate(hmItems, hmLines.filter(l => l.nilai > 0));
+    box.innerHTML = `<div class="small muted" style="margin-top:10px;">Pembagian ke faktur:</div><div class="alloc">${al.map(a => {
+      const tot = sumBy(a.lines, l => l.nilai), rest = Math.round(a.item.sisa) - tot;
+      const st = !tot ? '<span style="color:var(--urgent)">tidak kebagian</span>' : Math.abs(rest) <= TOL ? '<span style="color:var(--ok)">LUNAS</span>' : rest > 0 ? `<span style="color:var(--warn)">kurang ${fmt(rest)}</span>` : `<span style="color:var(--urgent)">lebih ${fmt(-rest)}</span>`;
+      return `<div><span><span class="brTag ${esc(a.item.branch)}">${esc(a.item.branch)}</span>${esc(a.item.invoice_no)} <span class="muted">${a.lines.map(l => METODE_LBL[l.metode] + ' ' + fmt(l.nilai)).join(' + ')}</span></span><span>${st}</span></div>`;
+    }).join('')}</div>`;
+  }
+  document.getElementById('hmSave').addEventListener('click', async () => {
+    const err = document.getElementById('hmErr'), btn = document.getElementById('hmSave');
+    err.classList.add('hidden');
+    let payload;
+    if (hmMode === 'gagal') {
+      const a = document.getElementById('hmAlasan').value, c = document.getElementById('hmCatatan').value.trim();
+      if (!a) { err.textContent = 'Pilih alasan gagal tagih.'; err.classList.remove('hidden'); return; }
+      payload = { p_gagal: true, p_alasan: c ? `${a}: ${c}` : a, p_bayar: [] };
+    } else {
+      const lines = hmLines.filter(l => l.nilai > 0).map(l => ({ metode: l.metode, nilai: Math.round(l.nilai), tgl_trf: l.metode === 'TF' ? l.tgl_trf : null,
+        giro_bank: l.metode === 'GIRO' ? l.giro_bank : null, giro_no: l.metode === 'GIRO' ? l.giro_no : null, giro_jt: l.metode === 'GIRO' ? l.giro_jt : null,
+        masuk_branch: hmMulti() && isGabMetode(l.metode) ? (hmBranches().length > 1 ? (l.masuk_branch || hmDefBranch()) : hmItems[0].branch) : null,
+        gabung_id: hmMulti() && isGabMetode(l.metode) ? (l.gabung_id || Date.now().toString(36) + Math.random().toString(36).slice(2, 8)) : null }));
+      // gabungan hanya kalau 1 giro/TF benar-benar terbagi ke >1 toko (beda toko atau beda cabang)
+      const gbr = {};
+      allocate(hmItems, lines).forEach(a => a.lines.forEach(l => { if (l.gabung_id) (gbr[l.gabung_id] = gbr[l.gabung_id] || new Set()).add(tokoKey(a.item.branch, a.item.customer)); }));
+      lines.forEach(l => { if (l.gabung_id && !(gbr[l.gabung_id] && gbr[l.gabung_id].size > 1)) { l.masuk_branch = null; l.gabung_id = null; } });
+      if (!lines.length) { err.textContent = 'Isi minimal satu pembayaran, atau pilih Gagal Tagih.'; err.classList.remove('hidden'); return; }
+      payload = { p_gagal: false, p_alasan: document.getElementById('hmNote').value.trim() || null, p_bayar: lines };
+    }
+    btn.disabled = true;
+    try {
+      if (hmMode === 'gagal') for (const i of hmItems) await rpc('save_tagih_hasil', { p_item_id: i.id, ...payload });
+      else for (const a of allocate(hmItems, payload.p_bayar)) {
+        if (a.lines.length) await rpc('save_tagih_hasil', { p_item_id: a.item.id, ...payload, p_bayar: a.lines });
+      }
+      document.getElementById('hasilModal').classList.add('hidden');
+      await loadHasil();
+    } catch (e) { err.textContent = e.message || String(e); err.classList.remove('hidden'); }
+    finally { btn.disabled = false; }
+  });
+  document.getElementById('hmReset').addEventListener('click', async () => {
+    if (!confirm('Kosongkan hasil invoice ini?')) return;
+    try { await rpc('save_tagih_hasil', { p_item_id: hmItems[0].id, p_gagal: false, p_alasan: null, p_bayar: [] }); document.getElementById('hasilModal').classList.add('hidden'); await loadHasil(); }
+    catch (e) { alert(e.message || e); }
+  });
+
+  /* ---- posting ---- */
+  async function postTransfer(tgl, retry) {
+    const pb = document.getElementById('hsPostBtn'); pb.disabled = true;
+    try {
+      let entries;
+      if (retry) entries = await rpc('get_tagih_post_entries', { p_tgl: tgl });
+      else {
+        const T = batchTotals(hsData.batches.flatMap(b => b.items));
+        if (!confirm(`Posting tagihan ${dayName(tgl)}?\n\nTransfer: ${fmt(T.TF)}\nCash (setor H+1 kerja): ${fmt(T.CASH)}\nGiro → Giro Pending: ${fmt(T.GIRO)}\n\nSetelah posting, rekap tanggal ini terkunci.`)) { pb.disabled = false; return; }
+        entries = await rpc('post_tagih_hari', { p_tgl: tgl });
+      }
+      entries = (entries || []).filter(e => e && +e.nilai);
+      if (entries.length) {
+        const { data, error } = await sb().rpc('add_transfer2_rows_batch', { p_pin: pin, p_entries: entries });
+        if (error) throw error;
+        if (data && data.success === false) throw new Error(data.error || 'Gagal tulis Transfer');
+        try { await sb().rpc('run_transfer2_bank_sync', { p_pin: pin }); } catch (e) { /* tidak kritis */ }
+      }
+      await rpc('mark_tagih_trf_posted', { p_tgl: tgl });
+      toast(`Diposting · ${entries.length} baris masuk Transfer`);
+    } catch (e) { alert('Posting gagal: ' + (e.message || e)); }
+    await loadHasil();
+  }
+  document.getElementById('hsPostBtn').addEventListener('click', () => postTransfer(document.getElementById('hsDate').value, false));
+  document.getElementById('hsDate').addEventListener('change', () => loadHasil().catch(e => showErr(e.message)));
+
+  /* ---- print hasil ---- */
+  // Tgl JT = tgl tracking + hari TOP toko (tabel toko_top; kosong = 0 hari)
+  const jtDate = i => { const d = parseAnyDate(i.tracking_date); if (!d) return null; const x = new Date(d); x.setDate(x.getDate() + (topOf(i.branch, i.customer) ?? (+i.term_hari || 0))); return x; };
+  // Print hasil tagih: 1 halaman = 1 cabang × 1 kolektor. Lunas & tidak lunas jadi 1 daftar, urut nama customer.
+  // kosong = true → form kosong untuk Rekap Tagih (kolom bayar & ringkasan dibiarkan kosong)
+  function printHasilPage(b0, tgl, br, kosong) {
+    const dShort = dMon, dTf = dMon;
+    const tglD = parseAnyDate(tgl);
+    const items = b0.items.filter(i => i.branch === br).slice().sort((a, b) =>
+      tokoName(a.customer).localeCompare(tokoName(b.customer)) || String(a.customer).localeCompare(String(b.customer)) || String(a.invoice_no).localeCompare(String(b.invoice_no)));
+    const H = { CASH: 0, GIRO: 0, TF: 0, CN_RETUR: 0 };
+    let selisih = 0, no = 0, prev = null;
+    const seenGab = new Set(), rows = [];
+    // hitung lembar giro (per bank+no giro) & jumlah transferan (per toko+tgl TF, atau per TF gabungan)
+    const giroSet = new Set(), tfSet = new Set();
+    const countPay = (p, cust) => {
+      if (p.metode === 'GIRO') giroSet.add(p.gabung_id || ((p.giro_bank || '') + '|' + (p.giro_no || '')));
+      if (p.metode === 'TF') tfSet.add(p.gabung_id || (cust + '|' + (p.tgl_trf || '')));
+    };
+    const tr = c => c.blank ? '<tr class="blank"><td colspan="14"></td></tr>' : `<tr><td class="c fit">${++no}</td><td>${c.cust || ''}</td><td class="fit">${c.inv || ''}</td><td class="c">${c.jt || ''}</td>
+      <td class="num${c.od > 0 ? ' od' : ''}">${c.od ?? ''}</td><td>${c.div || ''}</td><td class="num fit">${c.nilai || ''}</td><td class="c">${c.bayar || ''}</td>
+      <td class="num fit">${c.tunai || ''}</td><td class="fit">${c.tg || ''}</td><td class="fit">${c.nogiro || ''}</td><td class="c fit">${c.tgl || ''}</td><td class="num fit">${c.pn || ''}</td><td class="fit ket">${c.ket || ''}</td></tr>`;
+    const payCols = p => p.metode === 'TF' ? { tg: 'TF', tgl: dTf(p.tgl_trf), pn: fmt(p.nilai) }
+      : { tg: esc(p.giro_bank || 'GIRO'), nogiro: esc(p.giro_no || ''), tgl: dShort(p.giro_jt), pn: fmt(p.nilai) };
+    // 1 giro / 1 TF untuk beberapa faktur di toko yang sama → cukup 1 baris (nilai total) di faktur pertama
+    const pKey = p => (p.gabung_id ? 'G|' + p.gabung_id + '|' : '') + payKeys({ bayar: [p] })[0];
+    let tokoPay = new Map(), printed = new Set();
+    items.forEach(i => {
+      if (prev !== null && prev !== i.customer) rows.push(tr({ blank: true }));
+      const first = prev !== i.customer; prev = i.customer;
+      if (first) {
+        tokoPay = new Map(); printed = new Set();
+        items.filter(x => x.customer === i.customer).forEach(x => (x.bayar || []).forEach(p => {
+          if ((p.metode !== 'TF' && p.metode !== 'GIRO') || gabOther(p, br, x.customer)) return;
+          const k = pKey(p); tokoPay.set(k, (tokoPay.get(k) || 0) + (+p.nilai || 0));
+        }));
+      }
+      const pays = i.bayar || [];
+      const cash = sumBy(pays.filter(p => p.metode === 'CASH'), p => +p.nilai);
+      const cn = sumBy(pays.filter(p => p.metode === 'CN_RETUR'), p => +p.nilai);
+      const own = pays.filter(p => (p.metode === 'TF' || p.metode === 'GIRO') && !gabOther(p, br, i.customer));
+      // TF/giro gabungan (1 transaksi untuk beberapa toko/cabang): toko pemegang tampil 1 baris dengan nilai penuh
+      const gabTotal = g => Object.keys(g.cust).reduce((s, k) => s + g.cust[k].n, 0);
+      const show = own.filter(p => { const k = pKey(p); if (printed.has(k)) return false; printed.add(k); return true; })
+        .map(p => { const g = gabOf(p); return { ...p, nilai: g && g.top === tokoKey(br, i.customer) ? gabTotal(g) : tokoPay.get(pKey(p)) }; });
+      const ket = [];
+      if (i.hasil === 'GAGAL') ket.push(esc(i.alasan || 'GAGAL'));
+      if (i.hasil === 'SEBAGIAN') ket.push('CICIL');
+      const gb = s => s.replace(/(^|; )gabung /g, '$1gb ');
+      pays.forEach(p => { const go = gabOther(p, br, i.customer); if (go) ket.push(gb(go)); });
+      show.forEach(p => { const n = gabNote(p, br, i.customer); if (n) ket.push(gb(n.trim().replace(/^\(|\)$/g, ''))); });
+      if (cn) ket.push('RETUR/VOUCHER ' + fmt(cn));
+      if (i.hasil !== 'GAGAL' && i.alasan) ket.push(esc(i.alasan));
+      H.CASH += cash; H.CN_RETUR += cn;
+      own.forEach(p => { H[p.metode] += +p.nilai || 0; countPay(p, i.customer); });
+      if (i.hasil === 'BAYAR') selisih += Math.round(+i.sisa || 0) - Math.round(sumBy(pays, p => +p.nilai));
+      rows.push(tr({
+        cust: first ? esc(tokoName(i.customer)) : '', inv: esc(i.invoice_no), jt: dShort(jtDate(i)),
+        od: daysBetween(jtDate(i), todayD()), div: esc(String(i.salesman || '').trim().split(/\s+/).pop()), nilai: fmt(i.sisa),
+        bayar: i.hasil === 'BAYAR' ? 'Y' : i.hasil === 'SEBAGIAN' ? 'C' : '', tunai: cash ? fmt(cash) : '',
+        ...(show[0] ? payCols(show[0]) : {}), ket: ket.join('; ')
+      }));
+      show.slice(1).forEach(p => rows.push(tr(payCols(p))));
+      // giro/TF gabungan dipegang toko ini: nilai penuh sudah di 1 baris di atas; total header ikut nilai penuh
+      own.forEach(p => {
+        const g = gabOf(p);
+        if (!g || g.top !== tokoKey(br, i.customer) || seenGab.has(p.gabung_id)) return;
+        seenGab.add(p.gabung_id);
+        Object.keys(g.per).filter(o => o !== br).forEach(o => { H[p.metode] += g.per[o]; });
+        Object.keys(g.cust).filter(k => k !== g.top && g.cust[k].br === br).forEach(k => { H[p.metode] += g.cust[k].n; });
+      });
+    });
+    const total = H.CASH + H.GIRO + H.TF + H.CN_RETUR;
+    const hr = (l, v, n) => `<tr><td class="hl">${l}</td><td class="muted2">${kosong ? '' : (n || '')}</td><td class="num hv">${kosong ? '' : v}</td></tr>`;
+    return `<div class="page hasilP"><style>@page { size: A4 portrait; margin: 3mm; }
+      .hasilP table.hd { width: auto; margin-bottom: 5px; } .hasilP table.hd td { border: 0; padding: 0 5px; font-size: calc(10px + 2pt); }
+      .hasilP table.hd.sum { border-collapse: collapse; } .hasilP table.hd.sum td { border-bottom: 1px solid #000; padding: 2px 5px; }
+      .hasilP .hl { font-weight: bold; } .hasilP .hv { font-weight: bold; min-width: 90px; } .hasilP table.hd td.muted2 { color: #444; font-size: calc(9px + 2pt); }
+      .hasilP table.rk { table-layout: fixed; width: 100%; }
+      .hasilP table.rk th { text-align: center; vertical-align: bottom; font-size: calc(9px + 2pt); padding: 2px 1px; }
+      .hasilP table.rk td { font-size: calc(9px + 2pt); height: 24px; padding: 1px 2px; vertical-align: middle; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+      .hasilP .hdBox, .hasilP table.rk thead th { background: ${BR_COL[br] || '#eef2f6'}; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .hasilP .hdBox { padding: 5px 4px 3px; border: 1px solid #999; border-bottom: 0; } .hasilP .hdBox table.hd { margin-bottom: 0; }
+      .hasilP .c { text-align: center; } .hasilP td.od { background: #fbd3a3; } .hasilP table.rk td.fit { font-size: calc(9px + 1pt); text-overflow: clip; overflow: visible; letter-spacing: -0.2px; }
+      .hasilP table.rk td.ket { white-space: normal; word-break: break-word; line-height: 1.15; }
+      .hasilP table.rk tr.blank td { height: 6px; padding: 0; font-size: 0; line-height: 0; }
+      .hasilP .sign { margin-top: 18px; justify-content: flex-start; } .hasilP .sign .ln { margin-top: 35px; font-size: calc(9px + 2pt); }</style>
+      <div class="hdBox" style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px;">
+        <table class="hd"><tr><td class="hl" style="font-size:calc(14px + 2pt);">${esc(br)}</td></tr>
+          <tr><td>Kolektor: <b>${esc(b0.kolektor)}</b></td></tr>
+          <tr><td>Hari: <b>${tglD ? HARI[tglD.getDay()] : ''}</b> · Tanggal: <b>${dMon(tgl)}</b></td></tr>
+          <tr><td>Jumlah: <b class="pgCount"></b></td></tr></table>
+        <table class="hd sum">${hr('TUNAI', fmt(H.CASH))}${hr('GIRO', fmt(H.GIRO), giroSet.size ? giroSet.size + ' lembar' : '')}${hr('TF', fmt(H.TF), tfSet.size ? tfSet.size + ' transfer' : '')}${hr('RETUR / VOUCHER', fmt(H.CN_RETUR))}${hr('TOTAL', fmt(total))}${hr('SELISIH', fmt(selisih))}</table>
+      </div>
+      <table class="rk"><colgroup><col style="width:3.5%"><col style="width:12.5%"><col style="width:10.5%"><col style="width:6%"><col style="width:3.5%"><col style="width:6.5%"><col style="width:8.5%"><col style="width:3.5%">
+        <col style="width:8.5%"><col style="width:6.5%"><col style="width:6%"><col style="width:6.5%"><col style="width:8.5%"><col style="width:9%"></colgroup>
+        <thead><tr><th>No</th><th>Customer</th><th>No Faktur</th><th>Tgl JT</th><th>O/D</th><th>Divisi</th><th>Nilai</th><th>Bayar</th>
+        <th>Tunai</th><th>TF / Giro</th><th>No Giro</th><th>Tgl</th><th>Nilai</th><th>Ket</th></tr></thead>
+      <tbody>${rows.join('') || '<tr><td colspan="14">—</td></tr>'}</tbody></table>
+      <div class="sign"><div><div class="ln">Kolektor (${esc(b0.kolektor)})</div></div></div></div>`;
+  }
+  // semua halaman per cabang untuk 1 kolektor (ikut filter cabang kalau dipilih)
+  // print hanya boleh kalau semua faktur sudah diisi Bayar / Gagal Tagih
+  function cekBelumDiisi(items, kol) {
+    const bl = items.filter(i => !i.hasil);
+    if (!bl.length) return true;
+    alert(`Tidak bisa print: ${bl.length} faktur belum diisi (Bayar / Gagal Tagih)${kol ? ' — ' + kol : ''}.\n\n`
+      + bl.slice(0, 15).map(i => `${i.branch} · ${tokoName(i.customer)} · ${i.invoice_no}`).join('\n') + (bl.length > 15 ? `\n… dan ${bl.length - 15} lagi` : ''));
+    return false;
+  }
+  const hasilPagesFor = (b, tgl) => ['DAF', 'ABP', 'KSI'].filter(br => (!hsBranch || br === hsBranch) && b.items.some(i => i.branch === br)).map(br => printHasilPage(b, tgl, br)).join('');
+  document.getElementById('hsPrintAll').addEventListener('click', () => {
+    const tgl = document.getElementById('hsDate').value;
+    if (!hsData.batches.length) { alert('Tidak ada data.'); return; }
+    if (!cekBelumDiisi(hsData.batches.flatMap(b => b.items.filter(i => !hsBranch || i.branch === hsBranch)))) return;
+    const rowsSum = hsData.batches.map(b => ({ b, t: batchTotals(b.items) }));
+    const T = batchTotals(hsData.batches.flatMap(b => b.items));
+    const summary = `<div class="page"><h2>REKAP HASIL TAGIH — SEMUA KOLEKTOR</h2><div class="sub">Tanggal tagih: <b>${dayName(tgl)}</b></div>
+      <table><thead><tr><th>Kolektor</th><th class="num">Invoice</th><th class="num">Bayar</th><th class="num">Gagal</th><th class="num">Cash</th><th class="num">TF</th><th class="num">Giro</th><th class="num">CN/Retur</th><th class="num">Total</th><th class="num">Sisa Gagal</th></tr></thead><tbody>
+      ${rowsSum.map(({ b, t }) => `<tr><td>${esc(b.kolektor)}</td><td class="num">${b.items.length}</td><td class="num">${t.bayarN}</td><td class="num">${t.gagalN}</td>
+        <td class="num">${fmt(t.CASH)}</td><td class="num">${fmt(t.TF)}</td><td class="num">${fmt(t.GIRO)}</td><td class="num">${fmt(t.CN_RETUR)}</td><td class="num">${fmt(t.total)}</td><td class="num">${fmt(t.gagalSisa)}</td></tr>`).join('')}
+      <tr class="tot"><td>TOTAL</td><td class="num">${T.bayarN + T.gagalN + T.belumN}</td><td class="num">${T.bayarN}</td><td class="num">${T.gagalN}</td><td class="num">${fmt(T.CASH)}</td>
+        <td class="num">${fmt(T.TF)}</td><td class="num">${fmt(T.GIRO)}</td><td class="num">${fmt(T.CN_RETUR)}</td><td class="num">${fmt(T.total)}</td><td class="num">${fmt(T.gagalSisa)}</td></tr></tbody></table>
+      <div class="sign"><div><div class="ln">Kasir</div></div><div><div class="ln">Admin</div></div></div></div>`;
+    printDoc('Hasil Tagih ' + tgl, summary + hsData.batches.map(b => hasilPagesFor(b, tgl)).join(''));
+  });
+
+  /* ================= TAB: LAPORAN HARIAN KOLEKTOR =================
+     Per bulan, per cabang. Sub tab Per Kolektor: baris tanggal × kolom kolektor (total tertagih).
+     Sub tab Per Pembayaran: baris tanggal × kolom Tunai / TRF / Giro / CN. Data dari get_tagih_batches per hari. */
+  let lhView = 'kol', lhMonthKey = '', lhDays = [];
+  async function loadLH(force) {
+    const mi = document.getElementById('lhMonth');
+    if (!mi.value) { const t = todayD(); mi.value = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}`; }
+    if (!force && lhMonthKey === mi.value) { renderLH(); return; }
+    const [y, m] = mi.value.split('-').map(Number);
+    const n = new Date(y, m, 0).getDate(), days = [];
+    for (let d = 1; d <= n; d++) days.push(new Date(y, m - 1, d));
+    document.getElementById('lhInfo').textContent = 'Memuat...';
+    document.getElementById('lhBody').innerHTML = '';
+    const today = todayD();
+    lhDays = await Promise.all(days.map(async d => {
+      if (d.getDay() === 0 || d > today) return { d, batches: [] }; // Minggu tutup / belum terjadi
+      const r = (await rpc('get_tagih_batches', { p_tgl: iso(d) })) || {};
+      return { d, batches: r.batches || [] };
+    }));
+    lhMonthKey = mi.value;
+    document.getElementById('lhInfo').textContent = '';
+    renderLH();
+  }
+  function renderLH() {
+    const BR = ['DAF', 'ABP', 'KSI'];
+    const kolNames = [...new Set([...(ctx.kolektor || []).filter(k => k.aktif).map(k => k.nama), ...lhDays.flatMap(x => x.batches.map(b => b.kolektor))])];
+    const cell = v => `<td class="num">${v ? fmt(v) : ''}</td>`;
+    const tables = BR.map(br => {
+      const cols = lhView === 'kol' ? kolNames.map(k => ({ l: k, f: x => batchTotals(x.batches.filter(b => b.kolektor === k).flatMap(b => b.items).filter(i => i.branch === br)).total }))
+        : [['TUNAI', 'CASH'], ['TRF', 'TF'], ['GIRO', 'GIRO'], ['CN', 'CN_RETUR']].map(([l, k]) => ({ l, f: x => batchTotals(x.batches.flatMap(b => b.items).filter(i => i.branch === br))[k] }));
+      const vals = lhDays.map(x => cols.map(c => c.f(x)));
+      const colT = cols.map((c, j) => sumBy(vals, v => v[j]));
+      const body = lhDays.map((x, r) => { const rt = sumBy(vals[r], v => v);
+        return `<tr${x.d.getDay() === 0 ? ' class="sun"' : ''}><td>${dMon(x.d)}</td>${vals[r].map(cell).join('')}${cell(rt)}</tr>`; }).join('');
+      return `<div class="card"><div class="hd"><span class="brTag ${br}">${br}</span></div><div class="tableWrap"><table>
+        <thead><tr><th>TGL</th>${cols.map(c => `<th class="num">${esc(c.l)}</th>`).join('')}<th class="num">TOTAL</th></tr></thead>
+        <tbody>${body}<tr class="tt"><td>TOTAL</td>${colT.map(cell).join('')}${cell(sumBy(colT, v => v))}</tr></tbody></table></div></div>`;
+    }).join('');
+    document.getElementById('lhBody').innerHTML = `<div class="lhGrid">${tables}</div>`;
+  }
+  document.getElementById('lhMonth').addEventListener('change', () => loadLH().catch(e => showErr(e.message)));
+  document.getElementById('lhReload').addEventListener('click', () => loadLH(true).catch(e => showErr(e.message)));
+  document.querySelectorAll('#lhSeg button').forEach(b => b.addEventListener('click', () => {
+    lhView = b.dataset.v; document.querySelectorAll('#lhSeg button').forEach(x => x.classList.toggle('active', x === b)); renderLH();
+  }));
+
+  /* ================= TAB: GIRO PENDING ================= */
+  let giroStatus = 'PENDING', giroRows = [];
+  async function loadGiro() {
+    giroRows = (await rpc('get_giro_pending', { p_status: giroStatus })) || [];
+    renderGiro();
+  }
+  function renderGiro() {
+    const q = document.getElementById('giroQ').value.trim().toLowerCase();
+    const list = giroRows.filter(g => !q || [g.customer, g.no_giro, g.bank, g.invoice_nos].join(' ').toLowerCase().includes(q));
+    const t0 = todayD();
+    document.getElementById('giroSum').textContent = `${list.length} giro · Total ${fmt(sumBy(list, g => g.nilai))}`;
+    document.getElementById('giroEmpty').classList.toggle('hidden', list.length > 0);
+    document.getElementById('giroBody').innerHTML = list.map(g => {
+      const jt = parseAnyDate(g.tgl_jt), due = g.status === 'PENDING' && jt && jt <= t0;
+      return `<tr><td style="${due ? 'color:var(--warn);font-weight:600' : ''}">${dmy(jt)}${due ? ' ⚑' : ''}</td><td>${esc(g.branch)}</td><td class="wrapTxt">${esc(g.customer)}</td>
+        <td class="invNo small wrapTxt">${esc(g.invoice_nos)}</td><td>${esc(g.bank)}</td><td class="invNo">${esc(g.no_giro)}</td><td class="num sisa">${fmt(g.nilai)}</td>
+        <td>${dmy(g.tgl_tagih)}</td><td><span class="badge ${g.status}">${g.status}</span>${g.tgl_cair ? ` <span class="small muted">${dmy(g.tgl_cair)}</span>` : ''}</td>
+        <td>${g.status === 'PENDING' ? `<div class="actions"><input type="date" class="inp sm" id="gc${g.id}" value="${iso(t0)}">
+          <button class="btn sm blue" data-cair="${g.id}">Cair</button><button class="btn sm red" data-tolak="${g.id}">Tolak</button></div>`
+          : `<button class="btn sm" data-pend="${g.id}">Kembalikan ke Pending</button>`}</td></tr>`;
+    }).join('');
+    const act = async (id, st, d) => { try { await rpc('set_giro_status', { p_id: +id, p_status: st, p_tgl_cair: d || null }); await loadGiro(); } catch (e) { alert(e.message || e); } };
+    document.querySelectorAll('[data-cair]').forEach(b => b.addEventListener('click', () => act(b.dataset.cair, 'CAIR', document.getElementById('gc' + b.dataset.cair).value)));
+    document.querySelectorAll('[data-tolak]').forEach(b => b.addEventListener('click', () => { if (confirm('Tandai giro DITOLAK?')) act(b.dataset.tolak, 'TOLAK'); }));
+    document.querySelectorAll('[data-pend]').forEach(b => b.addEventListener('click', () => act(b.dataset.pend, 'PENDING')));
+  }
+  document.querySelectorAll('#giroSeg button').forEach(b => b.addEventListener('click', () => {
+    giroStatus = b.dataset.s; document.querySelectorAll('#giroSeg button').forEach(x => x.classList.toggle('active', x === b));
+    loadGiro().catch(e => showErr(e.message));
+  }));
+  document.getElementById('giroQ').addEventListener('input', renderGiro);
+
+  /* ================= TAB: MASTER ================= */
+  let tkSel = new Set(), tkPage = 0;
+  function tokoList() {
+    const m = new Map();
+    rows.forEach(r => {
+      const k = tokoKey(r.branch, r.customer);
+      let t = m.get(k);
+      if (!t) { t = { key: k, branch: r.branch, customer: r.customer, n: 0, sisa: 0 }; m.set(k, t); }
+      t.n++; t.sisa += r.sisa;
+    });
+    (ctx.toko || []).forEach(t => { const k = tokoKey(t.branch, t.customer); if (!m.has(k)) m.set(k, { key: k, branch: String(t.branch).toUpperCase(), customer: t.customer, n: 0, sisa: 0 }); });
+    kol2Map.forEach((v, k) => { if (!m.has(k)) { const i = k.indexOf('|'); m.set(k, { key: k, branch: k.slice(0, i), customer: k.slice(i + 1), n: 0, sisa: 0 }); } });
+    return [...m.values()].map(t => { const a = tokoMap.get(t.key); return { ...t, kolId: a ? String(a.kolektor_id) : '', kol2Id: kol2Map.get(t.key) || '', hari: a ? (a.hari_tagih || []) : [] }; });
+  }
+  function tkFiltered() {
+    const b = document.getElementById('tkBranch').value, a = document.getElementById('tkAssign').value, q = document.getElementById('tkQ').value.trim().toLowerCase();
+    return tokoList().filter(t => (!b || t.branch === b) && (!a || (a === '-' ? (!t.kolId && !t.kol2Id) : (t.kolId === a || t.kol2Id === a))) && (!q || t.customer.toLowerCase().includes(q)) && (!tkNoTopOn || topOf(t.branch, t.customer) === null))
+      .sort((x, y) => x.branch.localeCompare(y.branch) || x.customer.localeCompare(y.customer));
+  }
+  function renderMaster() {
+    renderKolektor();
+    renderToko();
+  }
+  // daftar kolektor (di dalam modal Kelola Kolektor)
+  function renderKolektor() {
+    const tl = tokoList();
+    document.getElementById('kolBody').innerHTML = (ctx.kolektor || []).map(k => {
+      const n = tl.filter(t => t.kolId === String(k.id) || t.kol2Id === String(k.id)).length;
+      return `<tr><td><input class="inp sm" id="kn${k.id}" value="${esc(k.nama)}" style="width:180px;"></td>
+        <td><input type="checkbox" id="ka${k.id}" ${k.aktif ? 'checked' : ''}></td><td class="num">${n}</td>
+        <td class="actions"><button class="btn sm" data-ksave="${k.id}">Simpan</button>
+        <button class="btn sm red" data-kdel="${k.id}" ${n ? `disabled title="Masih punya ${n} toko. Pindahkan tokonya dulu."` : ''}>Hapus</button></td></tr>`;
+    }).join('') || '<tr><td colspan="4" class="muted">Belum ada kolektor. Isi nama lalu klik + Tambah.</td></tr>';
+    document.querySelectorAll('[data-ksave]').forEach(b => b.addEventListener('click', async () => {
+      const id = b.dataset.ksave;
+      try { await rpc('save_kolektor', { p_id: +id, p_nama: document.getElementById('kn' + id).value, p_aktif: document.getElementById('ka' + id).checked }); await reloadCtx(); renderMaster(); toast('Tersimpan'); }
+      catch (e) { alert(e.message || e); }
+    }));
+    document.querySelectorAll('[data-kdel]').forEach(b => b.addEventListener('click', async () => {
+      const k = kolById.get(b.dataset.kdel);
+      if (!confirm(`Hapus kolektor ${k ? k.nama : ''}?`)) return;
+      b.disabled = true;
+      try { await rpc('delete_kolektor', { p_id: +b.dataset.kdel }); await reloadCtx(); renderMaster(); toast('Kolektor dihapus'); }
+      catch (e) { alert(e.message || e); b.disabled = false; }
+    }));
+  }
+  function renderToko() {
+    const list = tkFiltered();
+    const totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+    tkPage = Math.min(Math.max(tkPage, 0), totalPages - 1);
+    const s = tkPage * PAGE_SIZE, pr = list.slice(s, s + PAGE_SIZE);
+    document.getElementById('tkBody').innerHTML = pr.map(t => `
+      <tr data-k="${esc(t.key)}"><td class="chk"><input type="checkbox" class="tkChk" data-k="${esc(t.key)}" ${tkSel.has(t.key) ? 'checked' : ''}></td>
+        <td>${esc(t.branch)}</td><td class="wrapTxt">${esc(t.customer)}</td>
+        <td>${t.kolId && kolById.get(t.kolId) ? esc(kolById.get(t.kolId).nama) : '<span class="muted">—</span>'}</td>
+        <td>${t.kol2Id && kolById.get(t.kol2Id) ? esc(kolById.get(t.kol2Id).nama) : '<span class="muted">—</span>'}</td>
+        <td class="small">${t.kolId ? hariLabel(t.hari) : ''}</td><td class="num">${topOf(t.branch, t.customer) ?? '<span class="muted">—</span>'}</td><td class="num">${t.n || '—'}</td><td class="num">${t.sisa ? fmt(t.sisa) : '—'}</td></tr>`).join('')
+      || '<tr><td colspan="9" class="muted">Tidak ada toko.</td></tr>';
+    // tombol "Belum ada kolektor (N)" — N ikut filter branch
+    const bNow = document.getElementById('tkBranch').value, nb = document.getElementById('tkNoKol');
+    const nNo = tokoList().filter(t => (!bNow || t.branch === bNow) && !t.kolId && !t.kol2Id).length;
+    const noOn = document.getElementById('tkAssign').value === '-';
+    nb.textContent = (noOn ? '✓ ' : '') + `Belum ada kolektor (${nNo})`;
+    nb.classList.toggle('blue', noOn);
+    // tombol "TOP kosong (N)" — N ikut filter branch
+    const nt = document.getElementById('tkNoTop');
+    const nTop = tokoList().filter(t => (!bNow || t.branch === bNow) && topOf(t.branch, t.customer) === null).length;
+    nt.textContent = (tkNoTopOn ? '✓ ' : '') + `TOP kosong (${nTop})`;
+    nt.classList.toggle('blue', tkNoTopOn);
+    document.getElementById('tkAll').checked = list.length > 0 && list.every(t => tkSel.has(t.key));
+    document.getElementById('tkSelCount').textContent = tkSel.size;
+    document.getElementById('tkPager').innerHTML = `<span>${list.length} toko</span><div class="btns">
+      <button class="btn sm" id="tkPrev" ${tkPage === 0 ? 'disabled' : ''}>Prev</button><span>Page ${tkPage + 1} of ${totalPages}</span>
+      <button class="btn sm" id="tkNext" ${tkPage >= totalPages - 1 ? 'disabled' : ''}>Next</button></div>`;
+    document.getElementById('tkPrev').onclick = () => { tkPage--; renderToko(); };
+    document.getElementById('tkNext').onclick = () => { tkPage++; renderToko(); };
+  }
+  // drag-select checkbox (ala RekeningView)
+  let tkDrag = null;
+  document.getElementById('tkBody').addEventListener('mousedown', e => {
+    const c = e.target.closest('.tkChk'); if (!c) return;
+    e.preventDefault();
+    tkDrag = !tkSel.has(c.dataset.k);
+    tkSetOne(c.dataset.k, tkDrag, c);
+  });
+  document.getElementById('tkBody').addEventListener('mouseover', e => {
+    if (tkDrag === null) return;
+    const tr = e.target.closest('tr[data-k]'); if (!tr) return;
+    tkSetOne(tr.dataset.k, tkDrag, tr.querySelector('.tkChk'));
+  });
+  document.addEventListener('mouseup', () => { tkDrag = null; });
+  document.getElementById('tkBody').addEventListener('click', e => { if (e.target.closest('.tkChk')) e.preventDefault(); });
+  function tkSetOne(k, on, chk) { on ? tkSel.add(k) : tkSel.delete(k); if (chk) chk.checked = on; document.getElementById('tkSelCount').textContent = tkSel.size; }
+  document.getElementById('tkAll').addEventListener('change', e => { tkFiltered().forEach(t => e.target.checked ? tkSel.add(t.key) : tkSel.delete(t.key)); renderToko(); });
+  ['tkBranch', 'tkAssign'].forEach(id => document.getElementById(id).addEventListener('change', () => { tkPage = 0; renderToko(); }));
+
+  document.getElementById('tkNoTop').addEventListener('click', () => { tkNoTopOn = !tkNoTopOn; tkPage = 0; renderToko(); });
+  document.getElementById('tkNoKol').addEventListener('click', () => {
+    const s = document.getElementById('tkAssign');
+    s.value = s.value === '-' ? '' : '-';
+    tkPage = 0; renderToko();
+  });
+  let tkTimer = null;
+  document.getElementById('tkQ').addEventListener('input', () => { clearTimeout(tkTimer); tkTimer = setTimeout(() => { tkPage = 0; renderToko(); }, 250); });
+  document.getElementById('tkClearSel').addEventListener('click', () => { tkSel.clear(); renderToko(); });
+  document.getElementById('tkHari').innerHTML = [1, 2, 3, 4, 5, 6].map(n => `<label><input type="checkbox" value="${n}">${HARI_S[n]}</label>`).join('');
+  document.getElementById('tkApply').addEventListener('click', async () => {
+    const kol = document.getElementById('tkSetKol').value;
+    if (!tkSel.size) { alert('Pilih toko dulu.'); return; }
+    if (!kol) { alert('Pilih kolektor.'); return; }
+    const hari = [...document.querySelectorAll('#tkHari input:checked')].map(c => +c.value);
+    const all = new Map(tokoList().map(t => [t.key, t]));
+    if (document.getElementById('tkSlot').value === '2') {
+      if (!kol2Ok) { alert('Slot Kolektor 2 belum aktif. Jalankan toko_kolektor2.sql di Supabase SQL Editor dulu.'); return; }
+      const sel2 = [...tkSel].map(k => all.get(k)).filter(t => t && t.branch === 'DAF').map(t => ({ branch: t.branch, customer: t.customer }));
+      if (!sel2.length) { alert('Kolektor 2 hanya untuk toko DAF. Tidak ada toko DAF yang dipilih.'); return; }
+      const nm2 = kol === '-' ? 'LEPAS Kolektor 2' : 'Kolektor 2 = ' + kolById.get(kol).nama;
+      const skip = tkSel.size - sel2.length;
+      if (!confirm(`${sel2.length} toko DAF → ${nm2}?${skip ? `\n(${skip} toko non-DAF dilewati)` : ''}`)) return;
+      try {
+        await rpc('save_toko_kolektor2', { p_rows: sel2, p_kolektor_id: kol === '-' ? null : +kol });
+        tkSel.clear(); await reloadCtx(); renderMaster(); toast('Tersimpan');
+      } catch (e) { alert(e.message || e); }
+      return;
+    }
+    const sel = [...tkSel].map(k => all.get(k)).filter(Boolean).map(t => ({ branch: t.branch, customer: t.customer }));
+    const kname = kol === '-' ? 'LEPAS kolektor' : kolById.get(kol).nama + ' · ' + hariLabel(hari);
+    if (!confirm(`${sel.length} toko → ${kname}?`)) return;
+    try {
+      await rpc('save_toko_kolektor', { p_rows: sel, p_kolektor_id: kol === '-' ? null : +kol, p_hari: kol === '-' ? null : hari });
+      tkSel.clear(); await reloadCtx(); enrich(); renderMaster(); toast('Tersimpan');
+    } catch (e) { alert(e.message || e); }
+  });
+  document.getElementById('kolOpen').addEventListener('click', () => {
+    renderKolektor();
+    document.getElementById('kolModal').classList.remove('hidden');
+  });
+  document.getElementById('kolAdd').addEventListener('click', async () => {
+    const inp = document.getElementById('kolNewNama'), nama = inp.value.trim();
+    if (!nama) { inp.focus(); return; }
+    try { await rpc('save_kolektor', { p_id: null, p_nama: nama, p_aktif: true }); inp.value = ''; await reloadCtx(); renderMaster(); toast('Kolektor ditambah'); } catch (e) { alert(e.message || e); }
+  });
+  document.getElementById('kolNewNama').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('kolAdd').click(); });
+
+  /* ---------- Import Excel: toko → kolektor + hari tagih ---------- */
+  const HARI_NUM = { SENIN: 1, SELASA: 2, RABU: 3, KAMIS: 4, JUMAT: 5, "JUM'AT": 5, SABTU: 6 };
+  const normNm = s => String(s || '').toUpperCase().replace(/\s*\(CST[^)]*\)\s*$/i, '').replace(/\*/g, ' ').replace(/[^A-Z0-9]+/g, ' ').trim();
+  let impWb = null, impRows = [], impKolMap = {};
+  document.getElementById('impOpen').addEventListener('click', () => {
+    document.getElementById('impModal').classList.remove('hidden');
+  });
+  document.getElementById('impFile').addEventListener('change', async e => {
+    const f = e.target.files[0]; if (!f) return;
+    impWb = XLSX.read(await f.arrayBuffer(), { type: 'array' });
+    const sel = document.getElementById('impSheet');
+    sel.innerHTML = impWb.SheetNames.map(n => `<option>${esc(n)}</option>`).join('');
+    sel.style.display = impWb.SheetNames.length > 1 ? '' : 'none';
+    impParse();
+  });
+  ['impSheet', 'impBranch', 'impOver'].forEach(id => document.getElementById(id).addEventListener('change', () => impWb && impParse()));
+
+  function impParse() {
+    const ws = impWb.Sheets[document.getElementById('impSheet').value || impWb.SheetNames[0]];
+    const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
+    // cari baris header (yang ada kata "kolektor")
+    const hi = aoa.findIndex(r => r.some(c => /kolektor/i.test(c)));
+    if (hi < 0) { document.getElementById('impBody').innerHTML = '<span class="red">Kolom "kolektor" tidak ditemukan.</span>'; return; }
+    const H = aoa[hi].map(c => String(c).trim().toUpperCase());
+    const ci = re => H.findIndex(h => re.test(h));
+    const cKol = ci(/KOLEKTOR/), cJ1 = ci(/JADWAL\s*1/), cJ2 = ci(/JADWAL\s*2/), cBr = ci(/^(BRANCH|CABANG)$/);
+    let cNm = ci(/^(TOKO|CUSTOMER|NAMA)/); if (cNm < 0) cNm = 0;
+    const hari = v => HARI_NUM[String(v || '').trim().toUpperCase()] || null;
+    // kolektor ke-2 = kolom tepat setelah "kolektor" (header kosong / berisi KOLEKTOR) → khusus DAF salesman MAYORA
+    const cKol2 = (cKol + 1 < H.length && (H[cKol + 1] === '' || /KOLEKTOR/.test(H[cKol + 1])) && ![cJ1, cJ2, cBr, cNm].includes(cKol + 1)) ? cKol + 1 : -1;
+    impRows = aoa.slice(hi + 1).map(r => ({
+      nama: String(r[cNm] || '').trim(), kol: String(r[cKol] || '').trim().toUpperCase(),
+      kol2: cKol2 >= 0 ? String(r[cKol2] || '').trim().toUpperCase() : '',
+      br: cBr >= 0 ? String(r[cBr] || '').trim().toUpperCase().replace(/\s+/g, '') : '',
+      hari: [...new Set([cJ1, cJ2].filter(i => i >= 0).map(i => hari(r[i])).filter(Boolean))].sort()
+    })).filter(r => r.nama && r.kol);
+
+    // index toko: nama ternormalisasi → daftar toko (bisa >1 cabang)
+    const fb = document.getElementById('impBranch').value;
+    const idx = new Map();
+    tokoList().filter(t => !fb || t.branch === fb).forEach(t => {
+      const k = normNm(t.customer); if (!idx.has(k)) idx.set(k, []); idx.get(k).push(t);
+    });
+    impRows.forEach(r => {
+      const full = r.nama, parts = full.split(',');
+      const cands = [full, parts.slice(0, -1).join(','), parts[0]].map(normNm).filter(Boolean);
+      const k = cands.find(c => idx.has(c));
+      r.toko = k ? idx.get(k).filter(t => !r.br || t.branch === r.br) : [];
+      // Kolektor 2 hanya untuk toko DAF (dipakai di invoice salesman Mayora)
+      r.k2 = r.kol2 && r.kol2 !== r.kol ? r.kol2 : '';
+    });
+
+    // pemetaan nama kolektor Excel → kolektor di sistem
+    const kols = ctx.kolektor || [];
+    impKolNames().forEach(n => {
+      if (impKolMap[n] !== undefined) return;
+      const ex = kols.find(k => k.nama.trim().toUpperCase() === n);
+      const part = kols.filter(k => k.nama.toUpperCase().split(/\s+/).includes(n));
+      impKolMap[n] = ex ? String(ex.id) : part.length === 1 ? String(part[0].id) : 'NEW';
+    });
+    impRender();
+  }
+  // nama kolektor Excel yang benar-benar dipakai (slot 2 hanya kalau ada toko DAF)
+  function impKolNames() {
+    const s = new Set();
+    impRows.forEach(r => { if (!r.toko.length) return; s.add(r.kol); if (r.k2 && r.toko.some(t => t.branch === 'DAF')) s.add(r.k2); });
+    return [...s].sort();
+  }
+  // rencana simpan: slot 1 & slot 2 per toko (baris Excel terakhir menang kalau toko dobel)
+  function impPlan() {
+    const over = document.getElementById('impOver').checked;
+    const p1 = new Map(), p2 = new Map(); let skipOld = 0;
+    impRows.forEach(r => r.toko.forEach(t => {
+      const kid = impKolMap[r.kol];
+      if (kid && kid !== 'SKIP') { if (t.kolId && !over) skipOld++; else p1.set(t.key, { t, kid, hari: r.hari }); }
+      if (t.branch === 'DAF' && r.k2) {
+        const kid2 = impKolMap[r.k2];
+        if (kid2 && kid2 !== 'SKIP' && (over || !t.kol2Id)) p2.set(t.key, { t, kid: kid2 });
+      }
+    }));
+    return { p1, p2, skipOld };
+  }
+
+  function impRender() {
+    const ok = impRows.filter(r => r.toko.length), miss = impRows.filter(r => !r.toko.length);
+    const { p1, p2, skipOld } = impPlan();
+    const kolNames = impKolNames();
+    const cnt = n => impRows.reduce((a, r) => a + r.toko.filter(t => r.kol === n || (t.branch === 'DAF' && r.k2 === n)).length, 0);
+    const opt = n => `<option value="NEW" ${impKolMap[n] === 'NEW' ? 'selected' : ''}>+ Buat baru: ${esc(n)}</option>
+      <option value="SKIP" ${impKolMap[n] === 'SKIP' ? 'selected' : ''}>✕ Lewati</option>` +
+      (ctx.kolektor || []).map(k => `<option value="${k.id}" ${impKolMap[n] === String(k.id) ? 'selected' : ''}>${esc(k.nama)}</option>`).join('');
+    const n2 = p2.size;
+    document.getElementById('impBody').innerHTML = `
+      <div style="margin-bottom:10px;"><b>${impRows.length}</b> baris Excel · cocok <b>${ok.length}</b> · tidak ketemu <b class="red">${miss.length}</b>
+        → Kolektor 1: <b>${p1.size}</b> toko · Kolektor 2 (DAF): <b>${n2}</b> toko${skipOld ? ` · dilewati (sudah ada kolektor) ${skipOld}` : ''}</div>
+      <div class="meta" style="margin-bottom:6px;">Kolom kolektor ke-1 → Kolektor 1 (semua cabang). Kolom ke-2 → Kolektor 2, hanya toko DAF.
+        Saat tagih: invoice DAF salesman MAYORA → Kolektor 2, lainnya → Kolektor 1.</div>
+      ${n2 && !kol2Ok ? `<div class="red" style="margin-bottom:8px;">Slot Kolektor 2 belum aktif. Jalankan toko_kolektor2.sql di Supabase SQL Editor dulu, lalu Refresh.</div>` : ''}
+      <h4 style="margin:8px 0;">Nama kolektor di Excel → kolektor di sistem</h4>
+      <div class="tableWrap" style="max-height:200px;"><table><thead><tr><th>Excel</th><th>Jadi</th><th class="num">Toko</th></tr></thead><tbody>
+        ${kolNames.map(n => `<tr><td>${esc(n)}</td><td><select class="inp sm impKol" data-n="${esc(n)}">${opt(n)}</select></td><td class="num">${cnt(n)}</td></tr>`).join('')}
+      </tbody></table></div>
+      <div class="actions" style="margin:12px 0;"><button class="btn sm blue" id="impSave" ${(p1.size || (n2 && kol2Ok)) ? '' : 'disabled'}>Simpan</button></div>
+      ${miss.length ? `<details><summary class="red">${miss.length} toko di Excel tidak ketemu di sistem (tidak disimpan)</summary>
+        <div class="tableWrap" style="max-height:240px;"><table><tbody>${miss.map(r => `<tr><td>${esc(r.nama)}</td><td>${esc(r.br)}</td><td>${esc(r.kol)}</td></tr>`).join('')}</tbody></table></div></details>` : ''}
+      <details style="margin-top:6px;"><summary>Lihat yang cocok (${ok.length})</summary>
+        <div class="tableWrap" style="max-height:240px;"><table><thead><tr><th>Excel</th><th>Toko di sistem</th><th>Kolektor 1</th><th>Kolektor 2</th><th>Hari</th></tr></thead><tbody>
+        ${ok.map(r => `<tr><td>${esc(r.nama)}</td><td>${r.toko.map(t => esc(t.branch + ' · ' + t.customer)).join('<br>')}</td><td>${esc(r.kol)}</td>
+          <td>${r.toko.map(t => t.branch === 'DAF' && r.k2 ? esc(r.k2) : '—').join('<br>')}</td><td>${hariLabel(r.hari)}</td></tr>`).join('')}
+        </tbody></table></div></details>`;
+    document.querySelectorAll('.impKol').forEach(s => s.addEventListener('change', () => { impKolMap[s.dataset.n] = s.value; impRender(); }));
+    document.getElementById('impSave').addEventListener('click', impSave);
+  }
+
+  async function impSave() {
+    const btn = document.getElementById('impSave');
+    if (!confirm('Simpan hasil import ke Master Kolektor?')) return;
+    btn.disabled = true; btn.textContent = 'Menyimpan...';
+    try {
+      // buat kolektor baru kalau perlu
+      const need = impKolNames().filter(n => impKolMap[n] === 'NEW');
+      if (need.length) {
+        for (const n of need) await rpc('save_kolektor', { p_id: null, p_nama: n, p_aktif: true });
+        await reloadCtx();
+        need.forEach(n => { const k = (ctx.kolektor || []).find(x => x.nama.trim().toUpperCase() === n); if (k) impKolMap[n] = String(k.id); });
+      }
+      const { p1, p2 } = impPlan();
+      // slot 1: kelompok per (kolektor, hari) → 1 panggilan RPC per kelompok
+      const g1 = new Map(), g2 = new Map();
+      p1.forEach(({ t, kid, hari }) => {
+        if (kid === 'NEW') return;
+        const g = kid + '|' + hari.join(',');
+        if (!g1.has(g)) g1.set(g, { kid: +kid, hari, rows: [] });
+        g1.get(g).rows.push({ branch: t.branch, customer: t.customer });
+      });
+      if (kol2Ok) p2.forEach(({ t, kid }) => {
+        if (kid === 'NEW') return;
+        if (!g2.has(kid)) g2.set(kid, []);
+        g2.get(kid).push({ branch: t.branch, customer: t.customer });
+      });
+      const tot = g1.size + g2.size; let i = 0;
+      for (const g of g1.values()) {
+        btn.textContent = `Menyimpan ${++i}/${tot}...`;
+        await rpc('save_toko_kolektor', { p_rows: g.rows, p_kolektor_id: g.kid, p_hari: g.hari });
+      }
+      for (const [kid, rws] of g2) {
+        btn.textContent = `Menyimpan ${++i}/${tot}...`;
+        await rpc('save_toko_kolektor2', { p_rows: rws, p_kolektor_id: +kid });
+      }
+      await reloadCtx(); renderMaster();
+      toast(`Tersimpan: Kolektor 1 ${p1.size} toko · Kolektor 2 ${kol2Ok ? p2.size : 0} toko`);
+      document.getElementById('impModal').classList.add('hidden');
+      impWb = null; impRows = []; impKolMap = {}; document.getElementById('impFile').value = '';
+      document.getElementById('impBody').innerHTML = 'Pilih file Excel.';
+    } catch (e) { alert(e.message || e); btn.disabled = false; btn.textContent = 'Simpan'; }
+  }
+
+  /* ---------- Import Excel: hari TOP per toko ---------- */
+  let topWb = null, topPlan = [];
+  document.getElementById('topOpen').addEventListener('click', () => document.getElementById('topModal').classList.remove('hidden'));
+  document.getElementById('topFile').addEventListener('change', async e => {
+    const f = e.target.files[0]; if (!f) return;
+    topWb = XLSX.read(await f.arrayBuffer(), { type: 'array' });
+    const sel = document.getElementById('topSheet');
+    sel.innerHTML = topWb.SheetNames.map(n => `<option>${esc(n)}</option>`).join('');
+    sel.style.display = topWb.SheetNames.length > 1 ? '' : 'none';
+    topParse();
+  });
+  ['topSheet', 'topBranch'].forEach(id => document.getElementById(id).addEventListener('change', () => topWb && topParse()));
+  function topParse() {
+    const body = document.getElementById('topBody');
+    const ws = topWb.Sheets[document.getElementById('topSheet').value || topWb.SheetNames[0]];
+    const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
+    const hi = aoa.findIndex(r => r.some(c => /\bTOP\b/i.test(c)));
+    if (hi < 0) { body.innerHTML = '<span class="red">Kolom "HARI TOP" tidak ditemukan.</span>'; return; }
+    const H = aoa[hi].map(c => String(c).trim().toUpperCase());
+    const cTop = H.findIndex(h => /\bTOP\b/.test(h)), cBr = H.findIndex(h => /^(BRANCH|CABANG)$/.test(h));
+    let cNm = H.findIndex(h => /CUSTOMER|TOKO|NAMA/.test(h)); if (cNm < 0) cNm = 0;
+    const xs = aoa.slice(hi + 1).map(r => ({
+      nama: String(r[cNm] || '').trim(), top: parseInt(String(r[cTop]).replace(/[^0-9]/g, ''), 10),
+      br: cBr >= 0 ? String(r[cBr] || '').trim().toUpperCase().replace(/\s+/g, '') : ''
+    })).filter(r => r.nama && !isNaN(r.top));
+    const fb = document.getElementById('topBranch').value, idx = new Map();
+    tokoList().filter(t => !fb || t.branch === fb).forEach(t => { const k = normNm(t.customer); if (!idx.has(k)) idx.set(k, []); idx.get(k).push(t); });
+    const plan = new Map(), miss = [];
+    xs.forEach(r => {
+      const parts = r.nama.split(',');
+      const k = [r.nama, parts.slice(0, -1).join(','), parts[0]].map(normNm).filter(Boolean).find(c => idx.has(c));
+      const toko = k ? idx.get(k).filter(t => !r.br || t.branch === r.br) : [];
+      if (!toko.length) { miss.push(r); return; }
+      toko.forEach(t => plan.set(t.key, { branch: t.branch, customer: t.customer, hari_top: r.top, nama: r.nama, old: topOf(t.branch, t.customer) }));
+    });
+    topPlan = [...plan.values()];
+    const nUbah = topPlan.filter(p => p.old !== p.hari_top).length;
+    body.innerHTML = `
+      ${!topOk ? `<div class="red" style="margin-bottom:8px;">Tabel TOP belum ada. Jalankan toko_top.sql di Supabase SQL Editor dulu, lalu Refresh.</div>` : ''}
+      <div style="margin-bottom:10px;"><b>${xs.length}</b> baris Excel · cocok <b>${xs.length - miss.length}</b> → <b>${topPlan.length}</b> toko (berubah <b>${nUbah}</b>) · tidak ketemu <b class="red">${miss.length}</b></div>
+      <div class="actions" style="margin:12px 0;"><button class="btn sm blue" id="topSave" ${topOk && topPlan.length ? '' : 'disabled'}>Simpan</button></div>
+      ${miss.length ? `<details><summary class="red">${miss.length} toko di Excel tidak ketemu di sistem (tidak disimpan)</summary>
+        <div class="tableWrap" style="max-height:240px;"><table><tbody>${miss.map(r => `<tr><td>${esc(r.nama)}</td><td>${esc(r.br)}</td><td class="num">${r.top}</td></tr>`).join('')}</tbody></table></div></details>` : ''}
+      <details style="margin-top:6px;"><summary>Lihat yang cocok (${topPlan.length})</summary>
+        <div class="tableWrap" style="max-height:280px;"><table><thead><tr><th>Excel</th><th>Toko di sistem</th><th class="num">TOP lama</th><th class="num">TOP baru</th></tr></thead><tbody>
+        ${topPlan.map(p => `<tr><td>${esc(p.nama)}</td><td>${esc(p.branch + ' · ' + p.customer)}</td><td class="num">${p.old ?? '—'}</td><td class="num">${p.hari_top}</td></tr>`).join('')}
+        </tbody></table></div></details>`;
+    const b = document.getElementById('topSave'); if (b) b.addEventListener('click', topSave);
+  }
+  async function topSave() {
+    const btn = document.getElementById('topSave');
+    if (!confirm(`Simpan hari TOP untuk ${topPlan.length} toko?`)) return;
+    btn.disabled = true;
+    try {
+      const rws = topPlan.map(p => ({ branch: p.branch, customer: p.customer, hari_top: p.hari_top }));
+      for (let i = 0; i < rws.length; i += 500) { btn.textContent = `Menyimpan ${Math.min(i + 500, rws.length)}/${rws.length}...`; await rpc('save_toko_top', { p_rows: rws.slice(i, i + 500) }); }
+      await reloadCtx(); try { renderRekap(); } catch (e) { /* tab belum dibuka */ }
+      toast(`Tersimpan: TOP ${rws.length} toko`);
+      document.getElementById('topModal').classList.add('hidden');
+      topWb = null; topPlan = []; document.getElementById('topFile').value = ''; document.getElementById('topBody').innerHTML = 'Pilih file Excel.';
+    } catch (e) { alert(e.message || e); btn.disabled = false; btn.textContent = 'Simpan'; }
+  }
+
+  /* ================= init ================= */
+  window.addEventListener('load', () => {
+    let p = '', lbl = '';
+    try { p = sessionStorage.getItem('piutang_pin') || ''; lbl = sessionStorage.getItem('piutang_pin_label') || ''; } catch (e) {}
+    if (p && roleOf(lbl)) { pin = p; role = roleOf(lbl); start(); }
+    else document.getElementById('pinIn').focus();
+  });
+</script>
+</body>
+</html>
