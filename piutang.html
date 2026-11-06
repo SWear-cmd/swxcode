@@ -169,6 +169,14 @@
   .warnBg td.wAl { min-width: 260px; }
   .warnBg td.wAl .inp { width: 100%; }
   .warnBg td.wAl .inp.miss { border-color: var(--urgent); }
+  .warnBg .wmEx:empty { display: none; }
+  .warnBg .wmEx { margin-top: 5px; }
+  .warnBg .wmTag { font-size: 11.5px; font-weight: 600; margin-bottom: 3px; }
+  .warnBg .wmRow { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .warnBg .wmRow .wmHp { width: 160px; flex: 0 0 auto; }
+  .warnBg .wmThumb { height: 34px; border-radius: 4px; border: 1px solid var(--border); cursor: zoom-in; }
+  .warnBg td.wAl textarea.inp { min-height: 0; width: 100%; }
+  .warnBg td.wAl .inp.miss { border-color: var(--urgent); }
   .modal .ft { padding: 12px 18px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; align-items: center; }
   .sumRow { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; margin-bottom: 12px; }
   .sumRow b { font-variant-numeric: tabular-nums; }
@@ -243,8 +251,10 @@
       <button class="tabBtn" data-tab="lh">Laporan Harian Kolektor</button>
       <button class="tabBtn" data-tab="kasus">Tagihan Kasus</button>
       <button class="tabBtn" data-tab="cash">Customer Cash</button>
+      <button class="tabBtn" data-tab="trf">Posting Transfer</button>
       <button class="tabBtn" data-tab="giro">Giro Pending</button>
       <button class="tabBtn" data-tab="report">Report Urgent</button>
+      <button class="tabBtn" data-tab="wh">Riwayat Warning</button>
       <button class="tabBtn" data-tab="master">Master Kolektor</button>
     </div>
 
@@ -369,7 +379,69 @@
       </div>
     </section>
 
+    <!-- ============ RIWAYAT ALASAN WARNING ============ -->
+    <section id="tab-wh" class="hidden">
+      <div class="bar">
+        <label class="meta">Dari</label><input type="date" class="inp" id="whFrom">
+        <label class="meta">s/d</label><input type="date" class="inp" id="whTo">
+        <div class="seg" id="whSeg" style="height:36px;">
+          <button class="active" data-c="">Semua</button>
+          <button data-c="FIX">🔧 Masalah</button>
+          <button data-c="KEJAR">📞 Kejar tiap hari</button>
+          <button data-c="WAIT">⏳ Janji bayar</button>
+        </div>
+        <input type="text" class="inp" id="whQ" placeholder="Cari toko / alasan / admin..." style="min-width:220px;">
+        <span class="meta" id="whSum"></span>
+        <div class="actions" style="margin-left:auto;">
+          <button class="btn" id="whExport">Export Excel</button>
+          <button class="btn" id="whReload">Muat ulang</button>
+        </div>
+      </div>
+      <div class="meta" style="margin:0 0 8px;">Alasan yang diisi admin di pop up warning sebelum Rekap Tagih (jam WIT). Kategori dibaca otomatis dari isi alasan:
+        <b style="color:var(--urgent)">🔧 Masalah</b> = ada selisih / retur / bukti bayar belum masuk → segera dibereskan ·
+        <b style="color:#f2b134">📞 Kejar tiap hari</b> = belum ada kabar / tidak bayar → WA tiap hari ·
+        <b style="color:var(--ok)">⏳ Janji bayar</b> = sudah janji hari tertentu → tunggu sampai tanggal janji (lewat janji = pindah ke Kejar).</div>
+      <div class="tableWrap tall">
+        <table>
+          <thead><tr><th>Waktu isi</th><th>Tgl Rekap</th><th>Admin</th><th class="num">#</th><th>Nama Toko</th><th>Kategori</th><th>Janji</th><th>Alasan</th><th>No HP / Bukti WA</th><th>Detail masalah</th></tr></thead>
+          <tbody id="whBody"></tbody>
+        </table>
+        <div class="empty hidden" id="whEmpty">Belum ada alasan tersimpan.</div>
+      </div>
+    </section>
+
     <!-- ============ GIRO PENDING ============ -->
+    <!-- ============ POSTING TRANSFER (full access) ============ -->
+    <section id="tab-trf" class="hidden">
+      <div class="bar">
+        <div class="branchPills" id="trfBranchPills">
+          <button class="pill active" data-b="">Semua</button>
+          <button class="pill" data-b="DAF">DAF</button>
+          <button class="pill" data-b="ABP">ABP</button>
+          <button class="pill" data-b="KSI">KSI</button>
+        </div>
+        <div class="seg" id="trfSeg" style="height:36px;">
+          <button class="active" data-m="">Semua</button>
+          <button data-m="TF">Transfer</button>
+          <button data-m="GIRO">Giro</button>
+          <button data-m="CASH">Tunai</button>
+        </div>
+        <input type="text" class="inp" id="trfQ" placeholder="Cari toko / invoice / giro..." style="min-width:220px;">
+        <span class="meta" id="trfSum"></span>
+        <div class="actions" style="margin-left:auto;">
+          <button class="btn blue" id="trfPostBtn" disabled>Pindahkan ke transfer2</button>
+        </div>
+      </div>
+      <div class="meta" style="margin:0 0 8px;">Hasil tagih yang sudah di-Submit dan belum masuk transfer2. Tgl transfer2: Transfer = tgl transfer · Giro = tgl JT giro · Tunai = hari kerja berikutnya.</div>
+      <div class="tableWrap tall">
+        <table>
+          <thead><tr><th class="chk"><input type="checkbox" id="trfAll" title="Pilih semua hasil filter"></th><th>Tgl transfer2</th><th>Jenis</th><th>Cabang</th><th>Toko (transfer2)</th><th>Customer</th><th>Invoice</th><th>Giro</th><th>Tgl Tagih</th><th class="num">Nilai</th></tr></thead>
+          <tbody id="trfBody"></tbody>
+        </table>
+        <div class="empty hidden" id="trfEmpty">Tidak ada data yang perlu dipindah.</div>
+      </div>
+    </section>
+
     <section id="tab-giro" class="hidden">
       <div class="bar">
         <div class="seg" id="giroSeg" style="height:36px;">
@@ -653,7 +725,7 @@
     document.querySelectorAll('#tabBar .tabBtn').forEach(b => {
       b.style.display = (isAdminKol() && !ADMINKOL_TABS.includes(b.dataset.tab)) ? 'none' : '';
     });
-    document.getElementById('hsPostBtn').style.display = isAdminKol() ? 'none' : '';
+    document.getElementById('hsPostBtn').style.display = 'none'; // diganti tab Posting Transfer
     document.getElementById('roleTag').textContent = isAdminKol() ? 'Admin Kolektor' : 'Full Access';
     if (isAdminKol() && !ADMINKOL_TABS.includes(currentTab)) document.querySelector('#tabBar .tabBtn[data-tab="piutang"]').click();
   }
@@ -795,7 +867,7 @@
     currentTab = b.dataset.tab;
     document.querySelectorAll('#tabBar .tabBtn').forEach(x => x.classList.toggle('active', x === b));
     const sec = ['kasus', 'cash'].includes(currentTab) ? 'piutang' : currentTab;
-    ['piutang', 'rekap', 'hasil', 'lh', 'giro', 'report', 'master'].forEach(t => document.getElementById('tab-' + t).classList.toggle('hidden', t !== sec));
+    ['piutang', 'rekap', 'hasil', 'lh', 'trf', 'giro', 'report', 'wh', 'master'].forEach(t => document.getElementById('tab-' + t).classList.toggle('hidden', t !== sec));
     if (currentTab === 'rekap') { rkWarnOk = false; openWarn(); }
     renderCurrent();
   }));
@@ -848,32 +920,134 @@
       `<span><b>${all.length}</b> toko</span><span style="color:var(--urgent)"><b>${nU}</b> lembar merah (&gt; 60 hari)</span>` +
       `<span style="color:#f2b134"><b>${nW}</b> lembar kuning (33–60 hari)</span><span>Total sisa <b>${fmt(sumBy(all, g => g.sisa))}</b></span>` +
       (all.length > WM_TOP ? `<span class="muted">ditampilkan ${WM_TOP} teratas</span>` : '');
-    document.getElementById('wmBody').innerHTML = wmList.map((g, i) => `<tr class="${g.nU ? 'wU' : 'wW'}">
+    // isian terakhir per toko (alasan, No HP, detail masalah) → terbawa ke hari ini
+    try { (await rpc('get_piutang_warning_last', {}) || []).forEach(r => { wmLast[r.toko] = r; if (r.no_hp) wmHp[r.toko] = r.no_hp; }); }
+    catch (e) { try { (await rpc('get_piutang_toko_hp', {}) || []).forEach(r => { wmHp[r.toko] = r.no_hp; }); } catch (e2) {} }
+    document.getElementById('wmBody').innerHTML = wmList.map((g, i) => {
+      const last = wmLast[g.nama], val = draft[g.nama] != null ? draft[g.nama] : (last ? last.alasan : '');
+      return `<tr class="${g.nU ? 'wU' : 'wW'}">
       <td>${i + 1}</td><td>${esc(g.nama)}</td><td>${esc([...g.branches].sort().join(', '))}</td>
       <td class="small">${esc([...g.kol].join(', ') || '—')}</td>
       <td class="num sisa">${fmt(g.sisa)}</td>
-      <td class="wAl"><input class="inp sm wmAl" data-i="${i}" value="${esc(draft[g.nama] || '')}" placeholder="Alasan toko ini (min. ${WM_MIN} huruf)"></td></tr>`).join('');
+      <td class="wAl"><input class="inp sm wmAl" data-i="${i}" value="${esc(val || '')}" placeholder="Alasan toko ini (min. ${WM_MIN} huruf)">
+        ${last ? `<div class="small muted wmFrom" data-i="${i}">↻ alasan sejak ${dMon(last.tgl_awal)} — ubah kalau ada kabar baru</div>` : ''}
+        <div class="wmEx" data-i="${i}"></div></td></tr>`;
+    }).join('');
+    wmList.forEach((g, i) => wmRenderEx(i));
     document.getElementById('wmErr').classList.add('hidden');
     document.getElementById('wmSkip').classList.toggle('hidden', role !== 'full');
     wmCheck();
     document.getElementById('warnModal').classList.remove('hidden');
     setTimeout(() => { const f = document.querySelector('#wmBody .wmAl'); if (f) f.focus(); }, 50);
   }
-  const WM_MIN = 5;
+  const WM_MIN = 5, WM_DET_MIN = 15;
+  /* Isian tambahan per toko sesuai kategori alasan (lihat whCat di tab Riwayat Warning):
+     KEJAR → wajib No HP toko + screenshot WhatsApp · FIX → wajib detail masalah · WAIT → cukup alasan */
+  /* Alasan & detail masalah TERBAWA dari hari sebelumnya (wmLast) — admin cukup tambah screenshot WA
+     untuk toko Kejar. Kalau alasan tidak diubah, "Selasa depan" dll dihitung dari tanggal alasan pertama ditulis. */
+  const wmHp = {}, wmSS = {}, wmLast = {}; // no HP terakhir · screenshot (di memori saja) · isian terakhir per toko
+  function wmExGet(nama) {
+    const ex = { ...((wmDraftGet().__ex || {})[nama] || {}) }, last = wmLast[nama];
+    if (ex.detail == null && last && last.detail) ex.detail = last.detail;
+    return ex;
+  }
+  function wmExSet(nama, k, v) { const d = wmDraftGet(); d.__ex = d.__ex || {}; d.__ex[nama] = { ...(d.__ex[nama] || {}), [k]: v }; wmDraftSet(d); }
+  const wmNorm = s => String(s || '').trim().replace(/\s+/g, ' ').toUpperCase();
+  function wmRowCat(i) {
+    const inp = document.querySelector(`#wmBody .wmAl[data-i="${i}"]`);
+    const v = inp ? inp.value.trim() : '', last = wmLast[(wmList[i] || {}).nama];
+    const base = last && last.tgl_awal && wmNorm(last.alasan) === wmNorm(v) ? last.tgl_awal : wmToday();
+    return v.length < WM_MIN ? { cat: '' } : whCat(v, base);
+  }
+  const hpOk = v => String(v || '').replace(/\D/g, '').length >= 9;
+  function wmRowOk(i) {
+    const g = wmList[i], c = wmRowCat(i).cat, ex = wmExGet(g.nama);
+    if (!c) return false;
+    if (c === 'KEJAR') return hpOk(ex.hp) && !!wmSS[g.nama];
+    if (c === 'FIX') return String(ex.detail || '').trim().length >= WM_DET_MIN;
+    return true;
+  }
+  function wmRenderEx(i) {
+    const box = document.querySelector(`#wmBody .wmEx[data-i="${i}"]`); if (!box) return;
+    const g = wmList[i], r = wmRowCat(i), ex = wmExGet(g.nama);
+    box.dataset.cat = r.cat || '';
+    if (r.cat === 'KEJAR') {
+      const hp = ex.hp != null ? ex.hp : (wmHp[g.nama] || '');
+      if (ex.hp == null && hp) wmExSet(g.nama, 'hp', hp);
+      const ss = wmSS[g.nama];
+      box.innerHTML = `<div class="wmTag" style="color:#f2b134;">📞 Kejar tiap hari — wajib No HP + screenshot WA hari ini${r.lewat ? ` <span style="color:var(--urgent)">(janji ${dMon(r.janji)} sudah lewat)</span>` : ''}</div>
+        <div class="wmRow"><input class="inp sm wmHp${hpOk(hp) ? '' : ' miss'}" data-i="${i}" value="${esc(hp)}" placeholder="No HP / WA toko" inputmode="tel">
+        <label class="btn sm">${ss ? 'Ganti' : '📎 Pilih'} screenshot<input type="file" accept="image/*" class="wmFile" data-i="${i}" hidden></label>
+        ${ss ? `<img src="${ss}" class="wmThumb" data-i="${i}" title="Klik untuk lihat">` : '<span class="small muted">atau klik kolom HP lalu Ctrl+V</span>'}</div>`;
+    } else if (r.cat === 'FIX') {
+      const det = ex.detail || '', lama = wmLast[g.nama] && wmLast[g.nama].detail && det === wmLast[g.nama].detail;
+      box.innerHTML = `<div class="wmTag" style="color:var(--urgent);">🔧 Masalah — ${lama ? 'detail dari isian sebelumnya (ubah kalau ada perkembangan)' : `tulis detail masalahnya (min. ${WM_DET_MIN} huruf)`}</div>
+        <textarea class="inp sm wmDet${det.trim().length >= WM_DET_MIN ? '' : ' miss'}" data-i="${i}" rows="2" placeholder="Contoh: selisih Rp 250.000 di invoice DFINV..., toko potong retur yang belum ada nota CN">${esc(det)}</textarea>`;
+    } else if (r.cat === 'WAIT') {
+      box.innerHTML = `<div class="wmTag" style="color:var(--ok);">⏳ Janji bayar ${r.janji ? HARI[r.janji.getDay()] + ' ' + dMon(r.janji) : ''}</div>`;
+    } else box.innerHTML = '';
+  }
+  // kecilkan gambar (sisi terpanjang maks 1280px, jpeg) supaya ringan disimpan
+  function imgToJpeg(file) {
+    return new Promise((res, rej) => {
+      const rd = new FileReader();
+      rd.onerror = () => rej(new Error('Gagal baca gambar'));
+      rd.onload = () => {
+        const im = new Image();
+        im.onerror = () => rej(new Error('File bukan gambar'));
+        im.onload = () => {
+          const sc = Math.min(1, 1280 / Math.max(im.width, im.height));
+          const cv = document.createElement('canvas'); cv.width = Math.round(im.width * sc); cv.height = Math.round(im.height * sc);
+          const cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height); cx.drawImage(im, 0, 0, cv.width, cv.height);
+          res(cv.toDataURL('image/jpeg', 0.65));
+        };
+        im.src = rd.result;
+      };
+      rd.readAsDataURL(file);
+    });
+  }
+  async function wmSetSS(i, file) {
+    if (!file || !/^image\//.test(file.type)) return;
+    try { wmSS[wmList[i].nama] = await imgToJpeg(file); wmRenderEx(i); wmCheck(); }
+    catch (e) { alert(e.message || e); }
+  }
   function wmCheck() {
     const ins = [...document.querySelectorAll('#wmBody .wmAl')];
     const n = ins.filter(x => x.value.trim().length >= WM_MIN).length;
-    document.getElementById('wmSave').disabled = n < ins.length;
+    const nOk = ins.filter(x => wmRowOk(+x.dataset.i)).length;
+    document.getElementById('wmSave').disabled = nOk < ins.length;
     document.getElementById('wmHint').textContent = n < ins.length
       ? `Alasan terisi ${n} / ${ins.length} toko. Isi semua untuk lanjut ke Rekap Tagih.`
-      : `Semua ${ins.length} toko sudah ada alasan.`;
+      : nOk < ins.length ? `${ins.length - nOk} toko belum lengkap (No HP + screenshot WA / detail masalah).`
+      : `Semua ${ins.length} toko sudah lengkap.`;
   }
   document.getElementById('wmBody').addEventListener('input', e => {
-    if (!e.target.classList.contains('wmAl')) return;
-    e.target.classList.toggle('miss', false);
-    const d = wmDraftGet(), g = wmList[+e.target.dataset.i];
-    if (g) { d[g.nama] = e.target.value; wmDraftSet(d); }
+    const t = e.target, i = +t.dataset.i, g = wmList[i];
+    if (!g) return;
+    if (t.classList.contains('wmAl')) {
+      t.classList.toggle('miss', false);
+      const d = wmDraftGet(); d[g.nama] = t.value; wmDraftSet(d);
+      const fr = document.querySelector(`#wmBody .wmFrom[data-i="${i}"]`), last = wmLast[g.nama];
+      if (fr && last) fr.classList.toggle('hidden', wmNorm(last.alasan) !== wmNorm(t.value));
+      const box = document.querySelector(`#wmBody .wmEx[data-i="${i}"]`), r = wmRowCat(i);
+      if (!box || box.dataset.cat !== (r.cat || '') || r.cat === 'WAIT') wmRenderEx(i);
+    } else if (t.classList.contains('wmHp')) { wmExSet(g.nama, 'hp', t.value); t.classList.toggle('miss', !hpOk(t.value)); }
+    else if (t.classList.contains('wmDet')) { wmExSet(g.nama, 'detail', t.value); t.classList.toggle('miss', t.value.trim().length < WM_DET_MIN); }
     wmCheck();
+  });
+  document.getElementById('wmBody').addEventListener('change', e => {
+    if (e.target.classList.contains('wmFile')) wmSetSS(+e.target.dataset.i, e.target.files[0]);
+  });
+  // tempel screenshot (Ctrl+V) saat kursor di baris toko
+  document.getElementById('wmBody').addEventListener('paste', e => {
+    const tr = e.target.closest('tr'); const box = tr && tr.querySelector('.wmEx');
+    if (!box || box.dataset.cat !== 'KEJAR') return;
+    const it = [...(e.clipboardData || {}).items || []].find(x => x.type.startsWith('image/'));
+    if (it) { e.preventDefault(); wmSetSS(+box.dataset.i, it.getAsFile()); }
+  });
+  document.getElementById('wmBody').addEventListener('click', e => {
+    if (!e.target.classList.contains('wmThumb')) return;
+    const w = window.open(''); if (w) w.document.write(`<title>Screenshot</title><body style="margin:0;background:#111;text-align:center;"><img src="${e.target.src}" style="max-width:100%;"></body>`);
   });
   document.getElementById('wmBody').addEventListener('keydown', e => {
     if (e.key !== 'Enter' || !e.target.classList.contains('wmAl')) return;
@@ -896,24 +1070,44 @@
     const ins = [...document.querySelectorAll('#wmBody .wmAl')];
     const kosong = ins.filter(x => x.value.trim().length < WM_MIN);
     if (kosong.length) { kosong.forEach(x => x.classList.add('miss')); kosong[0].focus(); return; }
+    const belum = ins.filter(x => !wmRowOk(+x.dataset.i));
+    if (belum.length) {
+      const box = document.querySelector(`#wmBody .wmEx[data-i="${belum[0].dataset.i}"]`);
+      if (box) { box.scrollIntoView({ block: 'center' }); const f = box.querySelector('.miss, input, textarea'); if (f) f.focus(); }
+      return;
+    }
     const alTok = ins.map(x => x.value.trim().replace(/\s+/g, ' '));
+    const detRows = wmList.map((g, i) => {
+      const c = wmRowCat(i).cat, ex = wmExGet(g.nama);
+      return { toko: g.nama, kategori: c, alasan: alTok[i],
+        no_hp: c === 'KEJAR' ? String(ex.hp || '').trim() : '', detail: c === 'FIX' ? String(ex.detail || '').trim() : '',
+        screenshot: c === 'KEJAR' ? (wmSS[g.nama] || '') : '' };
+    });
     const alasan = wmList.map((g, i) => `${g.nama}: ${alTok[i]}`).join('\n');
     btn.disabled = true; err.classList.add('hidden');
+    if (!btn.dataset.lbl) btn.dataset.lbl = btn.textContent;
     let lbl = ''; try { lbl = sessionStorage.getItem('piutang_pin_label') || ''; } catch (e) {}
     const all = wmAll || [];
     try {
-      await rpc('save_piutang_warning_alasan', {
+      const aid = await rpc('save_piutang_warning_alasan', {
         p_tgl_rekap: document.getElementById('rkDate').value || null, p_alasan: alasan, p_label: lbl,
         p_n_toko: all.length, p_n_merah: sumBy(all, g => g.nU), p_n_kuning: sumBy(all, g => g.nW),
         p_total: Math.round(sumBy(all, g => g.sisa)),
         p_top: wmList.map((g, i) => ({ toko: g.nama, branch: [...g.branches].join(','), sisa: Math.round(g.sisa), merah: g.nU, kuning: g.nW, alasan: alTok[i] }))
       });
+      // detail (No HP, screenshot, detail masalah) dikirim bertahap 10 toko sekali kirim
+      for (let k = 0; k < detRows.length; k += 10) {
+        btn.textContent = `Menyimpan detail ${Math.min(k + 10, detRows.length)} / ${detRows.length}...`;
+        await rpc('save_piutang_warning_detail', { p_alasan_id: aid, p_rows: detRows.slice(k, k + 10) });
+      }
+      btn.textContent = btn.dataset.lbl || btn.textContent;
       rkWarnOk = true; wmDoneDay = wmToday();
+      try { const d = wmDraftGet(); delete d.__ex; wmDraftSet(d); } catch (e) {}
       document.getElementById('warnModal').classList.add('hidden');
       toast('Alasan tersimpan — tidak perlu isi lagi sampai besok');
     } catch (e) {
-      err.textContent = 'Gagal simpan alasan: ' + (e.message || e) + (/function|schema/i.test(e.message || '') ? ' — jalankan piutang_warning_alasan.sql di Supabase dulu.' : '');
-      err.classList.remove('hidden'); btn.disabled = false;
+      err.textContent = 'Gagal simpan: ' + (e.message || e) + (/function|schema/i.test(e.message || '') ? ' — jalankan piutang_warning_detail.sql di Supabase dulu.' : '');
+      err.classList.remove('hidden'); btn.disabled = false; if (btn.dataset.lbl) btn.textContent = btn.dataset.lbl;
     }
   });
   async function renderCurrent() {
@@ -927,10 +1121,143 @@
       else if (currentTab === 'hasil') await loadHasil();
       else if (currentTab === 'lh') await loadLH();
       else if (currentTab === 'giro') await loadGiro();
+      else if (currentTab === 'trf') await loadTrf();
       else if (currentTab === 'report') renderReport();
+      else if (currentTab === 'wh') await loadWH();
       else if (currentTab === 'master') renderMaster();
     } catch (e) { showErr(e.message || String(e)); }
   }
+
+  /* ================= RIWAYAT ALASAN WARNING ================= */
+  let whRows = null;
+  // pecah teks alasan "NAMA TOKO: alasan" (1 baris per toko) jadi baris tabel
+  function whFlat(data) {
+    const out = [];
+    (data || []).forEach(r => {
+      const waktu = String(r.waktu_wit || '').replace('T', ' ');
+      const lines = String(r.alasan || '').split('\n').map(s => s.trim()).filter(Boolean);
+      lines.forEach((ln, i) => {
+        const k = ln.indexOf(': ');
+        const o = { aid: r.id, waktu, tglIsi: waktu.slice(0, 10), tgl_rekap: r.tgl_rekap, admin: r.pin_label || '', no: i + 1,
+          toko: k > 0 ? ln.slice(0, k) : '', alasan: k > 0 ? ln.slice(k + 2) : ln, first: i === 0, n: lines.length };
+        out.push(o);
+      });
+    });
+    // alasan yang terbawa (teks sama hari ke hari) → tanggal janji dihitung dari hari pertama ditulis
+    const awal = {};
+    [...out].sort((a, b) => a.waktu < b.waktu ? -1 : 1).forEach(o => {
+      const k = o.toko, n = String(o.alasan).trim().replace(/\s+/g, ' ').toUpperCase();
+      if (!awal[k] || awal[k].n !== n) awal[k] = { n, t: o.tglIsi };
+      Object.assign(o, whCat(o.alasan, awal[k].t));
+    });
+    return out;
+  }
+  /* Penggolongan otomatis dari teks alasan (urutan cek: Masalah → Janji bayar → Kejar).
+     FIX   = ada masalah data/administrasi yang harus dibereskan kantor
+     WAIT  = toko sudah janji bayar di hari/tanggal tertentu (kalau tanggal janji sudah lewat → KEJAR)
+     KEJAR = belum ada kabar / tidak mau bayar → WA tiap hari */
+  const WH_FIX = /SELISIH|RETUR|BUKTI|EMAIL|SUDAH (BAYAR|TRANSFER|TF|LUNAS)|DOBEL|DOUBLE|GANDA|SALAH|TIDAK SESUAI|TDK SESUAI|BEDA|KURANG|POTONG|KLAIM|CLAIM|\bCN\b|VOUCHER|DISKON|PROMO|HILANG|RUSAK|BELUM (MASUK|TERCATAT|DIPOSTING|POSTING)|INPUT|KOREKSI|BALIKAN|TUKAR/;
+  const WH_HARI = [['SENIN', 1], ['SELASA', 2], ['RABU', 3], ['KAMIS', 4], ['JUMAT', 5], ["JUM'AT", 5], ['SABTU', 6]];
+  function whCat(alasan, tglIsi) {
+    const s = ' ' + String(alasan || '').toUpperCase().replace(/\s+/g, ' ') + ' ';
+    if (WH_FIX.test(s)) return { cat: 'FIX', janji: null };
+    const base = parseAnyDate(tglIsi) || todayD();
+    const add = n => { const d = new Date(base.getFullYear(), base.getMonth(), base.getDate()); d.setDate(d.getDate() + n); return d; };
+    let janji = null;
+    if (/\bLUSA\b/.test(s)) janji = add(2);
+    else if (/\bBESOK\b/.test(s)) janji = add(1);
+    else if (/MINGGU DEPAN|PEKAN DEPAN/.test(s)) janji = add(7);
+    else if (/BULAN DEPAN|AWAL BULAN/.test(s)) janji = new Date(base.getFullYear(), base.getMonth() + 1, 5);
+    else if (/AKHIR BULAN/.test(s)) janji = new Date(base.getFullYear(), base.getMonth() + 1, 0);
+    else {
+      const h = WH_HARI.find(([n]) => s.includes(' ' + n + ' ') || s.includes(' ' + n + ','));
+      // hari terdekat berikutnya setelah tanggal isi (Selasa depan = Selasa yang akan datang)
+      if (h) { let n = h[1] - base.getDay(); if (n <= 0) n += 7; janji = add(n); }
+      else {
+        const m = s.match(/\b(?:TGL|TANGGAL)\.? ?(\d{1,2})\b/);
+        if (m) { const d = +m[1]; janji = new Date(base.getFullYear(), base.getMonth() + (d < base.getDate() ? 1 : 0), d); }
+      }
+    }
+    if (!janji && /JANJI|AKAN BAYAR|MAU BAYAR|BAYAR NANTI/.test(s)) janji = add(7);
+    if (janji) return { cat: janji < todayD() ? 'KEJAR' : 'WAIT', janji, lewat: janji < todayD() };
+    return { cat: 'KEJAR', janji: null };
+  }
+  const WH_LBL = { FIX: ['🔧 Masalah', 'var(--urgent)'], KEJAR: ['📞 Kejar tiap hari', '#f2b134'], WAIT: ['⏳ Janji bayar', 'var(--ok)'] };
+  let whCatF = '';
+  async function loadWH(force) {
+    if (!whRows || force) {
+      document.getElementById('whBody').innerHTML = '<tr><td colspan="10" class="muted">Memuat...</td></tr>';
+      const [al, det] = await Promise.all([
+        rpc('get_piutang_warning_alasan', { p_limit: 1000 }),
+        rpc('get_piutang_warning_detail', {}).catch(() => [])  // SQL detail belum di-run → kosong
+      ]);
+      const dm = new Map((det || []).map(d => [d.alasan_id + '|' + d.toko, d]));
+      whRows = whFlat(al);
+      whRows.forEach(r => { const d = dm.get(r.aid + '|' + r.toko); if (d) { r.hp = d.no_hp || ''; r.detail = d.detail || ''; r.ssId = d.ada_ss ? d.id : null; } });
+    }
+    renderWH();
+  }
+  function whFiltered(noCat) {
+    const f = document.getElementById('whFrom').value, t = document.getElementById('whTo').value;
+    const q = document.getElementById('whQ').value.trim().toUpperCase();
+    return (whRows || []).filter(r => (!f || r.tglIsi >= f) && (!t || r.tglIsi <= t)
+      && (noCat || !whCatF || r.cat === whCatF)
+      && (!q || (r.toko + ' ' + r.alasan + ' ' + r.admin).toUpperCase().includes(q)));
+  }
+  function renderWH() {
+    const base = whFiltered(true), list = whFiltered();
+    // jumlah per kategori di tombol
+    document.querySelectorAll('#whSeg button').forEach(b => {
+      if (!b.dataset.lbl) b.dataset.lbl = b.textContent;
+      const c = b.dataset.c, n = c ? base.filter(r => r.cat === c).length : base.length;
+      b.textContent = `${b.dataset.lbl} (${n})`;
+    });
+    const kali = new Set(list.map(r => r.waktu)).size, toko = new Set(list.map(r => r.toko)).size;
+    document.getElementById('whSum').innerHTML = `<b>${kali}</b> kali isi · <b>${toko}</b> toko · <b>${list.length}</b> baris`;
+    document.getElementById('whEmpty').classList.toggle('hidden', list.length > 0);
+    let prev = '';
+    document.getElementById('whBody').innerHTML = list.map(r => {
+      const baru = r.waktu !== prev; prev = r.waktu;
+      const jam = r.waktu.slice(11, 16), [lbl, col] = WH_LBL[r.cat];
+      const janji = r.janji ? `${HARI[r.janji.getDay()]} ${dMon(r.janji)}${r.lewat ? ' <b style="color:var(--urgent)">lewat janji</b>' : ''}` : '';
+      return `<tr${baru ? ' style="border-top:2px solid var(--line,#444);"' : ''}>
+        <td>${baru ? `${dMon(r.tglIsi)} ${esc(jam)}` : ''}</td><td>${baru ? dMon(r.tgl_rekap) : ''}</td><td>${baru ? esc(r.admin) : ''}</td>
+        <td class="num">${r.no}</td><td>${esc(r.toko)}</td><td style="color:${col};font-weight:600;white-space:nowrap;">${lbl}</td>
+        <td style="white-space:nowrap;">${janji}</td><td style="white-space:normal;">${esc(r.alasan)}</td>
+        <td style="white-space:nowrap;">${r.hp ? `<a href="https://wa.me/${esc(waNo(r.hp))}" target="_blank" rel="noopener">${esc(r.hp)}</a>` : ''}
+          ${r.ssId ? ` <button class="btn sm whSS" data-id="${r.ssId}">🖼 SS</button>` : ''}</td>
+        <td style="white-space:normal;">${esc(r.detail || '')}</td></tr>`;
+    }).join('');
+  }
+  // 08xx → 628xx untuk link WhatsApp
+  const waNo = v => { let d = String(v || '').replace(/\D/g, ''); if (d.startsWith('0')) d = '62' + d.slice(1); return d; };
+  document.getElementById('whBody').addEventListener('click', async e => {
+    const b = e.target.closest('.whSS'); if (!b) return;
+    const w = window.open(''); if (!w) { alert('Popup diblokir browser.'); return; }
+    w.document.write('<title>Screenshot WA</title><body style="margin:0;background:#111;color:#ccc;text-align:center;font-family:sans-serif;">Memuat...</body>');
+    try { const src = await rpc('get_piutang_warning_ss', { p_id: +b.dataset.id }); w.document.body.innerHTML = `<img src="${src}" style="max-width:100%;">`; }
+    catch (er) { w.document.body.textContent = 'Gagal: ' + (er.message || er); }
+  });
+  document.getElementById('whSeg').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    whCatF = b.dataset.c;
+    document.querySelectorAll('#whSeg button').forEach(x => x.classList.toggle('active', x === b));
+    renderWH();
+  });
+  ['whFrom', 'whTo'].forEach(id => document.getElementById(id).addEventListener('change', renderWH));
+  document.getElementById('whQ').addEventListener('input', renderWH);
+  document.getElementById('whReload').addEventListener('click', () => loadWH(true).catch(e => showErr(e.message || String(e))));
+  document.getElementById('whExport').addEventListener('click', () => {
+    const list = whFiltered();
+    if (!list.length) { alert('Tidak ada data.'); return; }
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(list.map(r => ({
+      'Waktu isi (WIT)': r.waktu.slice(0, 16), 'Tgl Rekap': r.tgl_rekap || '', Admin: r.admin, No: r.no, 'Nama Toko': r.toko,
+      Kategori: WH_LBL[r.cat][0].replace(/^\S+ /, ''), Janji: r.janji ? iso(r.janji) + (r.lewat ? ' (lewat)' : '') : '', Alasan: r.alasan,
+      'No HP': r.hp || '', 'Detail masalah': r.detail || '', 'Ada SS WA': r.ssId ? 'Ya' : ''
+    }))), 'Riwayat Warning');
+    XLSX.writeFile(wb, `RiwayatWarning_${wmToday().replace(/-/g, '')}.xlsx`);
+  });
 
   /* ================= Kas Kecil match (tab Customer Cash) ================= */
   const kkNorm = s => String(s || '').trim().toUpperCase();
@@ -1377,21 +1704,21 @@
   function pdfDownload(name, html) {
     return new Promise((resolve, reject) => {
       const fr = document.createElement('iframe');
-      fr.style.cssText = 'position:fixed;left:-10000px;top:0;width:800px;height:1200px;border:0;';
+      const W = Math.round(204 * 96 / 25.4); // lebar isi A4 (margin 3mm)
+      fr.style.cssText = 'position:fixed;left:-10000px;top:0;width:' + W + 'px;height:1200px;border:0;';
       document.body.appendChild(fr);
       const done = err => { setTimeout(() => fr.remove(), 500); err ? reject(err) : resolve(); };
-      const W = Math.round(204 * 96 / 25.4); // lebar isi A4 (margin 3mm)
       const d = fr.contentDocument;
       d.open();
       fr.contentWindow.__pdfDone = done;
-      d.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><style>${PRINT_CSS} body{width:${W}px;background:#fff;} .page{page-break-after:auto;}</style></head><body>${html}
+      d.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><style>${PRINT_CSS} html,body{margin:0;padding:0;} body{width:${W}px;background:#fff;box-sizing:border-box;padding:0 1px;} .page{page-break-after:auto;}</style></head><body>${html}
         <script>(${countHasilPages.toString()})();<\/script>
         <script src="${HTML2PDF_URL}" onerror="__pdfDone(new Error('Library PDF gagal dimuat'))"><\/script>
         <script>
           if (window.html2pdf) html2pdf().set({
             margin: 3, filename: ${JSON.stringify(name)},
             image: { type: 'jpeg', quality: 0.95 },
-            html2canvas: { scale: 2, windowWidth: ${W}, backgroundColor: '#ffffff' },
+            html2canvas: { scale: 2, windowWidth: ${W}, width: ${W}, x: 0, y: 0, scrollX: 0, scrollY: 0, backgroundColor: '#ffffff' },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
             pagebreak: { mode: ['css', 'legacy'], avoid: 'tr' }
           }).from(document.body).save().then(() => __pdfDone(), e => __pdfDone(e));
@@ -1746,7 +2073,7 @@
         <span>Belum diisi <b style="color:${t.belumN ? 'var(--warn)' : 'inherit'}">${t.belumN}</b></span></div>
         ${branchRekap(b.items)}</div>
         <div class="actions"><button class="btn sm" data-hprint="${b.id}">Print Hasil</button>
-        ${open ? `<button class="btn sm blue" data-close-b="${b.id}" ${t.belumN ? 'disabled title="Isi semua hasil dulu"' : ''}>Selesai Cek</button>`
+        ${open ? `<button class="btn sm blue" data-close-b="${b.id}" ${t.belumN ? 'disabled title="Isi semua hasil dulu"' : 'title="Simpan hasil final & print"'}>Submit Hasil</button>`
                : (!posted && !isAdminKol() ? `<button class="btn sm" data-reopen="${b.id}">Buka Lagi</button>` : '')}</div></div>
         <div class="tableWrap"><table><thead><tr>${open ? `<th class="chk" title="Klik / tahan & geser untuk pilih banyak"></th>` : ''}<th>Toko · Invoice</th><th>Tracking</th><th class="num">Sisa</th><th>Hasil</th><th>Detail</th><th class="num">Dibayar</th><th></th></tr></thead><tbody>
         ${byToko(b.items.filter(i => !hsBranch || i.branch === hsBranch)).map(g => {
@@ -1819,8 +2146,14 @@
       openHasil(b.items.filter(i => !i.hasil && tokoKey(i.branch, i.customer) === tk), b, true);
     }));
     el.querySelectorAll('[data-close-b]').forEach(btn => btn.addEventListener('click', async () => {
+      const bid = btn.dataset.closeB, b = hsData.batches.find(x => String(x.id) === bid);
+      if (!confirm(`Submit hasil tagih ${b ? b.kolektor : ''}?\n\nHasil jadi final (tidak bisa diubah lagi) dan PDF akan muncul untuk di-print.\nTransfer / Giro / Tunai masuk daftar Posting Transfer.`)) return;
       btn.disabled = true;
-      try { await rpc('close_tagih_batch', { p_batch_id: +btn.dataset.closeB }); await reloadCtx(); await loadHasil(); }
+      try {
+        await rpc('close_tagih_batch', { p_batch_id: +bid }); await reloadCtx(); await loadHasil();
+        toast('Hasil tagih tersimpan');
+        document.querySelector(`#hsCards [data-hprint="${bid}"]`)?.click();
+      }
       catch (e) { alert(e.message || e); btn.disabled = false; }
     }));
     el.querySelectorAll('[data-reopen]').forEach(btn => btn.addEventListener('click', async () => {
@@ -2140,8 +2473,8 @@
           <tr><td>Jumlah: <b class="pgCount"></b></td></tr></table>
         <table class="hd sum">${hr('TUNAI', fmt(H.CASH))}${hr('GIRO', fmt(H.GIRO), giroSet.size ? giroSet.size + ' lembar' : '')}${hr('TF', fmt(H.TF), tfSet.size ? tfSet.size + ' transfer' : '')}${hr('RETUR / VOUCHER', fmt(H.CN_RETUR))}${hr('TOTAL', fmt(total))}${hr('SELISIH', fmt(selisih))}</table>
       </div>
-      <table class="rk"><colgroup><col style="width:3.5%"><col style="width:12.5%"><col style="width:10.5%"><col style="width:6%"><col style="width:3.5%"><col style="width:6.5%"><col style="width:8.5%"><col style="width:3.5%">
-        <col style="width:8.5%"><col style="width:6.5%"><col style="width:6%"><col style="width:6.5%"><col style="width:8.5%"><col style="width:9%"></colgroup>
+      <table class="rk"><colgroup><col style="width:3%"><col style="width:12.5%"><col style="width:12.5%"><col style="width:6%"><col style="width:3.5%"><col style="width:7.5%"><col style="width:8.5%"><col style="width:3.5%">
+        <col style="width:7.5%"><col style="width:6%"><col style="width:6%"><col style="width:6%"><col style="width:8%"><col style="width:9.5%"></colgroup>
         <thead><tr><th>No</th><th>Customer</th><th>No Faktur</th><th>Tgl JT</th><th>O/D</th><th>Divisi</th><th>Nilai</th><th>Bayar</th>
         <th>Tunai</th><th>TF / Giro</th><th>No Giro</th><th>Tgl</th><th>Nilai</th><th>Ket</th></tr></thead>
       <tbody>${rows.join('') || '<tr><td colspan="14">—</td></tr>'}</tbody></table>
@@ -2614,6 +2947,66 @@
       topWb = null; topPlan = []; document.getElementById('topFile').value = ''; document.getElementById('topBody').innerHTML = 'Pilih file Excel.';
     } catch (e) { alert(e.message || e); btn.disabled = false; btn.textContent = 'Simpan'; }
   }
+
+  /* ---------- Posting Transfer: TF / Giro / Tunai hasil tagih → transfer2 ---------- */
+  let trfRows = [], trfBranch = '', trfMetode = '';
+  const trfSel = new Set();
+  const TRF_LBL = { TF: 'Transfer', GIRO: 'Giro', CASH: 'Tunai' };
+  const trfKey = r => r.ids.join(',');
+  async function loadTrf() {
+    trfRows = (await rpc('get_tagih_trf_pending')) || [];
+    const ada = new Set(trfRows.map(trfKey));
+    [...trfSel].forEach(k => { if (!ada.has(k)) trfSel.delete(k); });
+    renderTrf();
+  }
+  function trfFiltered() {
+    const q = document.getElementById('trfQ').value.trim().toLowerCase();
+    return trfRows.filter(r => (!trfBranch || r.branch === trfBranch) && (!trfMetode || r.metode === trfMetode) &&
+      (!q || [r.toko, r.customer, r.invoice_nos, r.giro].join(' ').toLowerCase().includes(q)));
+  }
+  function renderTrf() {
+    const list = trfFiltered();
+    document.getElementById('trfBody').innerHTML = list.map(r => { const k = trfKey(r); return `
+      <tr class="br-${esc(r.branch)}"><td class="chk"><input type="checkbox" class="trfChk" data-k="${esc(k)}" ${trfSel.has(k) ? 'checked' : ''}></td>
+        <td>${dMon(r.tgl)}</td><td><span class="badge">${TRF_LBL[r.metode] || esc(r.metode)}</span></td>
+        <td><span class="brTag ${esc(r.branch)}">${esc(r.branch)}</span></td><td class="wrapTxt">${esc(r.toko)}</td>
+        <td class="wrapTxt small">${esc(r.customer)}</td><td class="wrapTxt small invNo">${esc(r.invoice_nos)}</td>
+        <td class="small">${esc(r.giro || '')}</td><td>${dMon(r.tgl_tagih)}</td><td class="num">${fmt(r.nilai)}</td></tr>`; }).join('');
+    document.getElementById('trfEmpty').classList.toggle('hidden', list.length > 0);
+    const sel = trfRows.filter(r => trfSel.has(trfKey(r)));
+    document.getElementById('trfAll').checked = list.length > 0 && list.every(r => trfSel.has(trfKey(r)));
+    document.getElementById('trfSum').innerHTML = `${list.length} baris · total <b>${fmt(sumBy(list, r => +r.nilai))}</b>` +
+      (sel.length ? ` · dipilih <b>${sel.length}</b> = <b>${fmt(sumBy(sel, r => +r.nilai))}</b>` : '');
+    const pb = document.getElementById('trfPostBtn');
+    pb.disabled = !sel.length; pb.textContent = `Pindahkan ke transfer2${sel.length ? ` (${sel.length})` : ''}`;
+  }
+  document.getElementById('trfBody').addEventListener('change', e => {
+    const c = e.target.closest('.trfChk'); if (!c) return;
+    c.checked ? trfSel.add(c.dataset.k) : trfSel.delete(c.dataset.k); renderTrf();
+  });
+  document.getElementById('trfAll').addEventListener('change', e => { trfFiltered().forEach(r => e.target.checked ? trfSel.add(trfKey(r)) : trfSel.delete(trfKey(r))); renderTrf(); });
+  document.querySelectorAll('#trfBranchPills .pill').forEach(p => p.addEventListener('click', () => {
+    trfBranch = p.dataset.b; document.querySelectorAll('#trfBranchPills .pill').forEach(x => x.classList.toggle('active', x === p)); renderTrf();
+  }));
+  document.querySelectorAll('#trfSeg button').forEach(b => b.addEventListener('click', () => {
+    trfMetode = b.dataset.m; document.querySelectorAll('#trfSeg button').forEach(x => x.classList.toggle('active', x === b)); renderTrf();
+  }));
+  let trfTimer = null;
+  document.getElementById('trfQ').addEventListener('input', () => { clearTimeout(trfTimer); trfTimer = setTimeout(renderTrf, 250); });
+  document.getElementById('trfPostBtn').addEventListener('click', async () => {
+    const sel = trfRows.filter(r => trfSel.has(trfKey(r)));
+    if (!sel.length) return;
+    const per = m => sumBy(sel.filter(r => r.metode === m), r => +r.nilai);
+    if (!confirm(`Pindahkan ${sel.length} baris ke transfer2?\n\nTransfer: ${fmt(per('TF'))}\nGiro: ${fmt(per('GIRO'))}\nTunai: ${fmt(per('CASH'))}\nTotal: ${fmt(sumBy(sel, r => +r.nilai))}\n\nSetelah dipindah, hasil tagih ini terkunci.`)) return;
+    const pb = document.getElementById('trfPostBtn'); pb.disabled = true; pb.textContent = 'Memindahkan...';
+    try {
+      const res = await rpc('post_tagih_trf', { p_ids: sel.flatMap(r => r.ids) });
+      try { await sb().rpc('run_transfer2_bank_sync', { p_pin: pin }); } catch (e) { /* tidak kritis */ }
+      trfSel.clear();
+      toast(`${res && res.n || sel.length} baris masuk transfer2`);
+    } catch (e) { alert('Gagal pindah ke transfer2: ' + (e.message || e)); }
+    await loadTrf();
+  });
 
   /* ================= init ================= */
   window.addEventListener('load', () => {
