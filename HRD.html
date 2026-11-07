@@ -101,6 +101,9 @@
   .subnav button.active{color:var(--accent);border-bottom-color:var(--accent);}
   #bpjsTable td.num,#bpjsTable th.num{text-align:right;}
   #bpjsTable tr.foot td{font-weight:700;background:#f6f8fa;position:sticky;bottom:0;}
+  #bpjsBhTable td.num,#bpjsBhTable th.num{text-align:right;}
+  #bpjsBhTable tr.foot td{font-weight:700;background:#f6f8fa;}
+  #bpjsBhTable input{width:130px;text-align:right;}
   .ac-empty{padding:8px 10px;font-size:12px;color:var(--muted);}
   #kyModal .ky-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-top:12px;}
   #kyModal .ky-grid>label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);}
@@ -254,6 +257,23 @@
       </div>
     </div>
   </div>
+  <div class="modal-bg" id="bpSetModal" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal" style="width:min(460px,94vw)">
+      <h3>Atur Persen BPJS</h3>
+      <p class="muted">Berlaku untuk semua bulan di tab BPJS.</p>
+      <table>
+        <tr><td>UMP / dasar upah</td><td colspan="2"><input id="bps_ump" inputmode="numeric" style="width:160px"></td></tr>
+        <tr><td></td><td class="muted">Pekerja %</td><td class="muted">Perusahaan %</td></tr>
+        <tr><td>Kesehatan</td><td><input id="bps_kes_p" type="number" step="0.01" style="width:90px"></td><td><input id="bps_kes_c" type="number" step="0.01" style="width:90px"></td></tr>
+        <tr><td>Tenaga Kerja</td><td><input id="bps_tk_p" type="number" step="0.01" style="width:90px"></td><td><input id="bps_tk_c" type="number" step="0.01" style="width:90px"></td></tr>
+      </table>
+      <div class="row" style="margin-top:12px;justify-content:flex-end">
+        <button class="secondary" onclick="document.getElementById('bpSetModal').style.display='none'">Batal</button>
+        <button onclick="bpSetSave()">Simpan</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-bg" id="ktpModal" onclick="if(event.target===this)this.style.display='none'">
     <div class="modal" style="width:min(900px,96vw)">
       <h3 id="ktp_title"></h3>
@@ -271,6 +291,8 @@
       <div class="subnav">
         <button class="active" data-bp="kes" onclick="bpjsSub('kes')">Kesehatan</button>
         <button data-bp="tk" onclick="bpjsSub('tk')">Tenaga Kerja</button>
+        <button data-bp="bh" onclick="bpjsSub('bh')">Buruh Harian</button>
+        <button class="secondary" id="bp_setbtn" style="margin-left:auto;align-self:center;display:none" onclick="bpSetOpen()">⚙ Atur %</button>
       </div>
       <div class="row">
         <select id="bp_month" onchange="loadBpjs()"><option value="1">Januari</option><option value="2">Februari</option><option value="3">Maret</option><option value="4">April</option><option value="5">Mei</option><option value="6">Juni</option><option value="7">Juli</option><option value="8">Agustus</option><option value="9">September</option><option value="10">Oktober</option><option value="11">November</option><option value="12">Desember</option></select>
@@ -280,8 +302,14 @@
         <span class="muted" id="bp_info"></span>
       </div>
       <p class="muted" id="bp_rate"></p>
-      <div class="tbl-wrap">
-      <table id="bpjsTable"><thead><tr><th>Nama</th><th>Cabang</th><th>Jabatan</th>
+      <div id="bp_bh" style="display:none">
+        <table id="bpjsBhTable" style="width:100%"><thead><tr><th>Jenis</th><th class="num">Jumlah Orang</th><th class="num">Dasar Upah</th>
+          <th class="num">Potongan Gaji</th><th class="num">Dibayar Perusahaan</th><th class="num">Total</th></tr></thead>
+        <tbody id="bpjsBhBody"></tbody></table>
+        <div class="row" style="margin-top:12px"><button onclick="saveBpjsBh()">Simpan</button><span class="muted" id="bh_status"></span></div>
+      </div>
+      <div class="tbl-wrap" id="bp_emp">
+      <table id="bpjsTable"><thead><tr><th class="num" style="width:40px">No</th><th>Nama</th><th>Cabang</th><th>Jabatan</th>
         <th class="num">Potongan Gaji</th><th class="num">Dibayar Perusahaan</th><th class="num">Total</th></tr></thead>
       <tbody id="bpjsBody"></tbody></table>
       </div>
@@ -507,6 +535,8 @@ async function doLogin(){
       return;
     }
     PIN = pin;
+    window.IS_FULL = lbl === 'FULL ACCESS';
+    document.getElementById('bp_setbtn').style.display = window.IS_FULL ? '' : 'none';
     document.getElementById('whoami').textContent = res.label || '';
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
@@ -1335,7 +1365,7 @@ async function kyView(id){
 // Porsi iuran (% dari upah). Nilai perusahaan = potongan karyawan x (perusahaan / pekerja).
 const BPJS_RATE = {
   kes: { label: 'BPJS Kesehatan', field: 'bpjs_kes', flag: 'bpjs_yn', pekerja: 1,   perusahaan: 4 },
-  tk:  { label: 'BPJS TK — JHT',  field: 'jht',      flag: 'jht_yn',  pekerja: 2,   perusahaan: 3.7 }
+  tk:  { label: 'BPJS Tenaga Kerja', field: 'jht',   flag: 'jht_yn',  pekerja: 3,   perusahaan: 6.24 }
 };
 let bpjsTab = 'kes';
 function isY(v){ return v === true || /^(Y|YA|YES|TRUE|1)$/i.test(String(v ?? '').trim()); }
@@ -1344,7 +1374,40 @@ function bpjsSub(t){
   document.querySelectorAll('#tab-bpjs .subnav button').forEach(b => b.classList.toggle('active', b.dataset.bp === t));
   renderBpjs();
 }
+async function loadBpjsSetting(){
+  const { data, error } = await getSupabase().rpc('get_bpjs_setting', { p_pin: PIN });
+  if (error) { toast('Gagal load setting BPJS: ' + error.message); return; }
+  const d = data || {};
+  if (Number(d.ump) > 0) BH_UMP = Number(d.ump);
+  ['kes','tk'].forEach(k => {
+    if (d[k] && d[k].pekerja != null) BPJS_RATE[k].pekerja = Number(d[k].pekerja);
+    if (d[k] && d[k].perusahaan != null) BPJS_RATE[k].perusahaan = Number(d[k].perusahaan);
+  });
+  BH_DASAR.kes = BH_DASAR.tk = BH_UMP;
+}
+function bpSetOpen(){
+  document.getElementById('bps_ump').value = numID(BH_UMP);
+  document.getElementById('bps_kes_p').value = BPJS_RATE.kes.pekerja;
+  document.getElementById('bps_kes_c').value = BPJS_RATE.kes.perusahaan;
+  document.getElementById('bps_tk_p').value = BPJS_RATE.tk.pekerja;
+  document.getElementById('bps_tk_c').value = BPJS_RATE.tk.perusahaan;
+  document.getElementById('bpSetModal').style.display = 'flex';
+}
+async function bpSetSave(){
+  const num = id => Number(String(val(id)).replace(',', '.'));
+  const d = { ump: Number(String(val('bps_ump')).replace(/\D/g, '')),
+    kes: { pekerja: num('bps_kes_p'), perusahaan: num('bps_kes_c') },
+    tk:  { pekerja: num('bps_tk_p'),  perusahaan: num('bps_tk_c') } };
+  if (!(d.ump > 0) || [d.kes.pekerja, d.kes.perusahaan, d.tk.pekerja, d.tk.perusahaan].some(v => !(v >= 0) || v > 100)) { toast('Isi angka dengan benar'); return; }
+  const { error } = await getSupabase().rpc('save_bpjs_setting', { p_pin: PIN, p_data: d });
+  if (error) { toast('Gagal simpan: ' + error.message); return; }
+  document.getElementById('bpSetModal').style.display = 'none';
+  toast('Setting BPJS tersimpan');
+  loadBpjs();
+}
 async function loadBpjs(){
+  window._bhCache = {};
+  await loadBpjsSetting();
   const m = Number(val('bp_month')), y = Number(val('bp_year'));
   if (!m || !y) return;
   if (!employees.length) await loadEmployees();
@@ -1362,24 +1425,116 @@ async function loadBpjs(){
   });
   renderBpjs();
 }
+// Nilai perusahaan = % perusahaan x dasar upah. Dasar = potongan / % pekerja, maksimal UMP (BH_UMP).
+function bpjsPerusahaan(pot1, c){
+  if (!pot1) return 0;
+  const potUmp = Math.round(BH_UMP * c.pekerja / 100);
+  const dasar = pot1 >= potUmp - 5 ? BH_UMP : pot1 * 100 / c.pekerja;
+  return Math.round(dasar * c.perusahaan / 100);
+}
 function renderBpjs(){
+  const bh = bpjsTab === 'bh';
+  document.getElementById('bp_bh').style.display = bh ? '' : 'none';
+  document.getElementById('bp_emp').style.display = bh ? 'none' : '';
+  document.getElementById('bp_q').style.display = bh ? 'none' : '';
+  if (bh) { renderBpjsBh(); return; }
   const c = BPJS_RATE[bpjsTab], q = acNorm(val('bp_q')).split(' ').filter(Boolean);
   document.getElementById('bp_rate').textContent =
-    `${c.label}: pekerja ${c.pekerja}% · perusahaan ${c.perusahaan}% · nilai perusahaan dihitung dari potongan gaji × ${c.perusahaan}/${c.pekerja}.`;
+    `${c.label}: pekerja ${c.pekerja}% · perusahaan ${c.perusahaan}% × dasar upah (UMP ${numID(BH_UMP)}).`;
   const rows = (window._bpjsData||[]).filter(r => isY(r[c.flag])
       && q.every(t => acNorm(`${r.nama} ${r.cabang} ${r.jabatan}`).includes(t)))
-    .map(r => { const pot = r[c.field], k = bpjsTab === 'kes' ? r.kali : 1, per = Math.round(pot / k * c.perusahaan / c.pekerja); return { ...r, pot, per, tot: pot + per }; })
+    .map(r => { const pot = r[c.field], k = bpjsTab === 'kes' ? r.kali : 1, per = bpjsPerusahaan(pot / k, c); return { ...r, pot, per, tot: pot + per }; })
     .sort((a,b) => String(a.cabang).localeCompare(b.cabang) || String(a.nama).localeCompare(b.nama));
+  // Buruh harian: 1 baris total dari sub-tab Buruh Harian
+  const bhD = window._bhCache[bhKey()];
+  if (!bhD) loadBpjsBh();
+  const bhR = bhD ? bhRows(bhD).find(x => x.k === bpjsTab) : null;
+  const bhShow = bhR && bhR.n > 0 && q.every(t => 'buruh harian'.includes(t));
+  if (bhShow) rows.push({ isBh: true, nama: 'BURUH HARIAN', cabang: '', jabatan: '', n: bhR.n, pot: bhR.pot, per: bhR.per, tot: bhR.tot, adaGaji: true, kali: 1 });
   const t = rows.reduce((s,r) => ({ pot: s.pot+r.pot, per: s.per+r.per, tot: s.tot+r.tot }), { pot:0, per:0, tot:0 });
   const noGaji = rows.filter(r => !r.adaGaji).length;
-  document.getElementById('bp_info').textContent = `${rows.length} karyawan` + (noGaji ? ` · ${noGaji} belum ada hasil gajian periode ini` : '');
-  document.getElementById('bpjsBody').innerHTML = rows.map(r => `<tr>
-    <td><b>${acEsc(r.nama)}</b>${bpjsTab === 'kes' && r.kali > 1 ? ` <span class="pill ok">${r.kali}x</span>` : ''}${r.adaGaji ? '' : ' <span class="pill late">belum gajian</span>'}</td>
+  document.getElementById('bp_info').textContent = `${rows.length - (bhShow ? 1 : 0)} karyawan` + (bhShow ? ` + ${bhR.n} buruh harian` : '') + (noGaji ? ` · ${noGaji} belum ada hasil gajian periode ini` : '');
+  document.getElementById('bpjsBody').innerHTML = rows.map((r,i) => `<tr>
+    <td class="num muted">${i+1}</td><td><b>${acEsc(r.nama)}</b>${r.isBh ? ` <span class="pill ok">${r.n} orang</span>` : ''}${bpjsTab === 'kes' && r.kali > 1 ? ` <span class="pill ok">${r.kali}x</span>` : ''}${r.adaGaji ? '' : ' <span class="pill late">belum gajian</span>'}</td>
     <td>${acEsc(r.cabang)}</td><td>${acEsc(r.jabatan)}</td>
     <td class="num neg">${numID(r.pot)}</td><td class="num">${numID(r.per)}</td><td class="num"><b>${numID(r.tot)}</b></td>
-  </tr>`).join('') + (rows.length ? `<tr class="foot"><td>TOTAL</td><td></td><td></td>
+  </tr>`).join('') + (rows.length ? `<tr class="foot"><td></td><td>TOTAL</td><td></td><td></td>
     <td class="num">${numID(t.pot)}</td><td class="num">${numID(t.per)}</td><td class="num">${numID(t.tot)}</td></tr>`
-    : '<tr><td colspan="6" class="muted">Tidak ada karyawan.</td></tr>');
+    : '<tr><td colspan="7" class="muted">Tidak ada karyawan.</td></tr>');
+}
+
+// ---------- BPJS Buruh Harian (1 baris total per jenis, disimpan di Supabase per bulan) ----------
+// Dasar upah = UMP / gaji pokok standard, sama untuk Kesehatan dan TK.
+let BH_UMP = 4436300;
+const BH_DASAR = { kes: BH_UMP, tk: BH_UMP };
+window._bhCache = {};
+function bhPeriod(){ return { m: Number(val('bp_month')), y: Number(val('bp_year')) }; }
+function bhKey(){ const p = bhPeriod(); return p.y + '-' + p.m; }
+async function loadBpjsBh(){
+  const p = bhPeriod(); if (!p.m || !p.y) return;
+  const lk = p.y + '-' + p.m; if (window._bhLoading === lk) return; window._bhLoading = lk;
+  try { await loadBpjsBhRun(p); } finally { window._bhLoading = null; }
+}
+async function loadBpjsBhRun(p){
+  const { data, error } = await getSupabase().rpc('get_bpjs_buruh_harian', { p_pin: PIN, p_month: p.m, p_year: p.y });
+  if (error) { toast('Gagal load buruh harian: ' + error.message); return; }
+  const d = { kes: { n: 0, dasar: BH_DASAR.kes, saved: false }, tk: { n: 0, dasar: BH_DASAR.tk, saved: false } };
+  (data || []).forEach(r => { if (d[r.jenis]) d[r.jenis] = { n: Number(r.jumlah_orang || 0), dasar: BH_DASAR[r.jenis], saved: true }; });
+  window._bhCache[p.y + '-' + p.m] = d;
+  renderBpjs();
+}
+function bhSet(jenis, el){
+  const d = window._bhCache[bhKey()]; if (!d) return;
+  d[jenis].n = Math.max(0, parseInt(el.value, 10) || 0);
+  d._dirty = true;
+  renderBpjsBh(true);
+}
+function bhRows(d){
+  return ['kes','tk'].map(k => {
+    const c = BPJS_RATE[k], n = d[k].n, dasar = d[k].dasar;
+    const pot1 = Math.round(dasar * c.pekerja / 100), per1 = Math.round(dasar * c.perusahaan / 100);
+    return { k, label: c.label, n, dasar, pot: n * pot1, per: n * per1, tot: n * (pot1 + per1) };
+  });
+}
+function renderBpjsBh(keepInputs){
+  const d = window._bhCache[bhKey()];
+  document.getElementById('bp_info').textContent = '';
+  document.getElementById('bp_rate').textContent =
+    `Buruh harian: isi jumlah orang lalu Simpan. Potongan & perusahaan = % × dasar upah (UMP / gaji pokok standard). Kesehatan pekerja ${BPJS_RATE.kes.pekerja}% · perusahaan ${BPJS_RATE.kes.perusahaan}%. TK pekerja ${BPJS_RATE.tk.pekerja}% · perusahaan ${BPJS_RATE.tk.perusahaan}%.`;
+  if (!d) { document.getElementById('bpjsBhBody').innerHTML = '<tr><td colspan="6" class="muted">Memuat...</td></tr>'; loadBpjsBh(); return; }
+  const rows = bhRows(d);
+  const t = rows.reduce((s,r) => ({ n: s.n + r.n, pot: s.pot+r.pot, per: s.per+r.per, tot: s.tot+r.tot }), { n:0, pot:0, per:0, tot:0 });
+  document.getElementById('bh_status').textContent = d._dirty ? 'Belum disimpan' : ((d.kes.saved || d.tk.saved) ? 'Tersimpan' : 'Belum ada data periode ini');
+  if (keepInputs) {
+    rows.forEach(r => {
+      document.getElementById('bh_pot_' + r.k).textContent = numID(r.pot);
+      document.getElementById('bh_per_' + r.k).textContent = numID(r.per);
+      document.getElementById('bh_tot_' + r.k).textContent = numID(r.tot);
+    });
+    document.getElementById('bh_tn').textContent = numID(t.n);
+    document.getElementById('bh_tpot').textContent = numID(t.pot);
+    document.getElementById('bh_tper').textContent = numID(t.per);
+    document.getElementById('bh_ttot').textContent = numID(t.tot);
+    return;
+  }
+  document.getElementById('bpjsBhBody').innerHTML = rows.map(r => `<tr>
+    <td><b>${r.label}</b></td>
+    <td class="num"><input type="number" min="0" step="1" value="${r.n || ''}" placeholder="0" oninput="bhSet('${r.k}',this)"></td>
+    <td class="num muted">${numID(r.dasar)}</td>
+    <td class="num neg" id="bh_pot_${r.k}">${numID(r.pot)}</td><td class="num" id="bh_per_${r.k}">${numID(r.per)}</td>
+    <td class="num"><b id="bh_tot_${r.k}">${numID(r.tot)}</b></td>
+  </tr>`).join('') + `<tr class="foot"><td>TOTAL</td><td class="num" id="bh_tn">${numID(t.n)}</td><td></td>
+    <td class="num" id="bh_tpot">${numID(t.pot)}</td><td class="num" id="bh_tper">${numID(t.per)}</td><td class="num" id="bh_ttot">${numID(t.tot)}</td></tr>`;
+}
+async function saveBpjsBh(){
+  const p = bhPeriod(), d = window._bhCache[bhKey()];
+  if (!d) return;
+  const rows = bhRows(d).map(r => ({ jenis: r.k, jumlah_orang: r.n, dasar_upah: r.dasar, potongan: r.pot, perusahaan: r.per }));
+  const { error } = await getSupabase().rpc('save_bpjs_buruh_harian', { p_pin: PIN, p_month: p.m, p_year: p.y, p_rows: rows });
+  if (error) { toast('Gagal simpan: ' + error.message); return; }
+  d._dirty = false; d.kes.saved = d.tk.saved = true;
+  renderBpjsBh(true);
+  toast('Buruh harian tersimpan');
 }
 
 document.getElementById('pinInput').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
@@ -1497,11 +1652,11 @@ document.getElementById('pinInput').addEventListener('keydown', e => { if (e.key
       const occ = {};
       resolveSopirNames(sp).forEach(n => { occ[n] = (occ[n] || 0) + 1; });
       const kubA = Number(r.kubikasi_ok) || Number(r.total_kubikasi) || 0;
-      const ritPl = Object.keys(occ).reduce((s2, n) => s2 + ((occ[n] >= 2 && (Number(r.total_kubikasi) || 0) > 19) ? 2 : 1), 0);
+      const ritPl = Object.keys(occ).reduce((s2, n) => s2 + ((occ[n] >= 2 && (Number(r.total_kubikasi) || 0) > 16) ? 2 : 1), 0);
       const key = String(r.no_pl || ''); const prev = plAudit.get(key);
       plAudit.set(key, { rit: (prev ? prev.rit : 0) + ritPl, max: maxMobilPl(kubA), kub: kubA });
       Object.keys(occ).forEach(name => {
-        let rit = (occ[name] >= 2 && (Number(r.total_kubikasi) || 0) > 19) ? 2 : 1;
+        let rit = (occ[name] >= 2 && (Number(r.total_kubikasi) || 0) > 16) ? 2 : 1;
         const areaU = String(r.area || ''), locU = plLocation(r.no_pl);
         if (/\b(ARSO|SPM|SUPERMARKET)\b/i.test(areaU)) rit *= 2;
         else if (/\bGENYEM\b/i.test(areaU) && (locU === 'ENTROP' || locU === 'ABE')) rit *= 2;
