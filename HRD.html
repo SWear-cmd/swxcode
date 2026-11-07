@@ -1583,7 +1583,7 @@ document.getElementById('pinInput').addEventListener('keydown', e => { if (e.key
     const d = fromISO(iso);
     return `${HARI[d.getDay()]}, ${String(d.getDate()).padStart(2,'0')} ${BLN[d.getMonth()]} ${d.getFullYear()}`;
   }
-  function plLocation(noPl){ const m = /^PL-([A-Z]+)-/i.exec(String(noPl || '')); return m ? m[1].toUpperCase() : ''; }
+  function plLocation(noPl){ const m = /^PL-([A-Z]+)-/i.exec(String(noPl || '')); if (!m) return ''; const loc = m[1].toUpperCase(); return loc === 'ALL' ? 'ABE' : loc; } // PL-ALL = PL-ABE
   function maxMobilPl(kub){ const k = Number(kub) || 0; return Math.max(k > 13 ? 2 : 1, Math.floor(k / 9)); }
   function setMsg(t){ document.getElementById('gm_msg').textContent = t || ''; }
 
