@@ -146,6 +146,7 @@
   .lhGrid th, .lhGrid td { padding: 4px 10px; white-space: nowrap; }
   .lhGrid tr.sun td { color: var(--text-muted); opacity: .5; }
   .lhGrid tr.tt td { font-weight: 700; border-top: 2px solid var(--border); }
+  .lhGrid tr.lhDay td { font-weight: 700; border-top: 2px solid var(--border); background: rgba(255,255,255,.03); }
   .lhGrid td.num { font-variant-numeric: tabular-nums; }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
@@ -172,6 +173,8 @@
   .warnBg .wmEx:empty { display: none; }
   .warnBg .wmEx { margin-top: 5px; }
   .warnBg .wmTag { font-size: 11.5px; font-weight: 600; margin-bottom: 3px; }
+  .warnBg .wmRow .wmTag { margin: 0; }
+  .warnBg .wmThumb { height: 26px; }
   .warnBg .wmRow { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
   .warnBg .wmRow .wmHp { width: 160px; flex: 0 0 auto; }
   .warnBg .wmThumb { height: 34px; border-radius: 4px; border: 1px solid var(--border); cursor: zoom-in; }
@@ -340,11 +343,11 @@
       <div class="bar">
         <label>Bulan <input type="month" class="inp" id="lhMonth"></label>
         <div class="seg" id="lhSeg">
-          <button class="active" data-v="kol">Per Kolektor</button>
+          <button class="active" data-v="tunai">Laporan Tunai Kolektor</button>
+          <button data-v="total">Total Kolektor Harian</button>
           <button data-v="bayar">Per Pembayaran</button>
         </div>
-        <button class="btn" id="lhReload">Muat Ulang</button>
-        <span class="meta" id="lhInfo"></span>
+        <button class="btn" id="lhReload">Muat Ulang</button>        <span class="meta" id="lhInfo"></span>
       </div>
       <div id="lhBody"></div>
     </section>
@@ -596,12 +599,11 @@
 <!-- Pop up warning: wajib isi alasan sebelum buat Rekap Tagih (tidak bisa ditutup tanpa alasan) -->
 <div id="warnModal" class="warnBg hidden">
   <div class="modal">
-    <div class="hd"><div><h3 style="color:var(--urgent);">⚠ Peringatan Piutang Kuning &amp; Merah</h3>
-      <div class="meta">Top 50 toko dengan sisa terbesar (invoice 33–60 hari / &gt; 60 hari, tanpa tagihan kasus &amp; customer cash) — cukup diisi 1x per hari</div></div></div>
+    <div class="hd"><div><h3 style="color:var(--urgent);">⚠ Peringatan Piutang Kuning &amp; Merah</h3></div></div>
     <div class="bd">
-      <div class="wSum" id="wmSum"></div>
+      <div class="wSum hidden" id="wmSum"></div>
       <div class="wList"><table>
-        <thead><tr><th>#</th><th>Toko</th><th>Cabang</th><th>Kolektor</th><th class="num">Sisa</th><th>Alasan / tindak lanjut (wajib)</th></tr></thead>
+        <thead><tr><th>#</th><th>Toko</th><th>Cabang</th><th>Kolektor</th><th class="num">Sisa</th><th>Alasan</th></tr></thead>
         <tbody id="wmBody"></tbody>
       </table></div>
       <div class="errNote hidden" id="wmErr" style="margin:10px 0 0;"></div>
@@ -930,7 +932,6 @@
       <td class="small">${esc([...g.kol].join(', ') || '—')}</td>
       <td class="num sisa">${fmt(g.sisa)}</td>
       <td class="wAl"><input class="inp sm wmAl" data-i="${i}" value="${esc(val || '')}" placeholder="Alasan toko ini (min. ${WM_MIN} huruf)">
-        ${last ? `<div class="small muted wmFrom" data-i="${i}">↻ alasan sejak ${dMon(last.tgl_awal)} — ubah kalau ada kabar baru</div>` : ''}
         <div class="wmEx" data-i="${i}"></div></td></tr>`;
     }).join('');
     wmList.forEach((g, i) => wmRenderEx(i));
@@ -961,11 +962,8 @@
   }
   const hpOk = v => String(v || '').replace(/\D/g, '').length >= 9;
   function wmRowOk(i) {
-    const g = wmList[i], c = wmRowCat(i).cat, ex = wmExGet(g.nama);
-    if (!c) return false;
-    if (c === 'KEJAR') return hpOk(ex.hp) && !!wmSS[g.nama];
-    if (c === 'FIX') return String(ex.detail || '').trim().length >= WM_DET_MIN;
-    return true;
+    // hanya alasan yang wajib; No HP, screenshot, detail masalah opsional
+    return !!wmRowCat(i).cat;
   }
   function wmRenderEx(i) {
     const box = document.querySelector(`#wmBody .wmEx[data-i="${i}"]`); if (!box) return;
@@ -975,16 +973,15 @@
       const hp = ex.hp != null ? ex.hp : (wmHp[g.nama] || '');
       if (ex.hp == null && hp) wmExSet(g.nama, 'hp', hp);
       const ss = wmSS[g.nama];
-      box.innerHTML = `<div class="wmTag" style="color:#f2b134;">📞 Kejar tiap hari — wajib No HP + screenshot WA hari ini${r.lewat ? ` <span style="color:var(--urgent)">(janji ${dMon(r.janji)} sudah lewat)</span>` : ''}</div>
-        <div class="wmRow"><input class="inp sm wmHp${hpOk(hp) ? '' : ' miss'}" data-i="${i}" value="${esc(hp)}" placeholder="No HP / WA toko" inputmode="tel">
-        <label class="btn sm">${ss ? 'Ganti' : '📎 Pilih'} screenshot<input type="file" accept="image/*" class="wmFile" data-i="${i}" hidden></label>
-        ${ss ? `<img src="${ss}" class="wmThumb" data-i="${i}" title="Klik untuk lihat">` : '<span class="small muted">atau klik kolom HP lalu Ctrl+V</span>'}</div>`;
+      box.innerHTML = `<div class="wmRow"><span class="wmTag" style="color:#f2b134;" title="Kejar tiap hari">📞${r.lewat ? ` <span style="color:var(--urgent)">janji ${dMon(r.janji)} lewat</span>` : ''}</span>
+        <input class="inp sm wmHp" data-i="${i}" value="${esc(hp)}" placeholder="No HP (opsional)" inputmode="tel">
+        <label class="btn sm" title="Screenshot WA (opsional) — bisa juga Ctrl+V di kolom HP">📎${ss ? ' Ganti' : ''}<input type="file" accept="image/*" class="wmFile" data-i="${i}" hidden></label>
+        ${ss ? `<img src="${ss}" class="wmThumb" data-i="${i}" title="Klik untuk lihat">` : ''}</div>`;
     } else if (r.cat === 'FIX') {
-      const det = ex.detail || '', lama = wmLast[g.nama] && wmLast[g.nama].detail && det === wmLast[g.nama].detail;
-      box.innerHTML = `<div class="wmTag" style="color:var(--urgent);">🔧 Masalah — ${lama ? 'detail dari isian sebelumnya (ubah kalau ada perkembangan)' : `tulis detail masalahnya (min. ${WM_DET_MIN} huruf)`}</div>
-        <textarea class="inp sm wmDet${det.trim().length >= WM_DET_MIN ? '' : ' miss'}" data-i="${i}" rows="2" placeholder="Contoh: selisih Rp 250.000 di invoice DFINV..., toko potong retur yang belum ada nota CN">${esc(det)}</textarea>`;
+      const det = ex.detail || '';
+      box.innerHTML = `<input class="inp sm wmDet" data-i="${i}" value="${esc(det)}" placeholder="🔧 Detail masalah (opsional)">`;
     } else if (r.cat === 'WAIT') {
-      box.innerHTML = `<div class="wmTag" style="color:var(--ok);">⏳ Janji bayar ${r.janji ? HARI[r.janji.getDay()] + ' ' + dMon(r.janji) : ''}</div>`;
+      box.innerHTML = `<div class="wmTag" style="color:var(--ok);">⏳ ${r.janji ? HARI[r.janji.getDay()] + ' ' + dMon(r.janji) : ''}</div>`;
     } else box.innerHTML = '';
   }
   // kecilkan gambar (sisi terpanjang maks 1280px, jpeg) supaya ringan disimpan
@@ -1013,13 +1010,9 @@
   }
   function wmCheck() {
     const ins = [...document.querySelectorAll('#wmBody .wmAl')];
-    const n = ins.filter(x => x.value.trim().length >= WM_MIN).length;
     const nOk = ins.filter(x => wmRowOk(+x.dataset.i)).length;
     document.getElementById('wmSave').disabled = nOk < ins.length;
-    document.getElementById('wmHint').textContent = n < ins.length
-      ? `Alasan terisi ${n} / ${ins.length} toko. Isi semua untuk lanjut ke Rekap Tagih.`
-      : nOk < ins.length ? `${ins.length - nOk} toko belum lengkap (No HP + screenshot WA / detail masalah).`
-      : `Semua ${ins.length} toko sudah lengkap.`;
+    document.getElementById('wmHint').textContent = `Alasan ${nOk} / ${ins.length}`;
   }
   document.getElementById('wmBody').addEventListener('input', e => {
     const t = e.target, i = +t.dataset.i, g = wmList[i];
@@ -1027,12 +1020,10 @@
     if (t.classList.contains('wmAl')) {
       t.classList.toggle('miss', false);
       const d = wmDraftGet(); d[g.nama] = t.value; wmDraftSet(d);
-      const fr = document.querySelector(`#wmBody .wmFrom[data-i="${i}"]`), last = wmLast[g.nama];
-      if (fr && last) fr.classList.toggle('hidden', wmNorm(last.alasan) !== wmNorm(t.value));
       const box = document.querySelector(`#wmBody .wmEx[data-i="${i}"]`), r = wmRowCat(i);
       if (!box || box.dataset.cat !== (r.cat || '') || r.cat === 'WAIT') wmRenderEx(i);
-    } else if (t.classList.contains('wmHp')) { wmExSet(g.nama, 'hp', t.value); t.classList.toggle('miss', !hpOk(t.value)); }
-    else if (t.classList.contains('wmDet')) { wmExSet(g.nama, 'detail', t.value); t.classList.toggle('miss', t.value.trim().length < WM_DET_MIN); }
+    } else if (t.classList.contains('wmHp')) wmExSet(g.nama, 'hp', t.value);
+    else if (t.classList.contains('wmDet')) wmExSet(g.nama, 'detail', t.value);
     wmCheck();
   });
   document.getElementById('wmBody').addEventListener('change', e => {
@@ -1080,7 +1071,7 @@
     const detRows = wmList.map((g, i) => {
       const c = wmRowCat(i).cat, ex = wmExGet(g.nama);
       return { toko: g.nama, kategori: c, alasan: alTok[i],
-        no_hp: c === 'KEJAR' ? String(ex.hp || '').trim() : '', detail: c === 'FIX' ? String(ex.detail || '').trim() : '',
+        no_hp: c === 'KEJAR' && hpOk(ex.hp) ? String(ex.hp || '').trim() : '', detail: c === 'FIX' ? String(ex.detail || '').trim() : '',
         screenshot: c === 'KEJAR' ? (wmSS[g.nama] || '') : '' };
     });
     const alasan = wmList.map((g, i) => `${g.nama}: ${alTok[i]}`).join('\n');
@@ -2086,7 +2077,7 @@
             return `<tr class="br-${esc(i.branch)}${pk ? ' picked' : ''}${extra || ''}" data-row="${i.id}" data-bid="${b.id}">${chk(pk)}<td class="wrapTxt">${sub ? '<span class="muted" style="margin-left:14px;">└ </span>' : `<span class="brTag ${esc(i.branch)}">${esc(i.branch)}</span>${esc(tokoName(i.customer))} · `}<span class="invNo">${esc(i.invoice_no)}</span></td><td>${dmy(i.tracking_date)}</td><td class="num">${fmt(i.sisa)}</td>
               <td>${i.hasil ? `<span class="badge ${i.hasil}">${hasilLbl(i.hasil)}</span>` : '<span class="badge NONE">BELUM DIISI</span>'}</td>
               <td class="wrapTxt small">${i.hasil === 'GAGAL' ? esc(i.alasan) : bayarDetail(i) + (i.alasan ? ` <span class="muted">— ${esc(i.alasan)}</span>` : '')}</td>
-              <td class="num">${x.total ? fmt(x.total) : '—'}</td>
+              <td class="num">${x.total ? fmt(x.total) + selTag(x.total, i.sisa) : '—'}</td>
               <td>${open ? `<div class="actions"><button class="btn sm" data-edit="${i.id}">Input</button>
                 ${!i.hasil ? `<button class="btn sm" data-lunas="${i.id}" title="Lunas cash sebesar sisa">Lunas Cash</button>` : ''}${gt || ''}</div>` : ''}</td></tr>`;
           };
@@ -2099,7 +2090,7 @@
                 <button class="btn sm" data-grp-toggle="${key}" style="margin-left:6px;">${isOpen ? '▾ tutup' : '▸ rincian'}</button></td>
               <td>${tr.length ? dmy(tr[0]) + (tr.length > 1 && tr[0] !== tr[tr.length - 1] ? ' – ' + dmy(tr[tr.length - 1]) : '') : ''}</td><td class="num">${fmt(T.sisa)}</td>
               <td><span class="badge ${cicil ? 'SEBAGIAN' : 'BAYAR'}">${cicil ? 'CICIL' : 'LUNAS'}</span></td>
-              <td class="wrapTxt small">${grpDetail(items)}</td><td class="num"><b>${fmt(T.total)}</b></td>
+              <td class="wrapTxt small">${grpDetail(items)}</td><td class="num"><b>${fmt(T.total)}</b>${selTag(T.total, T.sisa)}</td>
               <td>${open ? `<div class="actions"><button class="btn sm" data-grp-edit="${key}">Ubah</button></div>` : ''}</td></tr>`;
             return head + items.map(i => oneRow(i, ' grpDet' + (isOpen ? '' : ' hidden'), true)).join('');
           };
@@ -2255,6 +2246,8 @@
     setHmMode(b.dataset.m);
     if (b.dataset.m === 'bayar' && !hmLines.length) { hmLines.push({ metode: 'CASH', nilai: Math.round(sumBy(hmItems, i => i.sisa)) }); renderLines(); }
   }));
+  // tanda lebih/kurang bayar di rekap tagih
+  const selTag = (tot, sisa) => { const d = Math.round(+tot || 0) - Math.round(+sisa || 0); return Math.abs(d) <= TOL ? '' : d > 0 ? `<div class="small" style="color:var(--urgent)">lebih ${fmt(d)}</div>` : `<div class="small" style="color:var(--warn)">kurang ${fmt(-d)}</div>`; };
   const GIRO_BANKS = ['PANIN', 'BCA', 'BRI', 'MAYBANK', 'BNI', 'DANAMON', 'PAPUA', 'MANDIRI'];
   // cabang yang ikut di invoice terpilih; >1 cabang → giro/TF harus pilih masuk cabang mana
   const hmBranches = () => [...new Set(hmItems.map(i => i.branch))];
@@ -2427,6 +2420,7 @@
       const ket = [];
       if (i.hasil === 'GAGAL') ket.push(esc(i.alasan || 'GAGAL'));
       if (i.hasil === 'SEBAGIAN') ket.push('CICIL');
+      { const lb = Math.round(sumBy(pays, p => +p.nilai)) - Math.round(+i.sisa || 0); if (i.hasil !== 'GAGAL' && lb > TOL) ket.push('LEBIH ' + fmt(lb)); }
       const gb = s => s.replace(/(^|; )gabung /g, '$1gb ');
       pays.forEach(p => { const go = gabOther(p, br, i.customer); if (go) ket.push(gb(go)); });
       show.forEach(p => { const n = gabNote(p, br, i.customer); if (n) ket.push(gb(n.trim().replace(/^\(|\)$/g, ''))); });
@@ -2509,7 +2503,11 @@
   /* ================= TAB: LAPORAN HARIAN KOLEKTOR =================
      Per bulan, per cabang. Sub tab Per Kolektor: baris tanggal × kolom kolektor (total tertagih).
      Sub tab Per Pembayaran: baris tanggal × kolom Tunai / TRF / Giro / CN. Data dari get_tagih_batches per hari. */
-  let lhView = 'kol', lhMonthKey = '', lhDays = [];
+  let lhView = 'tunai', lhMonthKey = '', lhDays = [], lhTcolPend = [];
+  // tunai tagih yang sudah Submit & belum dipindah ke transfer2 (untuk tombol Kirim per hari)
+  async function lhLoadTcol() {
+    lhTcolPend = role === 'full' ? ((await rpc('get_tagih_trf_pending')) || []).filter(r => r.metode === 'CASH') : [];
+  }
   async function loadLH(force) {
     const mi = document.getElementById('lhMonth');
     if (!mi.value) { const t = todayD(); mi.value = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}`; }
@@ -2525,14 +2523,52 @@
       const r = (await rpc('get_tagih_batches', { p_tgl: iso(d) })) || {};
       return { d, batches: r.batches || [] };
     }));
+    await lhLoadTcol();
     lhMonthKey = mi.value;
     document.getElementById('lhInfo').textContent = '';
     renderLH();
+  }
+  // urutan kolektor di laporan gabungan; nama lain ditaruh di belakang
+  const LH_KOL_ORDER = ['KOTA', 'ABE ANDI', 'ABE BAIM', 'SENTANI', 'SPM', 'KANTOR', 'ARSO', 'KOYA'];
+  const lhKolRank = n => { const u = String(n || '').trim().toUpperCase(); let i = LH_KOL_ORDER.indexOf(u); if (i < 0) i = LH_KOL_ORDER.findIndex(o => u.startsWith(o)); return i < 0 ? 99 : i; };
+  // 1 tabel gabungan: baris tanggal (total hari) + baris KSI / ABP / DAF, kolom kolektor
+  function renderLHGabung(kolNames, cell) {
+    const BRG = ['KSI', 'ABP', 'DAF'], key = lhView === 'tunai' ? 'CASH' : 'total';
+    const kols = kolNames.slice().sort((a, b) => lhKolRank(a) - lhKolRank(b) || String(a).localeCompare(String(b)));
+    const val = (x, k, br) => batchTotals(x.batches.filter(b => b.kolektor === k).flatMap(b => b.items).filter(i => !br || i.branch === br))[key];
+    const days = lhDays.filter(x => x.d.getDay() !== 0 && x.batches.length);
+    // kolom kirim T COL per hari (hanya Laporan Tunai, akses penuh)
+    const tc = lhView === 'tunai' && role === 'full';
+    const tcCell = x => {
+      if (!tc) return '';
+      const d = iso(x.d), pend = lhTcolPend.filter(r => String(r.tgl_tagih).slice(0, 10) === d);
+      const cash = batchTotals(x.batches.flatMap(b => b.items)).CASH;
+      if (pend.length) return `<td><button class="btn sm primary" data-tcol="${d}">Kirim ${fmt(sumBy(pend, r => +r.nilai))}</button></td>`;
+      if (!cash) return '<td></td>';
+      return x.batches.every(b => b.status === 'DICEK') ? '<td class="small" style="color:var(--ok)">✓ terkirim</td>' : '<td class="small muted">belum submit</td>';
+    };
+    const tcTh = tc ? '<th>T COL → transfer2</th>' : '', tcTd = tc ? '<td></td>' : '';
+    const brT = {}; BRG.forEach(br => brT[br] = kols.map(() => 0));
+    const rows = days.map(x => {
+      const per = BRG.map(br => kols.map(k => val(x, k, br)));
+      per.forEach((v, bi) => v.forEach((n, j) => brT[BRG[bi]][j] += n));
+      const dayV = kols.map((_, j) => sumBy(per, v => v[j]));
+      return `<tr class="lhDay"><td>${dMon(x.d)}</td>${dayV.map(cell).join('')}${cell(sumBy(dayV, v => v))}${tcCell(x)}</tr>` +
+        BRG.map((br, bi) => `<tr class="br-${br}"><td style="padding-left:22px;"><span class="brTag ${br}">${br}</span></td>${per[bi].map(cell).join('')}${cell(sumBy(per[bi], v => v))}${tcTd}</tr>`).join('');
+    }).join('');
+    const allT = kols.map((_, j) => sumBy(BRG, br => brT[br][j]));
+    const foot = BRG.map(br => `<tr class="br-${br}"><td style="padding-left:22px;"><span class="brTag ${br}">${br}</span></td>${brT[br].map(cell).join('')}${cell(sumBy(brT[br], v => v))}${tcTd}</tr>`).join('');
+    const title = lhView === 'tunai' ? 'Laporan Tunai Kolektor' : 'Total Kolektor Harian <span class="muted small">(tunai + giro + TF + CN)</span>';
+    return `<div class="card"><div class="hd"><b>${title}</b></div><div class="tableWrap"><table>
+      <thead><tr><th>TGL</th>${kols.map(k => `<th class="num">${esc(k)}</th>`).join('')}<th class="num">TOTAL</th>${tcTh}</tr></thead>
+      <tbody>${rows || `<tr><td colspan="${kols.length + 3}" class="muted">Belum ada data bulan ini.</td></tr>`}
+      <tr class="tt"><td>TOTAL</td>${allT.map(cell).join('')}${cell(sumBy(allT, v => v))}${tcTd}</tr>${foot}</tbody></table></div></div>`;
   }
   function renderLH() {
     const BR = ['DAF', 'ABP', 'KSI'];
     const kolNames = [...new Set([...(ctx.kolektor || []).filter(k => k.aktif).map(k => k.nama), ...lhDays.flatMap(x => x.batches.map(b => b.kolektor))])];
     const cell = v => `<td class="num">${v ? fmt(v) : ''}</td>`;
+    if (lhView !== 'bayar') { document.getElementById('lhBody').innerHTML = `<div class="lhGrid">${renderLHGabung(kolNames, cell)}</div>`; return; }
     const tables = BR.map(br => {
       const cols = lhView === 'kol' ? kolNames.map(k => ({ l: k, f: x => batchTotals(x.batches.filter(b => b.kolektor === k).flatMap(b => b.items).filter(i => i.branch === br)).total }))
         : [['TUNAI', 'CASH'], ['TRF', 'TF'], ['GIRO', 'GIRO'], ['CN', 'CN_RETUR']].map(([l, k]) => ({ l, f: x => batchTotals(x.batches.flatMap(b => b.items).filter(i => i.branch === br))[k] }));
@@ -2548,6 +2584,25 @@
   }
   document.getElementById('lhMonth').addEventListener('change', () => loadLH().catch(e => showErr(e.message)));
   document.getElementById('lhReload').addEventListener('click', () => loadLH(true).catch(e => showErr(e.message)));
+  // Kirim tunai 1 hari tagih ke transfer2 sebagai T COL (1 baris per cabang)
+  document.getElementById('lhBody').addEventListener('click', async e => {
+    const btn = e.target.closest('[data-tcol]'); if (!btn) return;
+    const d = btn.dataset.tcol;
+    btn.disabled = true;
+    try {
+      await lhLoadTcol();
+      const rows = lhTcolPend.filter(r => String(r.tgl_tagih).slice(0, 10) === d)
+        .sort((a, b) => ['KSI', 'ABP', 'DAF'].indexOf(a.branch) - ['KSI', 'ABP', 'DAF'].indexOf(b.branch));
+      if (!rows.length) { alert('Tunai tanggal ini sudah terkirim / belum Submit Hasil.'); renderLH(); return; }
+      const list = rows.map(r => `${r.branch}  T COL  tgl ${dMon(r.tgl)}  ${fmt(r.nilai)}`).join('\n');
+      if (!confirm(`Kirim tunai tagih ${dMon(d)} ke transfer2?\n\n${list}\n\nTotal: ${fmt(sumBy(rows, r => +r.nilai))}\n\nSetelah dikirim, tunai ini terkunci.`)) { btn.disabled = false; return; }
+      const res = await rpc('post_tagih_trf', { p_ids: rows.flatMap(r => r.ids) });
+      try { await sb().rpc('run_transfer2_bank_sync', { p_pin: pin }); } catch (e2) { /* tidak kritis */ }
+      toast(`${res && res.n || rows.length} baris T COL masuk transfer2`);
+      await lhLoadTcol();
+    } catch (e2) { alert('Gagal kirim ke transfer2: ' + (e2.message || e2)); }
+    renderLH();
+  });
   document.querySelectorAll('#lhSeg button').forEach(b => b.addEventListener('click', () => {
     lhView = b.dataset.v; document.querySelectorAll('#lhSeg button').forEach(x => x.classList.toggle('active', x === b)); renderLH();
   }));
