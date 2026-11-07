@@ -121,6 +121,10 @@
   .card .hd { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border-bottom: 1px solid var(--border); }
   .card .tot { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--text-muted); }
   .card .tot b { color: var(--text); font-variant-numeric: tabular-nums; }
+  #hsCards .card, #hsCards .tableWrap { overflow: visible; }
+  #hsCards thead th { position: sticky; top: 0; z-index: 3; background: var(--surface); box-shadow: 0 1px 0 var(--border); }
+  #hsSearch { background: #fff; color: #111; border: 1px solid var(--border); min-width: 260px; }
+  #hsSearch::placeholder { color: #888; }
   #tab-hasil td.chk { cursor: pointer; user-select: none; }
   #tab-hasil tr.picked td { background: rgba(91,141,239,.14); }
   #tab-hasil tr.grpRow td { border-top: 1px solid var(--border); }
@@ -154,6 +158,13 @@
   .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; width: 720px; max-width: 100%; max-height: 90vh; overflow: auto; }
   .modal .hd { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; gap: 10px; }
   .modal .bd { padding: 14px 18px 18px; }
+  .lamaForm { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .lamaForm label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-muted); }
+  .lamaForm label.w2 { grid-column: span 2; }
+  .lamaForm .inp { width: 100%; }
+  .lamaForm .inp.num { text-align: right; }
+  @media (max-width: 760px) { .lamaForm { grid-template-columns: 1fr 1fr; } }
+  .badge.LAMA { background: rgba(242,177,52,.15); color: #f2b134; }
   .warnBg { position: fixed; inset: 0; background: rgba(0,0,0,.7); display: flex; align-items: center; justify-content: center; z-index: 60; padding: 16px; }
   .warnBg.hidden { display: none; }
   .warnBg .modal { width: 980px; border-top: 4px solid var(--urgent); display: flex; flex-direction: column; }
@@ -270,7 +281,7 @@
           <button class="pill" data-b="ABP">ABP</button>
           <button class="pill" data-b="KSI">KSI</button>
         </div>
-        <button class="btn" id="exportBtn">Export Excel</button>
+        <div class="actions"><button class="btn" id="lamaBtn" title="Input faktur 2023-2025 yang belum lunas">+ Faktur Lama</button><button class="btn" id="exportBtn">Export Excel</button></div>
       </div>
       <div class="controls">
         <input type="text" id="q1" placeholder="Search invoice, customer, salesman, atau tanggal (29/09/2026)...">
@@ -328,6 +339,7 @@
           <button class="pill" data-b="DAF">DAF</button>
         </div>
         <label>Kolektor <select class="inp" id="hsKol"><option value="">Semua</option></select></label>
+        <input type="search" class="inp" id="hsSearch" placeholder="Cari toko / no invoice / nilai (F1)" autocomplete="off">
         <div class="actions" style="margin-left:auto;">
           <button class="btn" id="hsPrintAll">Print Hasil Semua</button>
           <button class="btn blue" id="hsPostBtn">Posting Tanggal Ini</button>
@@ -552,6 +564,35 @@
   </div>
 </div>
 
+<!-- Modal: faktur lama (2023-2025) yang belum lunas -->
+<div id="lamaModal" class="modalBg hidden">
+  <div class="modal" style="width:1040px;">
+    <div class="hd"><div><h3>Faktur Lama (belum lunas)</h3><div class="meta">Faktur sebelum 2026 yang tidak ada di data invoice. Setelah disimpan langsung ikut di daftar Piutang &amp; Rekap Tagih. Pembayaran dari BPP (ERP) ikut mengurangi sisa.</div></div><button class="x" data-close="lamaModal">×</button></div>
+    <div class="bd">
+      <div class="lamaForm">
+        <label>Cabang<select class="inp" id="lmBranch"><option>DAF</option><option>ABP</option><option>KSI</option></select></label>
+        <label>No Faktur<input class="inp" id="lmNo" placeholder="FK23..."></label>
+        <label class="w2">Customer<input class="inp" id="lmCust" list="lmCustList" placeholder="Ketik nama toko, pilih dari daftar"></label>
+        <label>Salesman<input class="inp" id="lmSales" list="lmSalesList"></label>
+        <label>Tgl Faktur<input type="date" class="inp" id="lmPrint"></label>
+        <label>Tgl Kirim / Tracking<input type="date" class="inp" id="lmTrack"></label>
+        <label>Nilai Faktur<input class="inp num" id="lmAmt" inputmode="numeric" placeholder="0"></label>
+        <label>Sudah Dibayar (di luar BPP)<input class="inp num" id="lmAwal" inputmode="numeric" placeholder="0"></label>
+        <label class="w2">Catatan<input class="inp" id="lmNote"></label>
+      </div>
+      <datalist id="lmCustList"></datalist><datalist id="lmSalesList"></datalist>
+      <div class="actions" style="margin:10px 0 14px;"><span class="small muted" id="lmHint"></span><span style="flex:1"></span>
+        <button class="btn sm" id="lmReset">Batal / Kosongkan</button><button class="btn sm blue" id="lmSave">Simpan</button></div>
+      <div class="tableWrap" style="max-height:45vh;">
+        <table>
+          <thead><tr><th>Cabang</th><th>No Faktur</th><th>Customer</th><th>Tgl Faktur</th><th>Tracking</th><th class="num">Nilai</th><th class="num">Dibayar</th><th class="num">Sisa</th><th>Catatan</th><th></th></tr></thead>
+          <tbody id="lmBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: riwayat pembayaran ERP -->
 <div id="payModal" class="modalBg hidden">
   <div class="modal">
@@ -689,7 +730,8 @@
   async function rpc(name, params) {
     const { data, error } = await sb().rpc(name, { p_pin: pin, ...(params || {}) });
     if (error) {
-      if (/pin|akses|access/i.test(error.message || '') && /invalid|salah|tidak|denied|full/i.test(error.message || '')) lockOut('Sesi PIN tidak valid: ' + error.message);
+      // logout hanya kalau PIN-nya memang tidak valid. "Butuh PIN full access" = aksi ditolak saja, tetap login.
+      if (/pin tidak valid|invalid pin/i.test(error.message || '')) lockOut('Sesi PIN tidak valid: ' + error.message);
       throw error;
     }
     return typeof data === 'string' && /^[\[{]/.test(data) ? JSON.parse(data) : data;
@@ -728,6 +770,7 @@
       b.style.display = (isAdminKol() && !ADMINKOL_TABS.includes(b.dataset.tab)) ? 'none' : '';
     });
     document.getElementById('hsPostBtn').style.display = 'none'; // diganti tab Posting Transfer
+    document.getElementById('lamaBtn').style.display = isAdminKol() ? 'none' : '';
     document.getElementById('roleTag').textContent = isAdminKol() ? 'Admin Kolektor' : 'Full Access';
     if (isAdminKol() && !ADMINKOL_TABS.includes(currentTab)) document.querySelector('#tabBar .tabBtn[data-tab="piutang"]').click();
   }
@@ -779,7 +822,7 @@
       return {
         branch: String(r.branch || '').toUpperCase(), invoiceNo: r.invoice_no, customer: r.customer || '', salesman: r.salesman || '',
         printDate: pd, trackDate: td, trackRaw: r.tracking_date, amount: +r.amount || 0, paid: +r.paid || 0, sisa: +r.sisa || 0,
-        payCount: r.pay_count || 0, jenis: r.jenis, days, age: ageOf(days),
+        payCount: r.pay_count || 0, jenis: r.jenis, days, age: ageOf(days), lama: !!r.lama,
         _q: [r.invoice_no, r.customer, r.salesman, dmy(td), dmy(pd)].join(' ').toLowerCase()
       };
     });
@@ -1410,7 +1453,7 @@
       tb.innerHTML = pageRows.map((r, i) => `
         <tr class="${r.payCount ? 'clickable' : ''}" data-i="${s + i}">
           <td class="chk dragChk" data-dk="${esc(invKey(r.branch, r.invoiceNo))}"><input type="checkbox" ${pSel.has(invKey(r.branch, r.invoiceNo)) ? 'checked' : ''}></td>
-          <td>${esc(r.branch)}</td><td class="invNo">${esc(r.invoiceNo)}</td><td class="wrapTxt">${esc(r.customer)}</td>
+          <td>${esc(r.branch)}</td><td class="invNo">${esc(r.invoiceNo)}${r.lama ? ' <span class="badge LAMA" title="Faktur lama, diinput manual">LAMA</span>' : ''}</td><td class="wrapTxt">${esc(r.customer)}</td>
           <td>${r.trackDate ? dmy(r.trackDate) : '—'}</td><td>${esc(r.salesman)}</td>
           <td>${r.kolNama ? esc(r.kolNama) : '<span class="muted">—</span>'}</td>
           <td class="num">${fmt(r.amount)}</td><td class="num ${r.paid ? '' : 'muted'}">${r.paid ? fmt(r.paid) : '—'}</td>
@@ -1747,6 +1790,138 @@
       <div class="sign"><div><div class="ln">Admin</div></div><div><div class="ln">Kolektor (${esc(b.kolektor)})</div></div></div></div>`;
   }
 
+  /* ================= FAKTUR LAMA (2023-2025, input manual) ================= */
+  let lmData = [], lmEditId = null;
+  const dMonY = v => { const x = parseAnyDate(v); return x ? `${dMon(x)}-${x.getFullYear()}` : '—'; };
+  const lmNum = id => Number(String(document.getElementById(id).value).replace(/[^\d.-]/g, '')) || 0;
+  function lmFillLists() {
+    const br = document.getElementById('lmBranch').value;
+    const cust = new Set(), sales = new Set();
+    rows.forEach(r => { if (r.branch === br) { if (r.customer) cust.add(r.customer); if (r.salesman) sales.add(r.salesman); } });
+    tokoMap.forEach(t => { if (String(t.branch || '').toUpperCase() === br && t.customer) cust.add(t.customer); });
+    document.getElementById('lmCustList').innerHTML = [...cust].sort().map(c => `<option value="${esc(c)}">`).join('');
+    document.getElementById('lmSalesList').innerHTML = [...sales].sort().map(c => `<option value="${esc(c)}">`).join('');
+    lmHint();
+  }
+  // cari toko di Master Kolektor: nama persis, atau nama tanpa kode (CSTxxx), di cabang yang dipilih / cabang lain
+  const lmNorm = s => tokoName(s).toUpperCase().replace(/\s+/g, ' ');
+  function lmFindToko(br, c) {
+    const exact = tokoMap.get(tokoKey(br, c));
+    if (exact) return { t: exact, sameBr: true };
+    const n = lmNorm(c), all = [...tokoMap.values()].filter(t => lmNorm(t.customer) === n);
+    const same = all.filter(t => String(t.branch || '').toUpperCase() === br);
+    if (same.length === 1) return { t: same[0], sameBr: true };
+    return { others: all.filter(t => String(t.branch || '').toUpperCase() !== br) };
+  }
+  function lmHint(fix) {
+    const br = document.getElementById('lmBranch').value, inp = document.getElementById('lmCust'), c = inp.value.trim();
+    const el = document.getElementById('lmHint');
+    if (!c) { el.innerHTML = ''; return; }
+    const f = lmFindToko(br, c);
+    if (f.t) {
+      if (fix && f.t.customer !== c) inp.value = f.t.customer; // samakan nama dengan Master Kolektor (pakai kode CST)
+      const k = kolById.get(String(f.t.kolektor_id));
+      el.innerHTML = k ? `Kolektor: <b>${esc(k.nama)}</b> · ${esc(hariLabel(f.t.hari_tagih))}`
+        : '<span style="color:var(--warn)">Toko ini belum punya kolektor — tidak akan muncul di Rekap Tagih sampai diatur di Master Kolektor.</span>';
+      return;
+    }
+    const src = lmCopySrc(f.others);
+    const ks = src && kolById.get(String(src.kolektor_id));
+    el.innerHTML = ks
+      ? `Toko belum ada di ${esc(br)} — saat Simpan otomatis ditambahkan ke Master Kolektor ${esc(br)}: <b>${esc(ks.nama)}</b> · ${esc(hariLabel(src.hari_tagih))} (ikut ${esc(src.branch)})`
+      : '<span style="color:var(--warn)">Toko ini belum ada di Master Kolektor cabang ' + esc(br) + ' — atur kolektornya di Master Kolektor setelah simpan, supaya muncul di Rekap Tagih.</span>';
+  }
+  // toko yang sama di cabang lain yang sudah punya kolektor → dipakai sebagai contoh untuk cabang baru
+  const lmCopySrc = others => (others || []).find(t => t.kolektor_id && kolById.get(String(t.kolektor_id))) || null;
+  async function lmAddToko(br, cust) {
+    if (tokoMap.get(tokoKey(br, cust))) return '';
+    const src = lmCopySrc(lmFindToko(br, cust).others);
+    if (!src) return '';
+    await rpc('save_toko_kolektor', { p_rows: [{ branch: br, customer: cust }], p_kolektor_id: +src.kolektor_id, p_hari: src.hari_tagih || [] });
+    const top = topOf(src.branch, src.customer);
+    if (top !== null) { try { await rpc('save_toko_top', { p_rows: [{ branch: br, customer: cust, hari_top: top }] }); } catch (e) { /* TOP opsional */ } }
+    return ` · toko ditambahkan ke Master Kolektor ${br}`;
+  }
+  document.getElementById('lmHint').addEventListener('click', e => {
+    const a = e.target.closest('[data-lm-br]'); if (!a) return;
+    e.preventDefault();
+    document.getElementById('lmBranch').value = String(a.dataset.lmBr).toUpperCase();
+    lmFillLists();
+    document.getElementById('lmCust').value = a.dataset.lmCust;
+    lmHint(true);
+  });
+  function lmReset() {
+    lmEditId = null;
+    ['lmNo', 'lmCust', 'lmSales', 'lmPrint', 'lmTrack', 'lmAmt', 'lmAwal', 'lmNote'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('lmSave').textContent = 'Simpan';
+    lmFillLists();
+  }
+  function lmRender() {
+    const tb = document.getElementById('lmBody');
+    if (!lmData.length) { tb.innerHTML = '<tr><td colspan="10" class="muted" style="text-align:center;padding:16px;">Belum ada faktur lama.</td></tr>'; return; }
+    tb.innerHTML = lmData.map(r => `<tr>
+      <td>${esc(r.branch)}</td><td class="invNo">${esc(r.invoice_no)}</td><td class="wrapTxt">${esc(r.customer)}</td>
+      <td>${dMonY(r.print_date)}</td><td>${dMonY(r.tracking_date)}</td>
+      <td class="num">${fmt(r.amount)}</td><td class="num">${fmt(+r.dibayar_awal + +r.paid_erp)}</td>
+      <td class="num sisa">${+r.sisa > 0 ? fmt(r.sisa) : '<span class="badge OK">LUNAS</span>'}</td>
+      <td class="wrapTxt small">${esc(r.catatan || '')}</td>
+      <td style="white-space:nowrap"><button class="btn sm" data-lm-edit="${r.id}">Ubah</button>
+        ${r.pernah_ditagih ? '' : `<button class="btn sm" data-lm-del="${r.id}">Hapus</button>`}</td></tr>`).join('');
+  }
+  async function lmLoad() {
+    try { lmData = (await rpc('get_piutang_lama')) || []; lmRender(); }
+    catch (e) { document.getElementById('lmBody').innerHTML = `<tr><td colspan="10" style="color:var(--urgent);padding:12px;">Gagal memuat: ${esc(e.message || e)}<br>Pastikan piutang_lama.sql sudah dijalankan di Supabase.</td></tr>`; }
+  }
+  document.getElementById('lamaBtn').addEventListener('click', () => {
+    document.getElementById('lamaModal').classList.remove('hidden');
+    lmReset(); lmLoad();
+  });
+  document.getElementById('lmBranch').addEventListener('change', lmFillLists);
+  document.getElementById('lmCust').addEventListener('input', () => lmHint(false));
+  document.getElementById('lmCust').addEventListener('change', () => lmHint(true));
+  document.getElementById('lmReset').addEventListener('click', lmReset);
+  ['lmAmt', 'lmAwal'].forEach(id => document.getElementById(id).addEventListener('blur', e => { const n = lmNum(id); e.target.value = n ? fmt(n) : ''; }));
+  document.getElementById('lmSave').addEventListener('click', async () => {
+    lmHint(true); // samakan nama customer dengan Master Kolektor sebelum simpan
+    const v = id => document.getElementById(id).value.trim();
+    const row = { id: lmEditId, branch: v('lmBranch'), invoice_no: v('lmNo').toUpperCase(), customer: v('lmCust'), salesman: v('lmSales'),
+      print_date: v('lmPrint'), tracking_date: v('lmTrack'), amount: lmNum('lmAmt'), dibayar_awal: lmNum('lmAwal'), catatan: v('lmNote') };
+    if (!row.invoice_no || !row.customer || !row.amount) { alert('No faktur, customer, dan nilai faktur wajib diisi.'); return; }
+    if (!row.tracking_date && !row.print_date) { alert('Isi tanggal faktur atau tanggal kirim (dipakai untuk hitung umur nota).'); return; }
+    if (row.dibayar_awal >= row.amount) { alert('Sudah dibayar tidak boleh sama / lebih dari nilai faktur.'); return; }
+    if (!row.tracking_date) row.tracking_date = row.print_date;
+    if (!confirm(`${lmEditId ? 'Ubah' : 'Tambah'} faktur lama?\n\n${row.branch} · ${row.invoice_no}\n${row.customer}\nNilai ${fmt(row.amount)}${row.dibayar_awal ? ' · sudah dibayar ' + fmt(row.dibayar_awal) : ''}\nSisa ${fmt(row.amount - row.dibayar_awal)}`)) return;
+    const btn = document.getElementById('lmSave'); btn.disabled = true;
+    try {
+      await rpc('save_piutang_lama', { p_row: row });
+      let extra = '';
+      try { extra = await lmAddToko(row.branch, row.customer); }
+      catch (e) { alert('Faktur tersimpan, tapi gagal menambah toko ke Master Kolektor: ' + (e.message || e)); }
+      toast('Faktur lama tersimpan' + extra);
+      lmReset(); await lmLoad(); loadAll();
+    } catch (e) { alert('Gagal simpan: ' + (e.message || e)); }
+    finally { btn.disabled = false; }
+  });
+  document.getElementById('lmBody').addEventListener('click', async e => {
+    const ed = e.target.closest('[data-lm-edit]'), del = e.target.closest('[data-lm-del]');
+    if (ed) {
+      const r = lmData.find(x => String(x.id) === ed.dataset.lmEdit); if (!r) return;
+      lmEditId = r.id;
+      document.getElementById('lmBranch').value = r.branch; lmFillLists();
+      const set = (id, val) => document.getElementById(id).value = val ?? '';
+      set('lmNo', r.invoice_no); set('lmCust', r.customer); set('lmSales', r.salesman);
+      set('lmPrint', r.print_date ? String(r.print_date).slice(0, 10) : ''); set('lmTrack', r.tracking_date ? String(r.tracking_date).slice(0, 10) : '');
+      set('lmAmt', fmt(r.amount)); set('lmAwal', +r.dibayar_awal ? fmt(r.dibayar_awal) : ''); set('lmNote', r.catatan);
+      document.getElementById('lmSave').textContent = 'Simpan Perubahan'; lmHint();
+    }
+    if (del) {
+      const r = lmData.find(x => String(x.id) === del.dataset.lmDel); if (!r) return;
+      if (!confirm(`Hapus faktur lama ${r.branch} · ${r.invoice_no}?\nFaktur ini akan hilang dari daftar Piutang.`)) return;
+      try { await rpc('delete_piutang_lama', { p_id: +r.id }); toast('Faktur lama dihapus'); await lmLoad(); loadAll(); }
+      catch (err) { alert('Gagal hapus: ' + (err.message || err)); }
+    }
+  });
+
   /* ================= TAB: REKAP TAGIH ================= */
   let rkData = { hari: null, batches: [] };
   let rkUnchecked = new Set();
@@ -1784,7 +1959,8 @@
       if (rkBranch && r.branch !== rkBranch) return false;
       if (!ign && r.hari.length && !r.hari.includes(wd)) return false;
       const k = invKey(r.branch, r.invoiceNo);
-      if (activeMap.has(k) || inToday.has(k)) return false;
+      // invoice di rekap tanggal lain yang belum selesai TETAP muncul sesuai jadwal; hanya yang sudah ada di rekap tanggal ini yang disembunyikan
+      if (inToday.has(k)) return false;
       if (r.recent && r.recent.hasil === 'BAYAR' && daysBetween(parseAnyDate(r.recent.tgl), t0) <= 7) return false; // menunggu ERP
       if (q && !r._q.includes(q)) return false;
       return true;
@@ -2029,6 +2205,25 @@
     renderHasil();
   }));
   document.getElementById('hsKol').addEventListener('change', () => renderHasil());
+  // cari: nama toko / no invoice / nilai faktur
+  const hsSearchEl = document.getElementById('hsSearch');
+  let hsSearchT = null;
+  hsSearchEl.addEventListener('input', () => { clearTimeout(hsSearchT); hsSearchT = setTimeout(renderHasil, 150); });
+  hsSearchEl.addEventListener('keydown', e => { if (e.key === 'Escape') { hsSearchEl.value = ''; renderHasil(); } });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'F1') return;
+    if (document.getElementById('tab-hasil').classList.contains('hidden')) return;
+    e.preventDefault();
+    hsSearchEl.focus(); hsSearchEl.select();
+  });
+  function hsMatch(i) {
+    const q = hsSearchEl.value.trim().toLowerCase();
+    if (!q) return true;
+    if (String(i.customer || '').toLowerCase().includes(q) || String(i.invoice_no || '').toLowerCase().includes(q)) return true;
+    const d = q.replace(/[^0-9]/g, '');
+    if (!d) return false;
+    return [i.sisa, i.amount, i.total, itemTotals(i).total].some(v => v != null && String(Math.round(Number(v) || 0)).includes(d));
+  }
   function renderHasil() {
     buildGab();
     const kolSel = document.getElementById('hsKol');
@@ -2055,7 +2250,7 @@
 
     const el = document.getElementById('hsCards');
     if (!hsData.batches.length) { el.innerHTML = `<div class="card"><div class="empty">Tidak ada rekap tagih di tanggal ini.</div></div>`; return; }
-    const shown = hsData.batches.filter(b => (!kolNow || b.kolektor === kolNow) && (!hsBranch || b.items.some(i => i.branch === hsBranch)));
+    const shown = hsData.batches.filter(b => (!kolNow || b.kolektor === kolNow) && b.items.some(i => (!hsBranch || i.branch === hsBranch) && hsMatch(i)));
     if (!shown.length) { el.innerHTML = `<div class="card"><div class="empty">Tidak ada data untuk filter ini.</div></div>`; renderSelBar(); return; }
     el.innerHTML = shown.map(b => {
       const t = batchTotals(b.items), open = b.status === 'DITAGIH';
@@ -2067,7 +2262,7 @@
         ${open ? `<button class="btn sm blue" data-close-b="${b.id}" ${t.belumN ? 'disabled title="Isi semua hasil dulu"' : 'title="Simpan hasil final & print"'}>Submit Hasil</button>`
                : (!posted && !isAdminKol() ? `<button class="btn sm" data-reopen="${b.id}">Buka Lagi</button>` : '')}</div></div>
         <div class="tableWrap"><table><thead><tr>${open ? `<th class="chk" title="Klik / tahan & geser untuk pilih banyak"></th>` : ''}<th>Toko · Invoice</th><th>Tracking</th><th class="num">Sisa</th><th>Hasil</th><th>Detail</th><th class="num">Dibayar</th><th></th></tr></thead><tbody>
-        ${byToko(b.items.filter(i => !hsBranch || i.branch === hsBranch)).map(g => {
+        ${byToko(b.items.filter(i => (!hsBranch || i.branch === hsBranch) && hsMatch(i))).map(g => {
           const gagalToko = open && g.length > 1 && g.some(y => !y.hasil)
             ? `<button class="btn sm red" data-gagal-toko="${b.id}|${esc(tokoKey(g[0].branch, g[0].customer))}" title="Gagal semua invoice toko ini">Gagal toko</button>` : '';
           const pkOf = items => hsSel.bid === String(b.id) && items.every(i => hsSel.ids.has(String(i.id)));
