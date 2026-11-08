@@ -733,14 +733,15 @@ canvas.addEventListener('wheel', e => { e.preventDefault(); zoom = Math.max(0.3,
 // ================= SAVE / LOAD (Supabase) =================
 const CFG_KEY = 'tycoon_cfg';
 // OPTIONAL: isi di sini supaya tidak perlu setup lagi di browser mana pun
-const PRESET = { url: '', key: '' };
+const PRESET = { url: 'https://swxgkuaoctrcfbgncwaz.supabase.co', key: 'sb_publishable_0e8sOfljWkkin-hwhNweEw_CWqt1Az-' };
 const CFG = { url: PRESET.url, key: PRESET.key, slot: 'main' };
 try { Object.assign(CFG, JSON.parse(localStorage.getItem(CFG_KEY) || '{}')); } catch (e) {}
 // fallback when browser storage is blocked: settings passed through the address (#cfg=...)
 try { const m = location.hash.match(/cfg=([^&]+)/); if (m) { Object.assign(CFG, JSON.parse(decodeURIComponent(escape(atob(m[1]))))); history.replaceState(null, '', location.pathname + location.search); } } catch (e) {}
 function storeCfg() { try { localStorage.setItem(CFG_KEY, JSON.stringify(CFG)); return localStorage.getItem(CFG_KEY) === JSON.stringify(CFG); } catch (e) { return false; } }
 let saveOK = false, saveTimer = 0, savePending = false, lastSaved = null;
-const hdr = () => ({ apikey: CFG.key, Authorization: 'Bearer ' + CFG.key, 'Content-Type': 'application/json' });
+// legacy anon keys (eyJ...) also go in Authorization; new sb_publishable keys only in apikey
+const hdr = () => Object.assign({ apikey: CFG.key, 'Content-Type': 'application/json' }, CFG.key.startsWith('eyJ') ? { Authorization: 'Bearer ' + CFG.key } : {});
 const api = q => CFG.url.replace(/\/+$/, '') + '/rest/v1/game_save' + q;
 async function sbLoad() {
   const r = await fetch(api('?select=data&slot=eq.' + encodeURIComponent(CFG.slot)), { headers: hdr() });
