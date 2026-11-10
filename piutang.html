@@ -1554,7 +1554,7 @@
       tb.innerHTML = pageRows.map((r, i) => `
         <tr class="${r.payCount ? 'clickable' : ''}" data-i="${s + i}">
           <td class="chk dragChk" data-dk="${esc(invKey(r.branch, r.invoiceNo))}"><input type="checkbox" ${pSel.has(invKey(r.branch, r.invoiceNo)) ? 'checked' : ''}></td>
-          <td>${esc(r.branch)}</td><td class="invNo">${esc(r.invoiceNo)}${r.lama ? ' <span class="badge LAMA" title="Faktur lama, diinput manual">LAMA</span>' : ''}</td><td class="wrapTxt">${esc(r.customer)}</td>
+          <td>${esc(r.branch)}</td><td class="invNo">${esc(r.invoiceNo)}${r.lama ? (isAdminKol() ? ' <span class="badge LAMA" title="Faktur lama, diinput manual">LAMA</span>' : ` <span class="badge LAMA" data-lama-edit="${esc(r.branch)}|${esc(r.invoiceNo)}" style="cursor:pointer" title="Faktur lama, diinput manual — klik untuk ubah">LAMA ✎</span>`) : ''}</td><td class="wrapTxt">${esc(r.customer)}</td>
           <td>${r.trackDate ? dmy(r.trackDate) : '—'}</td><td>${esc(r.salesman)}</td>
           <td>${r.kolNama ? esc(r.kolNama) : '<span class="muted">—</span>'}</td>
           <td class="num">${fmt(r.amount)}</td><td class="num ${r.paid ? '' : 'muted'}">${r.paid ? fmt(r.paid) : '—'}</td>
@@ -1996,6 +1996,20 @@
     document.getElementById('lamaModal').classList.remove('hidden');
     lmReset(); lmLoad();
   });
+  // klik badge LAMA di tabel Piutang → buka form ubah faktur lama itu
+  document.addEventListener('click', async e => {
+    const b = e.target.closest('[data-lama-edit]'); if (!b) return;
+    e.preventDefault(); e.stopPropagation();
+    if (isAdminKol()) return;
+    const [br, no] = b.dataset.lamaEdit.split('|');
+    document.getElementById('lamaModal').classList.remove('hidden');
+    lmReset(); await lmLoad();
+    const r = lmData.find(x => String(x.branch).toUpperCase() === br.toUpperCase() && String(x.invoice_no).toUpperCase() === no.toUpperCase());
+    if (!r) { alert('Faktur lama ' + no + ' tidak ditemukan.'); return; }
+    const btn = document.querySelector(`[data-lm-edit="${r.id}"]`);
+    if (btn) { btn.click(); btn.closest('tr').style.background = 'rgba(242,177,52,.12)'; }
+    document.getElementById('lmNo').scrollIntoView({ block: 'center' });
+  }, true);
   document.getElementById('lmBranch').addEventListener('change', lmFillLists);
   document.getElementById('lmCust').addEventListener('input', () => lmHint(false));
   document.getElementById('lmCust').addEventListener('change', () => lmHint(true));
@@ -2081,7 +2095,9 @@
       const k = invKey(r.branch, r.invoiceNo);
       // invoice di rekap tanggal lain yang belum selesai TETAP muncul sesuai jadwal; hanya yang sudah ada di rekap tanggal ini yang disembunyikan
       if (inToday.has(k)) return false;
-      if (r.recent && r.recent.hasil === 'BAYAR' && daysBetween(parseAnyDate(r.recent.tgl), t0) <= 7) return false; // menunggu ERP
+      // sudah lunas di hasil tagih (LUNAS, atau CICIL yang nilainya sudah menutup sisa) tapi belum masuk pelunasan ERP → jangan ditagih lagi
+      if (r.recent && daysBetween(parseAnyDate(r.recent.tgl), t0) <= 7 &&
+        (r.recent.hasil === 'BAYAR' || (+r.recent.bayar || 0) >= (+r.sisa || 0) - TOL)) return false; // menunggu ERP
       if (q && !r._q.includes(q)) return false;
       return true;
     });
