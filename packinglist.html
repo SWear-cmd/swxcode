@@ -1536,6 +1536,7 @@
     if (!old.error){
       const oldPls = [...new Set((old.data || [])
         .filter(r => !r.tgl_antar || !r.status)
+        .filter(r => !plIsManualDone(r))
         .map(r => r.no_pl).filter(Boolean))];
       if (oldPls.length){
         // ambil semua invoice dari PL tsb supaya jumlah & detail lengkap
@@ -1875,7 +1876,9 @@
       g.gudangs.add(String(r.gudang || '-').trim().toUpperCase() || '-');
       if (!g.tgl_antar && r.tgl_antar) g.tgl_antar = r.tgl_antar;
     });
+    // yang bermasalah tampil paling atas
     return [...map.values()].sort((a, b) =>
+      (plIsProblem(b) - plIsProblem(a)) ||
       String(b.tgl || '').localeCompare(String(a.tgl || '')) ||
       String(b.no_pl || '').localeCompare(String(a.no_pl || '')));
   }
@@ -1883,8 +1886,13 @@
   let activeDetailPl = null; // no_pl currently open in the detail modal
 
   let plFilter = 'all'; // all | belum | null
-  const plIsBelum = g => !g.tgl_antar;
+  // PL belum diantar dengan tgl rekap sebelum Okt 2026 = dianggap selesai (manual), awal pemakaian
+  const PL_MANUAL_DONE_BEFORE = '2026-10-01';
+  function plIsManualDone(g){ return !g.tgl_antar && String(g.tgl || '') < PL_MANUAL_DONE_BEFORE; }
+  const plIsBelum = g => !g.tgl_antar && !plIsManualDone(g);
   const plIsNull  = g => !!g.tgl_antar && g.nullCount > 0;
+  // masalah = sudah diantar tapi ada inv NULL, atau PL bulan lalu yang belum diantar
+  const plIsProblem = g => (plIsNull(g) || (g.carry && plIsBelum(g))) ? 1 : 0;
 
   function renderPlSummary(){
     const all = getPlGroups(plItems);
@@ -1918,7 +1926,8 @@
     tbody.innerHTML = groups.map(g =>
         `<tr class="${plIsNull(g) ? 'pl-has-null' : ''}"><td><b>${escapeHtml(g.no_pl)}</b>` +
           (plIsNull(g) ? `<span class="pl-tag null">${g.nullCount} inv NULL</span>` : '') +
-          (g.carry ? `<span class="pl-tag old">bulan lalu</span>` : '') + `</td>` +
+          (g.carry && plIsBelum(g) ? `<span class="pl-tag null">bulan lalu, belum antar</span>` : g.carry ? `<span class="pl-tag old">bulan lalu</span>` : '') +
+          (plIsManualDone(g) ? `<span class="pl-tag old">selesai (manual)</span>` : '') + `</td>` +
         `<td class="num">${(Number(g.total_kubikasi) || 0).toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</td>` +
         `<td>${escapeHtml(g.pl_area || '-')}</td>` +
         `<td class="sopir-td">${escapeHtml(g.sopir || '-')}</td>` +
