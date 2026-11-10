@@ -266,6 +266,7 @@
       <button class="tabBtn" data-tab="hasil">Hasil Tagih</button>
       <button class="tabBtn" data-tab="lh">Laporan Harian Kolektor</button>
       <button class="tabBtn" data-tab="kasus">Tagihan Kasus</button>
+      <button class="tabBtn" data-tab="retur">Masalah Retur</button>
       <button class="tabBtn" data-tab="cash">Customer Cash</button>
       <button class="tabBtn" data-tab="trf">Posting Transfer</button>
       <button class="tabBtn" data-tab="lunas">Pelunasan Harian</button>
@@ -714,7 +715,10 @@
 
   let pin = '';
   let rows = [];
-  let kasusMap = new Map(), pScope = 'normal';
+  let kasusMap = new Map(), returMap = new Map(), returOk = true, pScope = 'normal';
+  // syarat pindah ke Masalah Retur: pernah bayar cicil. Admin kolektor: sisa juga harus < 500rb; full access: berapa pun sisanya.
+  const RETUR_MAX = 500000;
+  const returEligible = r => r.payCount > 0 && r.paid > 0 && (!isAdminKol() || r.sisa < RETUR_MAX);
   const pSel = new Set();
   const isCashCust = c => /cash/i.test(c || '');
   let ctx = { kolektor: [], toko: [], libur: [], active: [], recent: [] };
@@ -795,7 +799,7 @@
   }
   /* ---- peran: 'full' | 'adminkol' | '' (ditolak).
      Ini hanya untuk tampilan; pengaman sebenarnya ada di server (assert_piutang_access). ---- */
-  const ADMINKOL_TABS = ['piutang', 'rekap', 'hasil', 'master'];
+  const ADMINKOL_TABS = ['piutang', 'retur', 'rekap', 'hasil', 'master'];
   let role = '';
   function roleOf(label) {
     const l = String(label || '').trim().toUpperCase();
@@ -891,6 +895,11 @@
     const arr = (await rpc('get_piutang_kasus')) || [];
     kasusMap = new Map(arr.map(x => [invKey(x.branch, x.invoice_no), x]));
   }
+  async function loadRetur() {
+    // kalau piutang_retur.sql belum di-run -> kosong saja, tab lain tetap jalan
+    try { const arr = (await rpc('get_piutang_retur')) || []; returOk = true; returMap = new Map(arr.map(x => [invKey(x.branch, x.invoice_no), x])); }
+    catch (e) { returOk = false; returMap = new Map(); }
+  }
   function enrich() {
     rows.forEach(r => {
       const t = tokoMap.get(tokoKey(r.branch, r.customer));
@@ -908,6 +917,8 @@
       r.recent = recentMap.get(k) || null;
       const ks = kasusMap.get(k);
       r.kasus = !!ks; r.kasusAlasan = ks ? (ks.alasan || '') : ''; r.kasusTgl = ks ? parseAnyDate(ks.created_at) : null;
+      const rt = returMap.get(k);
+      r.retur = !!rt && !r.kasus; r.returAlasan = rt ? (rt.alasan || '') : ''; r.returTgl = rt ? parseAnyDate(rt.created_at) : null;
       r.isCash = isCashCust(r.customer);
     });
   }
@@ -916,7 +927,7 @@
     upd.textContent = 'Loading...'; rb.disabled = true; showErr('');
     try {
       kkMap = null; kkErr = '';
-      await Promise.all([loadPiutang(), loadCtx(), loadKasus()]);
+      await Promise.all([loadPiutang(), loadCtx(), loadKasus(), loadRetur()]);
       enrich();
       upd.textContent = 'Updated ' + new Date().toLocaleTimeString();
       fillKolSelects();
@@ -950,7 +961,7 @@
     if (isAdminKol() && !ADMINKOL_TABS.includes(b.dataset.tab)) return;
     currentTab = b.dataset.tab;
     document.querySelectorAll('#tabBar .tabBtn').forEach(x => x.classList.toggle('active', x === b));
-    const sec = ['kasus', 'cash'].includes(currentTab) ? 'piutang' : currentTab;
+    const sec = ['kasus', 'retur', 'cash'].includes(currentTab) ? 'piutang' : currentTab;
     ['piutang', 'rekap', 'hasil', 'lh', 'trf', 'lunas', 'giro', 'report', 'wh', 'master'].forEach(t => document.getElementById('tab-' + t).classList.toggle('hidden', t !== sec));
     if (currentTab === 'rekap') { rkWarnOk = false; openWarn(); }
     renderCurrent();
@@ -963,7 +974,7 @@
   function warnGroups() {
     const m = new Map();
     rows.forEach(r => {
-      if (r.kasus || r.isCash) return;
+      if (r.kasus || r.retur || r.isCash) return;
       if (r.age !== 'URGENT' && r.age !== 'WARNING') return;
       const nama = tokoName(r.customer).replace(/\s+/g, ' ').toUpperCase();
       let g = m.get(nama);
@@ -1230,7 +1241,7 @@
   });
   async function renderCurrent() {
     try {
-      if (['piutang', 'kasus', 'cash'].includes(currentTab)) {
+      if (['piutang', 'kasus', 'retur', 'cash'].includes(currentTab)) {
         const sc = currentTab === 'piutang' ? 'normal' : currentTab;
         if (sc !== pScope) { pScope = sc; pSel.clear(); page = 0; }
         renderPiutang();
@@ -1407,7 +1418,12 @@
       const g = kkMap ? kkMap.get(kkNorm(r.invoiceNo)) : null;
       r.kk = g || null;
       r.kkNilai = g ? g.nilai : 0;
-      r.kkStat = !g ? '' : Math.abs(g.nilai - r.sisa) <= TOL ? 'PAS' : g.nilai < r.sisa ? 'KURANG' : 'LEBIH';
+      // Kalau uang kas kecil sudah diposting jadi pembayaran, sisa sekarang sudah terpotong uang itu
+      // → bandingkan dengan sisa sebelum diposting (sisa + nilai kas kecil), supaya tidak dihitung dobel.
+      let base = r.sisa;
+      if (g && Math.abs(g.nilai - r.sisa) > TOL && (+r.paid || 0) >= g.nilai - TOL) base = r.sisa + g.nilai;
+      r.kkBase = base;
+      r.kkStat = !g ? '' : Math.abs(g.nilai - base) <= TOL ? 'PAS' : g.nilai < base ? 'KURANG' : 'LEBIH';
     });
   }
   function kkCell(r) {
@@ -1417,7 +1433,7 @@
     const tip = r.kk.list.map(x => `${dmy(x.tgl)} · ${x.status || ''} · ${fmt(x.nilai)}`).join('\n');
     const cls = { PAS: 'OK', KURANG: 'WARNING', LEBIH: 'URGENT' }[r.kkStat];
     const tgl = dmy(r.kk.list[r.kk.list.length - 1].tgl).slice(0, 5);
-    const diff = r.kkStat === 'PAS' ? '' : ` ${r.kkStat === 'KURANG' ? '−' : '+'}${fmt(Math.abs(r.kkNilai - r.sisa))}`;
+    const diff = r.kkStat === 'PAS' ? '' : ` ${r.kkStat === 'KURANG' ? '−' : '+'}${fmt(Math.abs(r.kkNilai - r.kkBase))}`;
     return `<span class="badge ${cls}" title="${esc(tip)}">${r.kkStat}${diff}</span><div class="small muted">${fmt(r.kkNilai)} · ${tgl}</div>`;
   }
 
@@ -1427,7 +1443,7 @@
     const q1 = document.getElementById('q1').value.trim().toLowerCase();
     const q2 = document.getElementById('q2').value.trim().toLowerCase();
     const kf = document.getElementById('kolFilter').value;
-    return rows.filter(r => (pScope === 'kasus' ? r.kasus : pScope === 'cash' ? (!r.kasus && r.isCash) : (!r.kasus && !r.isCash))
+    return rows.filter(r => (pScope === 'kasus' ? r.kasus : pScope === 'retur' ? r.retur : pScope === 'cash' ? (!r.kasus && !r.retur && r.isCash) : (!r.kasus && !r.retur && !r.isCash))
       && (!fBranch || r.branch === fBranch) && (!q1 || r._q.includes(q1)) && (!q2 || r._q.includes(q2))
       && (!kf || (kf === '-' ? !r.kolId : r.kolId === kf)));
   }
@@ -1513,7 +1529,7 @@
       if (!kkMap && !kkLoading) loadKasKecil().then(() => { kkApply(); if (pScope === 'cash') renderPiutang(); });
       kkApply();
     }
-    const cols = view === 'inv' ? [{ k: '_sel', t: '' }, ...INV_COLS, ...(pScope === 'kasus' ? [{ k: 'kasusAlasan', t: 'Alasan Kasus' }, { k: 'kasusTgl', t: 'Tgl Kasus' }] : []), ...(pScope === 'cash' ? [{ k: 'kkNilai', t: 'Kas Kecil', num: 1 }] : [])] : CUST_COLS;
+    const cols = view === 'inv' ? [{ k: '_sel', t: '' }, ...INV_COLS, ...(pScope === 'kasus' ? [{ k: 'kasusAlasan', t: 'Alasan Kasus' }, { k: 'kasusTgl', t: 'Tgl Kasus' }] : []), ...(pScope === 'retur' ? [{ k: 'returAlasan', t: 'Alasan Retur' }, { k: 'returTgl', t: 'Tgl Pindah' }] : []), ...(pScope === 'cash' ? [{ k: 'kkNilai', t: 'Kas Kecil', num: 1 }] : [])] : CUST_COLS;
     if (!cols.some(c => c.k === sortKey)) { sortKey = 'days'; sortDir = -1; }
     const list = sortList(view === 'inv' ? inv : groupCustomers(inv));
     document.getElementById('thead').innerHTML = '<tr>' + cols.map(c =>
@@ -1547,6 +1563,7 @@
           <td><span class="badge ${r.jenis}">${r.jenis === 'CICILAN' ? 'CICILAN ×' + r.payCount : 'BELUM BAYAR'}</span></td>
           <td>${tagihBadge(r)}</td>
           ${pScope === 'kasus' ? `<td class="wrapTxt small">${esc(r.kasusAlasan) || '—'}</td><td>${r.kasusTgl ? dmy(r.kasusTgl) : '—'}</td>` : ''}
+          ${pScope === 'retur' ? `<td class="wrapTxt small">${esc(r.returAlasan) || '—'}</td><td>${r.returTgl ? dmy(r.returTgl) : '—'}</td>` : ''}
           ${pScope === 'cash' ? `<td class="num">${kkCell(r)}</td>` : ''}
         </tr>`).join('');
       tb.querySelectorAll('tr.clickable').forEach(tr => tr.addEventListener('click', e => { if (e.target.closest('td.dragChk')) return; openPayments(list[+tr.dataset.i]); }));
@@ -1576,6 +1593,7 @@
       }));
     }
     document.getElementById('empty').classList.toggle('hidden', list.length > 0);
+    if (pScope === 'retur' && !returOk) showErr('Tab Masalah Retur belum aktif — jalankan piutang_retur.sql di Supabase SQL Editor dulu.');
     const unit = view === 'inv' ? 'invoice' : 'customer';
     document.getElementById('pagerTop').innerHTML = `
       <span>${list.length ? `Showing ${s + 1}-${Math.min(s + PAGE_SIZE, list.length)} of ${list.length.toLocaleString('en-US')} ${unit} · Sisa ${fmt(sumBy(inv, r => r.sisa))}` : 'No rows'}</span>
@@ -1592,28 +1610,44 @@
     [...pSel].forEach(k => { if (!inScope.has(k)) pSel.delete(k); });
     if (view !== 'inv' || !pSel.size) { bar.innerHTML = ''; return; }
     const sel = rows.filter(r => pSel.has(invKey(r.branch, r.invoiceNo)));
+    const selRt = sel.filter(returEligible);
+    const adm = isAdminKol();
+    const rtRule = adm ? 'Hanya faktur yang pernah bayar cicil & sisa < 500.000' : 'Hanya faktur yang pernah bayar cicil';
+    const rtBtn = pScope === 'normal' ? `<button class="btn sm red" id="selRetur" ${selRt.length ? '' : 'disabled'} title="${rtRule}">Pindah ke Masalah Retur (${selRt.length} memenuhi)</button>` : '';
     bar.innerHTML = `<span><b>${sel.length}</b> invoice dipilih · Sisa <b>${fmt(sumBy(sel, r => r.sisa))}</b></span>
-      ${isAdminKol() ? ''
+      ${pScope === 'retur'
+        ? `<button class="btn sm blue" id="selUnretur">Kembalikan ke Piutang</button>`
+        : adm
+        ? (pScope === 'normal' ? `<input class="inp sm" id="selAlasan" placeholder="Alasan retur (opsional)" style="min-width:200px;">${rtBtn}` : '')
         : pScope === 'kasus'
         ? `<button class="btn sm blue" id="selUnkasus">Kembalikan ke Piutang</button>`
-        : `<input class="inp sm" id="selAlasan" placeholder="Alasan kasus (opsional)" style="min-width:220px;"><button class="btn sm red" id="selKasus">Pindah ke Tagihan Kasus</button>`}
+        : `<input class="inp sm" id="selAlasan" placeholder="Alasan (opsional)" style="min-width:200px;"><button class="btn sm red" id="selKasus">Pindah ke Tagihan Kasus</button>${rtBtn}`}
       <button class="btn sm" id="selClear">Batal pilih</button>`;
     document.getElementById('selClear').onclick = () => { pSel.clear(); renderPiutang(); };
-    if (isAdminKol()) return;
     const items = sel.map(r => ({ branch: r.branch, invoice_no: r.invoiceNo }));
     const run = async (btn, fn, params, msg) => {
       if (!confirm(msg)) return;
       btn.disabled = true;
-      try { await rpc(fn, params); await loadKasus(); enrich(); pSel.clear(); renderPiutang(); }
+      try { await rpc(fn, params); await Promise.all([loadKasus(), loadRetur()]); enrich(); pSel.clear(); renderPiutang(); postIssues(); }
       catch (e) { alert(e.message || e); btn.disabled = false; }
     };
-    if (pScope === 'kasus') {
+    if (pScope === 'retur') {
+      const b = document.getElementById('selUnretur');
+      b.onclick = () => run(b, 'unset_piutang_retur', { p_items: items }, `Kembalikan ${sel.length} invoice ke piutang normal?`);
+    } else if (pScope === 'kasus') {
       const b = document.getElementById('selUnkasus');
       b.onclick = () => run(b, 'unset_piutang_kasus', { p_items: items }, `Kembalikan ${sel.length} invoice ke piutang normal?`);
     } else {
       const b = document.getElementById('selKasus');
-      b.onclick = () => run(b, 'set_piutang_kasus', { p_items: items, p_alasan: document.getElementById('selAlasan').value.trim() || null },
+      if (b) b.onclick = () => run(b, 'set_piutang_kasus', { p_items: items, p_alasan: document.getElementById('selAlasan').value.trim() || null },
         `Pindahkan ${sel.length} invoice ke Tagihan Kasus?\nInvoice ini hilang dari piutang normal & usulan rekap tagih.`);
+      const br = document.getElementById('selRetur');
+      if (br) br.onclick = () => {
+        if (!returOk) { alert('Jalankan piutang_retur.sql di Supabase SQL Editor dulu.'); return; }
+        const skip = sel.length - selRt.length;
+        run(br, 'set_piutang_retur', { p_items: selRt.map(r => ({ branch: r.branch, invoice_no: r.invoiceNo })), p_alasan: document.getElementById('selAlasan').value.trim() || null },
+          `Pindahkan ${selRt.length} invoice ke Masalah Retur?` + (skip ? `\n${skip} invoice lain dilewati (${adm ? 'belum pernah cicil / sisa ≥ 500.000' : 'belum pernah cicil'}).` : '') + `\nInvoice ini hilang dari piutang normal & usulan rekap tagih.`);
+      };
     }
   }
   async function openPayments(r) {
@@ -1646,13 +1680,14 @@
       Salesman: r.salesman, Kolektor: r.kolNama, Amount: Math.round(r.amount), Dibayar: Math.round(r.paid), Sisa: Math.round(r.sisa),
       'Umur Nota': r.days, Status: r.age, Jenis: r.jenis, Tagih: tagihTxt(r),
       ...(pScope === 'kasus' ? { 'Alasan Kasus': r.kasusAlasan, 'Tgl Kasus': dmy(r.kasusTgl) } : {}),
+      ...(pScope === 'retur' ? { 'Alasan Retur': r.returAlasan, 'Tgl Pindah': dmy(r.returTgl) } : {}),
       ...(pScope === 'cash' ? { 'Kas Kecil Nilai': r.kk ? Math.round(r.kkNilai) : '', 'Kas Kecil Status': r.kkStat || '', 'Kas Kecil Selisih': r.kk ? Math.round(r.kkNilai - r.sisa) : '' } : {})
     }))), 'Per Invoice');
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(groupCustomers(inv).sort((a, b) => b.sisa - a.sisa).map(g => ({
       Branch: g.branch, Customer: g.customer, Kolektor: g.kolNama, Salesman: g.salesman, Invoice: g.count, Cicilan: g.cicil,
       Amount: Math.round(g.amount), Sisa: Math.round(g.sisa), 'Tertua (d)': g.days, Status: g.age
     }))), 'Per Customer');
-    XLSX.writeFile(wb, `${{ normal: 'Piutang', kasus: 'PiutangKasus', cash: 'PiutangCash' }[pScope]}_${fBranch || 'ALL'}_${iso(new Date()).replace(/-/g, '')}.xlsx`);
+    XLSX.writeFile(wb, `${{ normal: 'Piutang', kasus: 'PiutangKasus', retur: 'PiutangMasalahRetur', cash: 'PiutangCash' }[pScope]}_${fBranch || 'ALL'}_${iso(new Date()).replace(/-/g, '')}.xlsx`);
   });
 
   /* ================= ISSUE untuk lobi master.html =================
@@ -1662,7 +1697,7 @@
   function piutangIssueSummary() {
     const m = new Map(); let nU = 0, nW = 0, tot = 0;
     rows.forEach(r => {
-      if (r.kasus || r.isCash) return;
+      if (r.kasus || r.retur || r.isCash) return;
       if (r.age !== 'URGENT' && r.age !== 'WARNING') return;
       const nama = tokoName(r.customer).replace(/\s+/g, ' ').toUpperCase();
       m.set(nama, (m.get(nama) || 0) + r.sisa);
@@ -1721,7 +1756,7 @@
     const q = document.getElementById('rpQ').value.trim().toLowerCase();
     const m = new Map();
     rows.forEach(r => {
-      if (r.kasus || r.isCash) return;
+      if (r.kasus || r.retur || r.isCash) return;
       if (r.age !== 'URGENT' && r.age !== 'WARNING') return;
       if (rpStatus !== 'ALL' && r.age !== rpStatus) return;
       if (rpBranch && r.branch !== rpBranch) return;
@@ -2038,7 +2073,7 @@
     rkData.batches.forEach(b => b.items.forEach(i => inToday.add(invKey(i.branch, i.invoice_no))));
     const t0 = todayD();
     return rows.filter(r => {
-      if (r.kasus) return false;
+      if (r.kasus || r.retur) return false;
       if (!r.kolId || !kolById.get(r.kolId) || !kolById.get(r.kolId).aktif) return false;
       if (kol && r.kolId !== kol) return false;
       if (rkBranch && r.branch !== rkBranch) return false;
