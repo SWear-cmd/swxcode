@@ -132,6 +132,8 @@
   .tr-inv{cursor:pointer;user-select:none;font-weight:600;}
   .tr-inv .tr-box-ic{display:inline-block;width:16px;height:16px;border:1.5px solid var(--muted);border-radius:4px;margin-right:8px;vertical-align:-3px;text-align:center;line-height:13px;font-size:12px;}
   tr.tr-ok td{background:rgba(76,175,130,.12);}
+  .tr-all-lbl{display:inline-flex;align-items:center;gap:8px;cursor:pointer;}
+  #trSelectAll{width:15px;height:15px;margin:0;cursor:pointer;accent-color:var(--green);}
   tr.tr-ok .tr-box-ic{background:var(--green);border-color:var(--green);color:#062421;}
   tr.tr-cancel td{opacity:.45;text-decoration:line-through;}
   tr.tr-cancel td.tr-act{opacity:1;text-decoration:none;}
@@ -155,6 +157,17 @@
   .pl-hdr-box input[type=text]{width:150px;}
   .pl-hdr-box select{background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:8px;font-size:12.5px;min-width:160px;}
   .pl-hdr-box .automsg{margin:0;min-height:0;}
+  .pl-hdr-box{flex-direction:column;align-items:flex-start;}
+  .pl-hdr-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .pl-hdr-box input#plDetailTgl{width:90px;text-align:center;}
+  #plDetailTglPicker{position:absolute;opacity:0;width:0;height:0;padding:0;border:0;pointer-events:none;}
+  .tgl-preview{font-size:12.5px;color:var(--muted);}
+  .tgl-preview.bad{color:var(--red);}
+  .sopir-slot{display:inline-flex;align-items:center;gap:6px;}
+  .sopir-slot.hidden{display:none;}
+  .sopir-x{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0 2px;line-height:1;}
+  .sopir-x:hover{color:var(--red);}
+  .pl-hdr-box.need-fill{border-color:var(--red);}
   .pl-toolbar .lbl{font-size:12.5px;color:var(--text);}
   .pl-toolbar select{background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:8px;font-size:12.5px;}
   .reason-tag{display:block;font-size:10.5px;color:var(--muted);margin-top:3px;max-width:140px;white-space:normal;}
@@ -164,6 +177,8 @@
   .pl-chip.active{border-color:var(--teal);color:var(--teal);}
   .pl-chip.warn b{color:#f0b93d;}
   .pl-chip.bad b{color:var(--red);}
+  tr.backdate-row td{background:rgba(229,72,77,.16);}
+  tr.backdate-row td:last-child{color:var(--red);font-weight:600;}
   .pl-gudang{color:var(--muted);margin-left:6px;}
   .pl-gudang b{color:#f0b93d;}
   .pl-tag{display:inline-block;margin-left:8px;padding:1px 7px;border-radius:6px;font-size:10.5px;font-weight:700;vertical-align:1px;}
@@ -306,6 +321,7 @@
         <button class="btn primary" id="trackProsesBtn">Proses FULL &rarr; Tracking</button>
       </div>
     </div>
+    <div class="pl-summary" id="trackSummary"></div>
     <div class="tablewrap">
       <div class="tablescroll">
         <table>
@@ -349,21 +365,29 @@
       <button class="btn" id="plDetailBulkClearBtn" type="button">Batal Pilih</button>
     </div>
     <div class="pl-hdr-box" id="plDetailHdrBox">
-      <label for="plDetailSopir">Sopir</label>
-      <select id="plDetailSopir"><option value="">- Pilih sopir -</option></select>
-      <label for="plDetailSopir2">Sopir 2</label>
-      <select id="plDetailSopir2"><option value="">- Tidak ada -</option></select>
-      <label for="plDetailSopir3">Sopir 3</label>
-      <select id="plDetailSopir3"><option value="">- Tidak ada -</option></select>
-      <label for="plDetailSopir4">Sopir 4</label>
-      <select id="plDetailSopir4"><option value="">- Tidak ada -</option></select>
-      <label for="plDetailSopir5">Sopir 5</label>
-      <select id="plDetailSopir5"><option value="">- Tidak ada -</option></select>
-      <button class="btn btn-sm" id="plDetailAddSopirBtn" type="button" title="Tambah nama sopir baru ke daftar">+ Sopir Baru</button>
-      <label for="plDetailTgl">Tgl Antar</label>
-      <input type="date" id="plDetailTgl">
-      <button class="btn primary" id="plDetailHdrSaveBtn" type="button">Simpan</button>
-      <span class="automsg" id="plDetailHdrMsg"></span>
+      <div class="pl-hdr-row">
+        <label for="plDetailTgl">Tgl Antar</label>
+        <input type="text" id="plDetailTgl" placeholder="tgl/bln" autocomplete="off" inputmode="numeric" maxlength="10">
+        <button class="btn btn-sm" id="plDetailTglPickBtn" type="button" title="Pilih dari kalender">&#128197;</button>
+        <input type="date" id="plDetailTglPicker" tabindex="-1" aria-hidden="true">
+        <span class="tgl-preview" id="plDetailTglPreview"></span>
+      </div>
+      <div class="pl-hdr-row">
+        <span class="sopir-slot"><label for="plDetailSopir">Sopir</label>
+          <select id="plDetailSopir"><option value="">- Pilih sopir -</option></select></span>
+        <span class="sopir-slot extra"><label for="plDetailSopir2">Sopir 2</label>
+          <select id="plDetailSopir2"><option value="">- Tidak ada -</option></select><button class="sopir-x" type="button" title="Hapus sopir ini">&times;</button></span>
+        <span class="sopir-slot extra"><label for="plDetailSopir3">Sopir 3</label>
+          <select id="plDetailSopir3"><option value="">- Tidak ada -</option></select><button class="sopir-x" type="button" title="Hapus sopir ini">&times;</button></span>
+        <span class="sopir-slot extra"><label for="plDetailSopir4">Sopir 4</label>
+          <select id="plDetailSopir4"><option value="">- Tidak ada -</option></select><button class="sopir-x" type="button" title="Hapus sopir ini">&times;</button></span>
+        <span class="sopir-slot extra"><label for="plDetailSopir5">Sopir 5</label>
+          <select id="plDetailSopir5"><option value="">- Tidak ada -</option></select><button class="sopir-x" type="button" title="Hapus sopir ini">&times;</button></span>
+        <button class="btn btn-sm" id="plDetailMoreSopirBtn" type="button" title="Tambah sopir berikutnya">+ Sopir</button>
+        <button class="btn btn-sm" id="plDetailAddSopirBtn" type="button" title="Tambah nama sopir baru ke daftar">+ Nama Baru</button>
+        <button class="btn primary" id="plDetailHdrSaveBtn" type="button">Simpan</button>
+        <span class="automsg" id="plDetailHdrMsg"></span>
+      </div>
     </div>
     </div>
     <div class="tablewrap">
@@ -398,7 +422,6 @@
     <div class="tr-head">
       <div>
         <h3>Cek invoice sebelum Tracking</h3>
-        <div class="modal-sub" style="margin-bottom:0">Klik No Invoice untuk centang (OK). Klik Batal untuk invoice yang salah &mdash; tidak ikut tracking dan tidak ditandai exported.</div>
       </div>
       <div class="tr-stats">
         <span>Total <b id="trTotal">0</b></span>
@@ -412,7 +435,7 @@
         <table>
           <thead>
             <tr>
-              <th>No Invoice</th>
+              <th><label class="tr-all-lbl"><input type="checkbox" id="trSelectAll" title="Centang semua"> No Invoice</label></th>
               <th>Nama Toko</th>
               <th>No PL</th>
               <th>Tgl</th>
@@ -722,7 +745,17 @@
     }catch(e){ isFullAccess = false; }
     applyLabelPermissions();
     refreshAll();
+    if (location.hash === '#issues') showIssuesFromCenter();
   }
+  // Dibuka dari Pusat Issue -> buka tab PACKING LIST (peringatan Kas Kecil muncul otomatis)
+  function showIssuesFromCenter(){
+    const p = document.querySelector('.tab-pill[data-tab="packing"]');
+    if (!p) return;
+    if (p.classList.contains('active')) showKasWarning(); else p.click();
+  }
+  window.addEventListener('message', e => {
+    if (e.data && e.data.type === 'office:showIssues' && currentPin) showIssuesFromCenter();
+  });
 
   async function submitPin(){
     const pin = document.getElementById('pinInput').value.trim();
@@ -860,7 +893,7 @@
     salah: { title: '⚠ PERINGATAN: Salah No Faktur di Kas Kecil',
              sub: n => n + ' pembayaran di Kas Kecil memakai No Faktur yang tidak ada di data invoices. Mohon diperbaiki.' },
     open:  { title: '⚠ PERINGATAN: Sudah Dibayar di Kas Kecil, Tracking Belum FULL',
-             sub: n => n + ' invoice sudah dibayar di Kas Kecil tetapi status tracking-nya bukan FULL. Mohon dicek.' }
+             sub: n => n + ' invoice sudah dibayar di Kas Kecil (tgl bayar s/d ' + isoToDMY(kasWarnCutoffH2()) + ', H-2) tetapi status tracking-nya bukan FULL. Mohon dicek.' }
   };
   function renderKasWarnStep(){
     const rows = kasWarnLists[kasWarnStep];
@@ -883,6 +916,16 @@
     document.getElementById('kasWarnCloseBtn').style.display = (kasWarnStep === 'salah' && hasOpen) ? 'none' : '';
     document.querySelector('#kasWarnOverlay .tablescroll').scrollTop = 0;
   }
+  // Batas H-2 hari kerja (Minggu dilewati), jam WIT, format YYYY-MM-DD
+  function kasWarnCutoffH2(){
+    const d = new Date(Date.now() + 9 * 3600 * 1000);
+    let n = 0;
+    while (n < 2){
+      d.setUTCDate(d.getUTCDate() - 1);
+      if (d.getUTCDay() !== 0) n++;
+    }
+    return d.toISOString().slice(0, 10);
+  }
   async function showKasWarning(){
     if (!currentPin) return;
     try{
@@ -891,10 +934,13 @@
       const rows = (typeof data === 'string' ? JSON.parse(data) : data) || [];
       if (!rows.length) return;
       if (!document.querySelector('.tab-pill[data-tab="packing"]').classList.contains('active')) return;
+      const cut = kasWarnCutoffH2();
       kasWarnLists = {
         salah: rows.filter(r => r.tracking === 'Salah No Faktur'),
-        open:  rows.filter(r => r.tracking !== 'Salah No Faktur')
+        // tracking belum FULL: hanya tgl bayar <= H-2 hari kerja (sama dengan HRD.html)
+        open:  rows.filter(r => r.tracking !== 'Salah No Faktur' && String(r.tgl || '').slice(0, 10) <= cut)
       };
+      if (!kasWarnLists.salah.length && !kasWarnLists.open.length) return;
       kasWarnStep = kasWarnLists.salah.length ? 'salah' : 'open';
       renderKasWarnStep();
       document.getElementById('kasWarnOverlay').classList.remove('hidden');
@@ -1393,7 +1439,85 @@
       sel.value = cur || '';
     };
     SOPIR_IDS.forEach((id, i) => fill(id, i === 0 ? '- Pilih sopir -' : '- Tidak ada -', curs[i] || ''));
+    // sopir 2-5 hanya tampil kalau ada isinya
+    SOPIR_IDS.forEach((id, i) => {
+      if (i > 0) document.getElementById(id).closest('.sopir-slot').classList.toggle('hidden', !curs[i]);
+    });
+    updateMoreSopirBtn();
   }
+  function updateMoreSopirBtn(){
+    const anyHidden = SOPIR_IDS.some(id => document.getElementById(id).closest('.sopir-slot').classList.contains('hidden'));
+    document.getElementById('plDetailMoreSopirBtn').style.display = anyHidden ? '' : 'none';
+  }
+  document.getElementById('plDetailMoreSopirBtn').addEventListener('click', () => {
+    const next = SOPIR_IDS.map(id => document.getElementById(id).closest('.sopir-slot')).find(s => s.classList.contains('hidden'));
+    if (next){ next.classList.remove('hidden'); next.querySelector('select').focus(); }
+    updateMoreSopirBtn();
+  });
+  document.getElementById('plDetailHdrBox').addEventListener('click', e => {
+    const x = e.target.closest('.sopir-x');
+    if (!x) return;
+    // hapus slot ini, geser sopir di bawahnya naik
+    const vals = SOPIR_IDS.map(id => document.getElementById(id).value);
+    const idx = SOPIR_IDS.indexOf(x.closest('.sopir-slot').querySelector('select').id);
+    vals.splice(idx, 1);
+    fillSopirSelect(vals.filter(Boolean).join(SOPIR_SEP));
+  });
+
+  // ---- Tgl Antar: cukup ketik tgl/bln, tahun otomatis (WIT) ----
+  const BLN = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  function todayWitStr(){ return new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10); }
+  // "10/11", "10-11", "10 11", "1011", "10/11/26", "10/11/2026" -> "2026-11-10"
+  function parseTglAntar(raw){
+    const s = String(raw || '').trim();
+    if (!s) return '';
+    let d, m, y;
+    const parts = s.split(/[^0-9]+/).filter(Boolean);
+    if (parts.length >= 2){ [d, m, y] = parts; }
+    else if (/^\d{3,4}$/.test(s)){ d = s.slice(0, s.length - 2); m = s.slice(-2); }
+    else return null;
+    d = Number(d); m = Number(m);
+    if (!(m >= 1 && m <= 12 && d >= 1 && d <= 31)) return null;
+    const today = todayWitStr();
+    if (y){ y = Number(y); if (y < 100) y += 2000; }
+    else {
+      // tahun otomatis = tahun sekarang (WIT); kalau hasilnya > 6 bln ke depan, pakai tahun lalu
+      y = Number(today.slice(0, 4));
+      const curM = Number(today.slice(5, 7));
+      if (m - curM > 6) y -= 1;
+      else if (curM - m > 6) y += 1;
+    }
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    if (dt.getUTCMonth() !== m - 1) return null; // mis. 31/02
+    return dt.toISOString().slice(0, 10);
+  }
+  function isoToTglInput(iso){
+    const s = String(iso || '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return '';
+    return s.slice(8, 10) + '/' + s.slice(5, 7);
+  }
+  function setTglAntarField(iso){
+    document.getElementById('plDetailTgl').value = isoToTglInput(iso);
+    updateTglPreview();
+  }
+  function updateTglPreview(){
+    const v = document.getElementById('plDetailTgl').value;
+    const el = document.getElementById('plDetailTglPreview');
+    const iso = parseTglAntar(v);
+    if (!v.trim()){ el.textContent = ''; el.className = 'tgl-preview'; return; }
+    if (!iso){ el.textContent = 'Tgl tidak valid'; el.className = 'tgl-preview bad'; return; }
+    el.textContent = '→ ' + iso.slice(8, 10) + '-' + BLN[Number(iso.slice(5, 7)) - 1] + '-' + iso.slice(0, 4);
+    el.className = 'tgl-preview';
+  }
+  document.getElementById('plDetailTgl').addEventListener('input', updateTglPreview);
+  document.getElementById('plDetailTglPickBtn').addEventListener('click', () => {
+    const pk = document.getElementById('plDetailTglPicker');
+    pk.value = parseTglAntar(document.getElementById('plDetailTgl').value) || todayWitStr();
+    try { pk.showPicker(); } catch(e){ pk.focus(); pk.click(); }
+  });
+  document.getElementById('plDetailTglPicker').addEventListener('change', e => {
+    if (e.target.value) setTglAntarField(e.target.value);
+  });
 
   // PL bulan sebelumnya yang belum selesai (belum diantar / masih ada inv NULL) tetap ikut tampil
   const PL_CARRY_MONTHS = 3;
@@ -1935,6 +2059,10 @@
       ? `${sisa} invoice belum dicek.`
       : (ok ? `Semua sudah dicek. ${ok} invoice siap diproses.` : 'Semua invoice dibatalkan.');
     document.getElementById('trSubmitBtn').disabled = sisa > 0 || ok === 0;
+    const sa = document.getElementById('trSelectAll');
+    sa.checked = ok > 0 && sisa === 0;
+    sa.indeterminate = ok > 0 && sisa > 0;
+    sa.disabled = trRows.length === cancel;
   }
 
   document.getElementById('trTbody').addEventListener('click', (e) => {
@@ -1942,15 +2070,45 @@
     if (!tr) return;
     const id = tr.dataset.id;
     const actBtn = e.target.closest('button[data-act]');
-    if (actBtn){
-      trState.set(id, actBtn.dataset.act === 'cancel' ? 'cancel' : '');
-    } else if (e.target.closest('.tr-inv')){
-      const st = trState.get(id);
-      if (st === 'cancel') return;
-      trState.set(id, st === 'ok' ? '' : 'ok');
-    } else return;
+    if (!actBtn) return;
+    trState.set(id, actBtn.dataset.act === 'cancel' ? 'cancel' : '');
     renderTrackReview();
   });
+
+  // checkbox header: centang / hapus semua (invoice yang dibatalkan tidak ikut)
+  document.getElementById('trSelectAll').addEventListener('change', (e) => {
+    const val = e.target.checked ? 'ok' : '';
+    trRows.forEach(r => { const id = String(r.id); if (trState.get(id) !== 'cancel') trState.set(id, val); });
+    renderTrackReview();
+  });
+
+  // klik No Invoice = centang; tahan & geser mouse ke bawah/atas = centang banyak sekaligus
+  let trDragging = false, trDragValue = 'ok';
+  function setTrRowOk(tr, val){
+    const id = tr.dataset.id;
+    if (trState.get(id) === 'cancel') return;
+    if (trState.get(id) === val) return;
+    trState.set(id, val);
+    tr.classList.toggle('tr-ok', val === 'ok');
+    const ic = tr.querySelector('.tr-box-ic');
+    if (ic) ic.textContent = val === 'ok' ? '✔' : '';
+    updateTrackReviewStats();
+  }
+  document.getElementById('trTbody').addEventListener('mousedown', (e) => {
+    if (e.button !== 0 || !e.target.closest('.tr-inv')) return;
+    const tr = e.target.closest('tr[data-id]');
+    if (!tr || trState.get(tr.dataset.id) === 'cancel') return;
+    e.preventDefault();
+    trDragging = true;
+    trDragValue = trState.get(tr.dataset.id) === 'ok' ? '' : 'ok';
+    setTrRowOk(tr, trDragValue);
+  });
+  document.getElementById('trTbody').addEventListener('mouseover', (e) => {
+    if (!trDragging) return;
+    const tr = e.target.closest('tr[data-id]');
+    if (tr) setTrRowOk(tr, trDragValue);
+  });
+  document.addEventListener('mouseup', () => { trDragging = false; });
 
   function closeTrackReview(){
     const done = [...trState.values()].some(v => v);
@@ -1981,15 +2139,62 @@
     }
   });
 
+  // Backdate: tgl export (WIT) lebih lambat dari tgl antar
+  let trackFilter = 'all'; // all | backdate
+  function trackTglAntar(r){
+    const p = plItems.find(x => x.no_pl === r.no_pl) || {};
+    return String(r.tgl_antar || p.tgl_antar || '').slice(0, 10);
+  }
+  function exportDateWit(ts){
+    const d = new Date(ts);
+    if (isNaN(d)) return '';
+    return new Date(d.getTime() + 9 * 3600000).toISOString().slice(0, 10);
+  }
+  function isBackdate(r){
+    if (!r.exported_at) return false;
+    const antar = trackTglAntar(r);
+    if (!antar) return false;
+    return workDaysAfter(antar, exportDateWit(r.exported_at)) >= 2;
+  }
+  // Hitung hari kerja (tanpa Minggu) setelah tgl antar s/d tgl export
+  function workDaysAfter(from, to){
+    if (!from || !to || to <= from) return 0;
+    let n = 0;
+    const d = new Date(from + 'T00:00:00Z');
+    const end = new Date(to + 'T00:00:00Z');
+    while (true){
+      d.setUTCDate(d.getUTCDate() + 1);
+      if (d > end) break;
+      if (d.getUTCDay() !== 0) n++;
+    }
+    return n;
+  }
   function filteredTrackItems(){
     const term = document.getElementById('trackSearch').value.trim().toLowerCase();
-    return term
+    let rows = term
       ? trackItems.filter(r => [r.no_invoice, r.nama_toko, r.no_pl]
           .some(f => String(f||'').toLowerCase().includes(term)))
       : trackItems;
+    if (trackFilter === 'backdate') rows = rows.filter(isBackdate);
+    return rows;
   }
+  function renderTrackSummary(){
+    const nBack = trackItems.filter(isBackdate).length;
+    const chip = (key, label, n, cls) =>
+      `<button type="button" class="pl-chip ${cls || ''} ${trackFilter === key ? 'active' : ''}" data-f="${key}">${label}<b>${n}</b></button>`;
+    document.getElementById('trackSummary').innerHTML =
+      chip('all', 'Semua', trackItems.length) +
+      chip('backdate', 'Backdate (export ≥ H+2 hari kerja)', nBack, 'bad');
+  }
+  document.getElementById('trackSummary').addEventListener('click', e => {
+    const b = e.target.closest('.pl-chip');
+    if (!b) return;
+    trackFilter = b.dataset.f;
+    renderTrackingTable();
+  });
 
   function renderTrackingTable(){
+    renderTrackSummary();
     const rows = filteredTrackItems();
     const byPl = new Map();
     rows.forEach(r => {
@@ -2020,8 +2225,9 @@
       html.push(`<tr class="pl-group-row"><td colspan="7"><b>${escapeHtml(noPl)}</b> &middot; ${escapeHtml(g.sopir || plRef.sopir || '-')} &middot; ${escapeHtml(g.pl_area || '-')} &middot; ${tglPl || '-'}${antarTxt}</td></tr>`);
 
       groupRows.forEach(r => {
+        const back = isBackdate(r);
         html.push(
-          `<tr><td>${escapeHtml(r.no_invoice)}</td>` +
+          `<tr${back ? ` class="backdate-row" title="Backdate: tgl antar ${trackTglAntar(r)}, export ${exportDateWit(r.exported_at)} (H+${workDaysAfter(trackTglAntar(r), exportDateWit(r.exported_at))} hari kerja)"` : ''}><td>${escapeHtml(r.no_invoice)}</td>` +
           `<td>${escapeHtml(displayToko(r.nama_toko, r.no_invoice))}</td>` +
           `<td class="num">${fmtNumber(r.kubikasi)}</td>` +
           `<td>${escapeHtml(r.branch)}</td>` +
@@ -2043,11 +2249,12 @@
     const noPl = activeDetailPl;
     if (!noPl) return;
     const g = getPlGroups().find(x => x.no_pl === noPl) || plItems.find(r => r.no_pl === noPl) || {};
-    const tgl = document.getElementById('plDetailTgl').value;
+    const tgl = parseTglAntar(document.getElementById('plDetailTgl').value);
     const sopir = joinSopir(SOPIR_IDS.map(id => document.getElementById(id).value));
     const area = g.pl_area || '';
     const msgEl = document.getElementById('plDetailHdrMsg');
-    if (!tgl){ msgEl.textContent = 'Tgl wajib diisi.'; msgEl.className = 'automsg error'; return; }
+    if (!tgl){ msgEl.textContent = tgl === null ? 'Tgl Antar tidak valid (contoh: 10/11).' : 'Tgl wajib diisi.'; msgEl.className = 'automsg error'; return; }
+    if (plStatusChanged && !sopir){ msgEl.textContent = 'Sopir wajib diisi.'; msgEl.className = 'automsg error'; return; }
     this.disabled = true;
     const { error } = await sb.rpc('update_packing_list_header', {
       p_pin: currentPin, p_no_pl: noPl, p_sopir: sopir, p_tgl: tgl, p_area: area
@@ -2056,6 +2263,7 @@
     if (error){ msgEl.textContent = 'Gagal: ' + error.message; msgEl.className = 'automsg error'; return; }
     plItems.forEach(r => { if (r.no_pl === noPl){ r.sopir = sopir; r.tgl_antar = tgl; } });
     msgEl.textContent = 'Tersimpan'; msgEl.className = 'automsg success';
+    document.getElementById('plDetailHdrBox').classList.remove('need-fill');
     renderPackingListTable();
     renderTrackingTable();
   });
@@ -2087,13 +2295,29 @@
     document.getElementById('plDetailTitle').textContent = 'Isi Packing List: ' + noPl;
     const hg = plItems.find(r => r.no_pl === noPl) || {};
     fillSopirSelect(hg.sopir || '');
-    document.getElementById('plDetailTgl').value = String(hg.tgl_antar || '').slice(0, 10);
+    setTglAntarField(hg.tgl_antar);
+    plStatusChanged = false;
     document.getElementById('plDetailHdrMsg').textContent = '';
+    document.getElementById('plDetailHdrBox').classList.remove('need-fill');
     document.getElementById('plDetailHdrBox').classList.toggle('hidden', !canEditPlHeader());
     renderPlDetailTable(noPl);
     document.getElementById('plDetailOverlay').classList.remove('hidden');
   }
+  // true kalau status invoice diubah selama modal ini terbuka -> sopir & tgl antar wajib
+  let plStatusChanged = false;
   document.getElementById('plDetailCloseBtn').addEventListener('click', () => {
+    if (plStatusChanged && canEditPlHeader() && activeDetailPl){
+      const rows = plItems.filter(r => r.no_pl === activeDetailPl);
+      const h = rows[0] || {};
+      const still = rows.some(r => r.status && r.status !== 'REKAP ULANG');
+      if (still && (!String(h.sopir || '').trim() || !h.tgl_antar)){
+        const msgEl = document.getElementById('plDetailHdrMsg');
+        msgEl.textContent = 'Status sudah diubah: isi Sopir & Tgl Antar lalu klik Simpan dulu.';
+        msgEl.className = 'automsg error';
+        document.getElementById('plDetailHdrBox').classList.add('need-fill');
+        return;
+      }
+    }
     document.getElementById('plDetailOverlay').classList.add('hidden');
     activeDetailPl = null;
     plSelected.clear();
@@ -2141,6 +2365,7 @@
   });
 
   async function applyPackingListStatus(ids, newStatus, reason){
+    if (newStatus && newStatus !== 'REKAP ULANG') plStatusChanged = true;
     const results = await Promise.all(ids.map(id =>
       sb.rpc('update_packing_list_status', { p_pin: currentPin, p_id: id, p_status: newStatus, p_reason: reason || null })
     ));

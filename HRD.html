@@ -104,6 +104,18 @@
   #bpjsBhTable td.num,#bpjsBhTable th.num{text-align:right;}
   #bpjsBhTable tr.foot td{font-weight:700;background:#f6f8fa;}
   #bpjsBhTable input{width:130px;text-align:right;}
+  .ia-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;border:1px solid;}
+  .ia-badge.t-salah{background:#fde2e2;color:var(--danger);border-color:#f5b5b5;}
+  .ia-badge.t-open{background:#fff3cd;color:#92620a;border-color:#f3d48a;}
+  .ia-badge.t-reject{background:#fff;color:var(--danger);border-color:var(--danger);}
+  .ia-badge.t-other{background:#eef2f7;color:var(--muted);border-color:var(--border);}
+  .ia-br{display:inline-block;padding:2px 8px;border-radius:6px;font-weight:600;font-size:12px;}
+  .ia-br.DAF{background:#dcfce7;color:#166534;}
+  .ia-br.ABP{background:#dbeafe;color:#1e40af;}
+  .ia-br.KSI{background:#ffedd5;color:#9a3412;}
+  #iaTable td{white-space:nowrap;}
+  #iaTable td.num,#iaTable th.num{text-align:right;}
+  .ia-cnt{display:inline-block;min-width:18px;padding:0 6px;margin-left:4px;border-radius:9px;background:var(--danger);color:#fff;font-size:11px;line-height:18px;text-align:center;}
   .ac-empty{padding:8px 10px;font-size:12px;color:var(--muted);}
   #kyModal .ky-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-top:12px;}
   #kyModal .ky-grid>label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);}
@@ -183,8 +195,29 @@
   <button data-tab="karyawan">Data Karyawan</button>
   <button data-tab="bpjs">BPJS</button>
   <button data-tab="gajimingguan">Gaji Mingguan</button>
+  <button data-tab="issueadmin">Issue Admin</button>
 </nav>
 <main>
+
+  <!-- ISSUE ADMIN (mirror peringatan Kas Kecil dari packinglist.html) -->
+  <div class="tab" id="tab-issueadmin">
+    <div class="card">
+      <div class="subnav">
+        <button class="active" data-ia="salah" onclick="iaSub('salah')">Kas Kecil <span class="ia-cnt" id="iaCntSalah" style="display:none"></span></button>
+        <button data-ia="open" onclick="iaSub('open')">Tracking <span class="ia-cnt" id="iaCntOpen" style="display:none"></span></button>
+      </div>
+      <div class="row">
+        <button class="secondary" onclick="loadIssueAdmin()">Muat / Refresh</button>
+        <input id="ia_q" placeholder="Cari cabang / no faktur..." oninput="renderIssueAdmin()" style="min-width:220px">
+        <span class="muted" id="iaInfo"></span>
+      </div>
+      <p class="muted" id="iaSubText" style="margin:0 0 10px"></p>
+      <div class="tbl-wrap">
+        <table id="iaTable"><thead><tr><th>Branch</th><th>Tgl Bayar</th><th>No Faktur</th><th>Keterangan</th><th class="num">Nilai</th><th>Tracking</th></tr></thead>
+        <tbody id="iaBody"></tbody></table>
+      </div>
+    </div>
+  </div>
 
   <!-- DATA KARYAWAN -->
   <div class="tab" id="tab-karyawan">
@@ -557,8 +590,84 @@ document.querySelectorAll('nav button').forEach(btn=>{
     if (btn.dataset.tab === 'karyawan' && PIN) kyReload();
     if (btn.dataset.tab === 'bpjs' && PIN && !window._bpjsData) loadBpjs();
     if (btn.dataset.tab === 'gajimingguan' && PIN) gmInit();
+    if (btn.dataset.tab === 'issueadmin' && PIN) loadIssueAdmin();
   });
 });
+
+// ===== ISSUE ADMIN =====
+// Sumber sama dengan peringatan Kas Kecil di packinglist.html (get_kas_kecil_not_full),
+// lewat fungsi khusus HRD: get_kas_kecil_not_full_hrd.
+//  - Kas Kecil = "Salah No Faktur" (semua tanggal)
+//  - Tracking  = sudah dibayar di Kas Kecil, tracking belum FULL, hanya tgl <= H-2
+//                (hari kerja Senin-Sabtu, Minggu dilewati, jam WIT)
+let iaLists = { salah: [], open: [], cut: '' };
+let iaTab = 'salah';
+const IA_BLN = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+function iaEsc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function iaDMon(iso){
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? m[3] + '-' + IA_BLN[Number(m[2]) - 1] + '-' + m[1].slice(2) : (iso || '');
+}
+// Batas H-2 (hari kerja, Minggu tidak dihitung) format YYYY-MM-DD, jam WIT (UTC+9)
+function iaCutoffH2(){
+  const d = new Date(Date.now() + 9 * 3600 * 1000);   // getUTC* = jam WIT
+  let n = 0;
+  while (n < 2){
+    d.setUTCDate(d.getUTCDate() - 1);
+    if (d.getUTCDay() !== 0) n++;                    // 0 = Minggu (tutup)
+  }
+  return d.toISOString().slice(0, 10);
+}
+function iaSub(t){
+  iaTab = t;
+  document.querySelectorAll('#tab-issueadmin .subnav button').forEach(b => b.classList.toggle('active', b.dataset.ia === t));
+  renderIssueAdmin();
+}
+async function loadIssueAdmin(){
+  document.getElementById('iaInfo').textContent = 'Memuat...';
+  try{
+    const { data, error } = await getSupabase().rpc('get_kas_kecil_not_full_hrd', { p_pin: PIN });
+    if (error) throw error;
+    const rows = (typeof data === 'string' ? JSON.parse(data) : data) || [];
+    const cut = iaCutoffH2();
+    iaLists = {
+      salah: rows.filter(r => r.tracking === 'Salah No Faktur'),
+      open:  rows.filter(r => r.tracking !== 'Salah No Faktur' && String(r.tgl || '').slice(0, 10) <= cut),
+      cut
+    };
+    const setCnt = (id, n) => { const el = document.getElementById(id); el.textContent = n; el.style.display = n ? '' : 'none'; };
+    setCnt('iaCntSalah', iaLists.salah.length);
+    setCnt('iaCntOpen', iaLists.open.length);
+    document.getElementById('iaInfo').textContent = 'Terakhir dimuat: ' + new Date().toLocaleString('id-ID');
+    renderIssueAdmin();
+  }catch(e){
+    document.getElementById('iaInfo').textContent = 'Gagal memuat: ' + (e.message || e);
+    console.error(e);
+  }
+}
+function renderIssueAdmin(){
+  const q = (document.getElementById('ia_q').value || '').trim().toUpperCase();
+  const all = iaLists[iaTab] || [];
+  const rows = q ? all.filter(r => (String(r.branch) + ' ' + String(r.no_faktur) + ' ' + String(r.keterangan)).toUpperCase().includes(q)) : all;
+  document.getElementById('iaSubText').textContent = iaTab === 'salah'
+    ? `⚠ Salah No Faktur di Kas Kecil — ${all.length} pembayaran memakai No Faktur yang tidak ada di data invoices. Mohon diperbaiki.`
+    : `⚠ Sudah Dibayar di Kas Kecil, Tracking Belum FULL — ${all.length} invoice (tgl bayar s/d ${iaDMon(iaLists.cut)}, H-2). Mohon dicek.`;
+  const tot = rows.reduce((s, r) => s + (Number(r.nilai) || 0), 0);
+  document.getElementById('iaBody').innerHTML = rows.length ? rows.map(r => {
+    const tr = String(r.tracking || '');
+    const cls = tr === 'Salah No Faktur' ? 't-salah' : /^open/i.test(tr) ? 't-open' : /^reject/i.test(tr) ? 't-reject' : 't-other';
+    const br = String(r.branch || '').toUpperCase();
+    return '<tr>' +
+      `<td><span class="ia-br ${iaEsc(br)}">${iaEsc(r.branch)}</span></td>` +
+      `<td>${iaEsc(iaDMon(r.tgl))}</td>` +
+      `<td>${iaEsc(r.no_faktur)}</td>` +
+      `<td>${iaEsc(r.keterangan)}</td>` +
+      `<td class="num">${r.nilai == null ? '—' : Math.round(r.nilai).toLocaleString('id-ID')}</td>` +
+      `<td><span class="ia-badge ${cls}">${iaEsc(tr)}</span></td>` +
+      '</tr>';
+  }).join('') + `<tr><td colspan="4" style="font-weight:700">Total ${rows.length} baris</td><td class="num" style="font-weight:700">${Math.round(tot).toLocaleString('id-ID')}</td><td></td></tr>`
+  : '<tr><td colspan="6" class="muted" style="text-align:center;padding:20px">Tidak ada data ✓</td></tr>';
+}
 
 // Jabatan yang boleh tampil di Rincian Gajian & Slip
 const HRD_JABATAN = new Set(['ADMIN','KANVAS','KOLEKTOR','SALES','SOPIR','SOPIR KANVAS']);
