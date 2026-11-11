@@ -10,9 +10,19 @@
   body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);margin:0;}
   header{background:var(--card);border-bottom:1px solid var(--border);padding:12px 20px;display:flex;justify-content:space-between;align-items:center;}
   header h1{font-size:18px;margin:0;}
-  nav{display:flex;gap:4px;background:var(--card);border-bottom:1px solid var(--border);padding:0 16px;overflow-x:auto;}
-  nav button{background:none;border:none;padding:12px 16px;font-size:14px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap;}
+  nav{display:flex;gap:0;background:var(--card);border-bottom:1px solid var(--border);padding:0 8px;overflow-x:auto;}
+  .nav-grp{display:flex;flex-direction:column;padding:6px 8px 0;border-right:1px solid var(--border);flex-shrink:0;}
+  .nav-grp:last-child{border-right:none;}
+  .nav-lbl{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#9aa1a9;padding:0 12px 2px;white-space:nowrap;}
+  .nav-btns{display:flex;gap:2px;}
+  nav button{background:none;border:none;border-radius:0;padding:8px 12px 10px;font-size:14px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap;}
+  nav button:hover{color:var(--text);}
+  .nav-grp:has(button.active) .nav-lbl{color:var(--accent);}
   nav button.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600;}
+  .nav-grp.nav-red{background:#fdecec;}
+  .nav-grp.nav-red .nav-lbl,.nav-grp.nav-red button{color:#dc2626 !important;}
+  .nav-grp.nav-red button{font-weight:600;}
+  .nav-grp.nav-red button.active{border-bottom-color:#dc2626;}
   main{padding:20px;max-width:1600px;margin:0 auto;}
   .tab{display:none;}
   .tab.active{display:block;}
@@ -115,6 +125,10 @@
   .ia-br.KSI{background:#ffedd5;color:#9a3412;}
   #iaTable td{white-space:nowrap;}
   #iaTable td.num,#iaTable th.num{text-align:right;}
+  .ia-chip{background:#fff;color:var(--danger);border:1px solid #f5b5b5;border-radius:6px;padding:4px 10px;font-weight:600;font-size:12px;margin:0 6px 6px 0;}
+  .ia-chip.active{background:var(--danger);color:#fff;border-color:var(--danger);}
+  .ia-reason{display:block;color:var(--danger);font-size:11px;white-space:nowrap;}
+  #iaSubText:empty{display:none;}
   .ia-cnt{display:inline-block;min-width:18px;padding:0 6px;margin-left:4px;border-radius:9px;background:var(--danger);color:#fff;font-size:11px;line-height:18px;text-align:center;}
   .ac-empty{padding:8px 10px;font-size:12px;color:var(--muted);}
   #kyModal .ky-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-top:12px;}
@@ -169,6 +183,33 @@
   .gm-sum .v{text-align:right;font-variant-numeric:tabular-nums;}
   .gm-sum .g{font-weight:700;border-top:1px solid var(--border);padding-top:4px;}
   .gm-sum .v.g{color:var(--accent);}
+  #amTable td{white-space:nowrap;vertical-align:top;}
+  #amTable td.num,#amTable th.num{text-align:right;}
+  #amTable tr.am-off td{color:#9aa1a9;}
+  #amTable .sm{padding:3px 9px;font-size:12px;}
+  .am-tire{min-width:130px;font-size:12px;line-height:1.45;}
+  .am-tire b{font-size:12.5px;}
+  .am-st{display:inline-block;padding:1px 7px;border-radius:9px;font-size:11px;font-weight:700;}
+  .am-st.ok{background:#dcfce7;color:#166534;}
+  .am-st.wait{background:#eef2f7;color:var(--muted);}
+  .am-st.none{background:#fff3cd;color:#92620a;}
+  .am-svc{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;}
+  .am-svc.REQUEST{background:#fff3cd;color:#92620a;}
+  .am-svc.DISETUJUI{background:#dbeafe;color:#1e40af;}
+  .am-svc.DITOLAK{background:#fde2e2;color:var(--danger);}
+  .am-svc.SELESAI{background:#dcfce7;color:#166534;}
+  .am-form{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-top:10px;}
+  .am-form>label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);}
+  .am-form .full{grid-column:1 / -1;}
+  .am-form input,.am-form select,.am-form textarea{width:100%;text-align:left;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-family:inherit;}
+  .am-form label.chk{flex-direction:row;align-items:center;gap:6px;color:inherit;font-size:13px;}
+  .am-form label.chk input{width:auto;}
+  .am-sp td{padding:3px 4px !important;border:none !important;}
+  .am-sp input{padding:5px 7px !important;}
+  .am-hist td{font-size:12px;}
+  #amTable input.am-harga{width:120px;text-align:right;padding:4px 7px;font-size:12px;}
+  #amTable tr.foot td{background:#f6f8fa;position:sticky;bottom:0;}
+  @media(max-width:600px){.am-form{grid-template-columns:1fr;}}
 </style>
 </head>
 <body>
@@ -188,14 +229,40 @@
   <div class="muted" id="whoami"></div>
 </header>
 <nav>
-  <button class="active" data-tab="payroll">Rincian Gajian</button>
-  <button data-tab="slip">Slip Gaji</button>
-  <button data-tab="ijin">Ijin HRD</button>
-  <button data-tab="debt">Hutang Karyawan</button>
-  <button data-tab="karyawan">Data Karyawan</button>
-  <button data-tab="bpjs">BPJS</button>
-  <button data-tab="gajimingguan">Gaji Mingguan</button>
-  <button data-tab="issueadmin">Issue Admin</button>
+  <div class="nav-grp">
+    <div class="nav-lbl">Proses Gajian Bulanan</div>
+    <div class="nav-btns">
+      <button class="active" data-tab="payroll">Rincian Gajian</button>
+      <button data-tab="ijin">Ijin HRD</button>
+      <button data-tab="debt">Hutang Karyawan</button>
+      <button data-tab="slip">Slip Gaji</button>
+    </div>
+  </div>
+  <div class="nav-grp">
+    <div class="nav-lbl">Gaji Mingguan</div>
+    <div class="nav-btns">
+      <button data-tab="gajimingguan">Gaji Mingguan</button>
+    </div>
+  </div>
+  <div class="nav-grp">
+    <div class="nav-lbl">Data Karyawan</div>
+    <div class="nav-btns">
+      <button data-tab="karyawan">Data Karyawan</button>
+      <button data-tab="bpjs">BPJS</button>
+    </div>
+  </div>
+  <div class="nav-grp">
+    <div class="nav-lbl">Armada</div>
+    <div class="nav-btns">
+      <button data-tab="armada">Mobil, Ban, Aki &amp; Service</button>
+    </div>
+  </div>
+  <div class="nav-grp nav-red">
+    <div class="nav-lbl">Lainnya</div>
+    <div class="nav-btns">
+      <button data-tab="issueadmin">Issue Admin</button>
+    </div>
+  </div>
 </nav>
 <main>
 
@@ -205,16 +272,78 @@
       <div class="subnav">
         <button class="active" data-ia="salah" onclick="iaSub('salah')">Kas Kecil <span class="ia-cnt" id="iaCntSalah" style="display:none"></span></button>
         <button data-ia="open" onclick="iaSub('open')">Tracking <span class="ia-cnt" id="iaCntOpen" style="display:none"></span></button>
+        <button data-ia="audit" onclick="iaSub('audit')">Invoice Bermasalah <span class="ia-cnt" id="iaCntAudit" style="display:none"></span></button>
+        <button data-ia="nota" onclick="iaSub('nota')">Nota Hilang <span class="ia-cnt" id="iaCntNota" style="display:none"></span></button>
+        <button data-ia="retur" onclick="iaSub('retur')">Masalah Retur <span class="ia-cnt" id="iaCntRetur" style="display:none"></span></button>
       </div>
       <div class="row">
         <button class="secondary" onclick="loadIssueAdmin()">Muat / Refresh</button>
-        <input id="ia_q" placeholder="Cari cabang / no faktur..." oninput="renderIssueAdmin()" style="min-width:220px">
+        <input id="ia_q" placeholder="Cari cabang / no faktur / customer..." oninput="renderIssueAdmin()" style="min-width:220px">
         <span class="muted" id="iaInfo"></span>
       </div>
       <p class="muted" id="iaSubText" style="margin:0 0 10px"></p>
-      <div class="tbl-wrap">
+      <div id="iaKasPanel" class="tbl-wrap">
         <table id="iaTable"><thead><tr><th>Branch</th><th>Tgl Bayar</th><th>No Faktur</th><th>Keterangan</th><th class="num">Nilai</th><th>Tracking</th></tr></thead>
         <tbody id="iaBody"></tbody></table>
+      </div>
+      <div id="iaAudPanel" style="display:none">
+        <div id="iaChips"></div>
+        <div class="tbl-wrap">
+          <table id="iaAudTable"><thead><tr><th>Branch</th><th>Invoice No</th><th>Customer</th><th>Print Date</th><th>Tracking Date</th><th>Salesman</th><th class="num">Amount</th><th>Status</th><th>Masalah</th></tr></thead>
+          <tbody id="iaAudBody"></tbody></table>
+        </div>
+      </div>
+      <div id="iaNotaPanel" class="tbl-wrap" style="display:none">
+        <table id="iaNotaTable"><thead><tr><th>Branch</th><th>Invoice No</th><th>Customer</th><th>Tracking</th><th>Salesman</th><th class="num">Amount</th><th class="num">Dibayar</th><th class="num">Sisa</th><th>Alasan</th></tr></thead>
+        <tbody id="iaNotaBody"></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ARMADA: mobil, ban, aki, request service -->
+  <div class="tab" id="tab-armada">
+    <div class="card">
+      <div class="subnav">
+        <button class="active" data-am="mobil" onclick="amSub('mobil')">Daftar Mobil</button>
+        <button data-am="ban" onclick="amSub('ban')">Ban <span class="ia-cnt" id="amCntBan" style="display:none;background:var(--ok)"></span></button>
+        <button data-am="aki" onclick="amSub('aki')">Aki <span class="ia-cnt" id="amCntAki" style="display:none;background:var(--ok)"></span></button>
+        <button data-am="service" onclick="amSub('service')">Request Service <span class="ia-cnt" id="amCntSvc" style="display:none"></span></button>
+        <button data-am="sparepart" onclick="amSub('sparepart')">Sparepart <span class="ia-cnt" id="amCntSp" style="display:none"></span></button>
+      </div>
+      <div class="row">
+        <button class="secondary" onclick="amLoad()">Muat / Refresh</button>
+        <select id="am_tipe" onchange="amRender()"><option value="">Semua tipe</option><option>4 RODA</option><option>6 RODA</option></select>
+        <input id="am_q" placeholder="Cari plat / merk / cabang..." oninput="amRender()" style="min-width:240px">
+        <button id="am_add" onclick="amAdd()">+ Tambah Mobil</button>
+        <span class="muted" id="am_info"></span>
+      </div>
+      <p class="muted" id="am_note" style="margin:0 0 10px"></p>
+      <div class="row" id="am_actions" style="display:none"></div>
+      <div class="tbl-wrap"><table id="amTable"><thead id="amHead"></thead><tbody id="amBody"></tbody></table></div>
+    </div>
+  </div>
+
+  <div class="modal-bg" id="amModal" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal" style="width:min(620px,96vw)">
+      <h3 id="amm_title"></h3>
+      <p class="muted" id="amm_sub"></p>
+      <div id="amm_body" class="am-form"></div>
+      <div class="row" style="margin-top:14px;justify-content:flex-end">
+        <span class="muted" id="amm_err" style="color:var(--danger);margin-right:auto"></span>
+        <button class="secondary" onclick="document.getElementById('amModal').style.display='none'">Tutup</button>
+        <button id="amm_save" onclick="amModalSave()">Simpan</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-bg" id="amImgModal" style="z-index:70" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal" style="width:min(900px,96vw)">
+      <h3 id="ami_title"></h3>
+      <p class="muted" id="ami_sub"></p>
+      <img id="ami_img" style="max-width:100%;max-height:70vh;display:block;margin:0 auto;border:1px solid var(--border);border-radius:6px">
+      <div class="row" style="margin-top:12px;justify-content:flex-end">
+        <button class="secondary" id="ami_ganti">Ganti Foto</button>
+        <button class="secondary" onclick="document.getElementById('amImgModal').style.display='none'">Tutup</button>
       </div>
     </div>
   </div>
@@ -498,6 +627,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="audit_invoice.js"></script>
 <script>
 // Library Excel (SheetJS) baru diambil dari internet saat import / export dipakai
 let _xlsxP = null;
@@ -591,12 +721,13 @@ document.querySelectorAll('nav button').forEach(btn=>{
     if (btn.dataset.tab === 'bpjs' && PIN && !window._bpjsData) loadBpjs();
     if (btn.dataset.tab === 'gajimingguan' && PIN) gmInit();
     if (btn.dataset.tab === 'issueadmin' && PIN) loadIssueAdmin();
+    if (btn.dataset.tab === 'armada' && PIN && !window._amLoaded) amLoad();
   });
 });
 
 // ===== ISSUE ADMIN =====
 // Sumber sama dengan peringatan Kas Kecil di packinglist.html (get_kas_kecil_not_full),
-// lewat fungsi khusus HRD: get_kas_kecil_not_full_hrd.
+// MIRROR: fungsi SAMA dengan Packing List, HRD tidak punya rule sendiri (hanya tampilan + filter H-2).
 //  - Kas Kecil = "Salah No Faktur" (semua tanggal)
 //  - Tracking  = sudah dibayar di Kas Kecil, tracking belum FULL, hanya tgl <= H-2
 //                (hari kerja Senin-Sabtu, Minggu dilewati, jam WIT)
@@ -623,10 +754,29 @@ function iaSub(t){
   document.querySelectorAll('#tab-issueadmin .subnav button').forEach(b => b.classList.toggle('active', b.dataset.ia === t));
   renderIssueAdmin();
 }
+let iaAudit = { rows: [], err: '' };
+let iaAuditCase = '';
 async function loadIssueAdmin(){
   document.getElementById('iaInfo').textContent = 'Memuat...';
+  await Promise.all([loadIaKas(), loadIaAudit(), loadIaPiut('nota'), loadIaPiut('retur')]);
+  document.getElementById('iaInfo').textContent = 'Terakhir dimuat: ' + new Date().toLocaleString('id-ID');
+}
+// Invoice Bermasalah: data + aturan sama dengan tombol AUDIT di dash (audit_invoice.js)
+async function loadIaAudit(){
   try{
-    const { data, error } = await getSupabase().rpc('get_kas_kecil_not_full_hrd', { p_pin: PIN });
+    const rows = await AuditInvoice.loadAll(getSupabase(), PIN);
+    iaAudit = { rows: rows.map(r => ({ r, rs: AuditInvoice.reasons(r) })).filter(x => x.rs.length), err: '' };
+  }catch(e){
+    iaAudit = { rows: [], err: e.message || String(e) };
+    console.error(e);
+  }
+  const el = document.getElementById('iaCntAudit');
+  el.textContent = iaAudit.rows.length; el.style.display = iaAudit.rows.length ? '' : 'none';
+  renderIssueAdmin();
+}
+async function loadIaKas(){
+  try{
+    const { data, error } = await getSupabase().rpc('get_kas_kecil_not_full', { p_pin: PIN });
     if (error) throw error;
     const rows = (typeof data === 'string' ? JSON.parse(data) : data) || [];
     const cut = iaCutoffH2();
@@ -638,20 +788,109 @@ async function loadIssueAdmin(){
     const setCnt = (id, n) => { const el = document.getElementById(id); el.textContent = n; el.style.display = n ? '' : 'none'; };
     setCnt('iaCntSalah', iaLists.salah.length);
     setCnt('iaCntOpen', iaLists.open.length);
-    document.getElementById('iaInfo').textContent = 'Terakhir dimuat: ' + new Date().toLocaleString('id-ID');
-    renderIssueAdmin();
+    iaLists.err = '';
   }catch(e){
-    document.getElementById('iaInfo').textContent = 'Gagal memuat: ' + (e.message || e);
+    iaLists = { salah: [], open: [], cut: iaCutoffH2(), err: e.message || String(e) };
     console.error(e);
   }
+  renderIssueAdmin();
+}
+// MIRROR dari piutang.html (data dibaca langsung di server, tidak disalin):
+//  - Nota Hilang   = Tagihan Kasus kategori NOTA HILANG (get_nota_hilang_hrd)
+//  - Masalah Retur = tab Masalah Retur (get_masalah_retur_hrd)
+const IA_PIUT = {
+  nota:  { fn: 'get_nota_hilang_hrd',   sql: 'nota_hilang_hrd.sql',   cnt: 'iaCntNota' },
+  retur: { fn: 'get_masalah_retur_hrd', sql: 'masalah_retur_hrd.sql', cnt: 'iaCntRetur' }
+};
+const iaPiut = { nota: { rows: [], err: '' }, retur: { rows: [], err: '' } };
+async function loadIaPiut(t){
+  const c = IA_PIUT[t];
+  try{
+    const { data, error } = await getSupabase().rpc(c.fn, { p_pin: PIN });
+    if (error) throw error;
+    iaPiut[t] = { rows: (typeof data === 'string' ? JSON.parse(data) : data) || [], err: '' };
+  }catch(e){
+    iaPiut[t] = { rows: [], err: e.message || String(e) };
+    console.error(e);
+  }
+  const el = document.getElementById(c.cnt);
+  el.textContent = iaPiut[t].rows.length; el.style.display = iaPiut[t].rows.length ? '' : 'none';
+  renderIssueAdmin();
+}
+function renderIaPiut(t, q){
+  const c = IA_PIUT[t], d = iaPiut[t];
+  const all = d.rows;
+  const rows = q ? all.filter(r => [r.branch, r.invoice_no, r.customer, r.salesman, r.alasan].join(' ').toUpperCase().includes(q)) : all;
+  const n = v => v == null || v === '' ? 0 : Number(v);
+  const f = v => Math.round(n(v)).toLocaleString('id-ID');
+  document.getElementById('iaSubText').textContent = d.err
+    ? 'Gagal memuat: ' + d.err + (d.err.includes(c.fn) ? ` — jalankan ${c.sql} di Supabase SQL Editor.` : '')
+    : '';
+  const tot = rows.reduce((s, r) => s + n(r.sisa), 0);
+  document.getElementById('iaNotaBody').innerHTML = rows.length ? rows.map(r => {
+    const br = String(r.branch || '').toUpperCase();
+    return '<tr>' +
+      `<td><span class="ia-br ${iaEsc(br)}">${iaEsc(r.branch)}</span></td>` +
+      `<td>${iaEsc(r.invoice_no)}</td>` +
+      `<td>${iaEsc(r.customer)}</td>` +
+      `<td>${iaFmtDate(r.tracking_date)}</td>` +
+      `<td>${iaEsc(r.salesman)}</td>` +
+      `<td class="num">${f(r.amount)}</td>` +
+      `<td class="num">${n(r.paid) ? f(r.paid) : '—'}</td>` +
+      `<td class="num" style="font-weight:700">${f(r.sisa)}</td>` +
+      `<td>${iaEsc(r.alasan) || '—'}</td>` +
+      '</tr>';
+  }).join('') + `<tr><td colspan="7" style="font-weight:700">Total ${rows.length} invoice</td><td class="num" style="font-weight:700">${Math.round(tot).toLocaleString('id-ID')}</td><td></td></tr>`
+  : '<tr><td colspan="9" class="muted" style="text-align:center;padding:20px">Tidak ada data ✓</td></tr>';
+}
+function iaFmtDate(v){
+  const d = AuditInvoice.parseAnyDate(v);
+  if (!d) return '—';
+  return String(d.getDate()).padStart(2, '0') + '-' + IA_BLN[d.getMonth()] + '-' + String(d.getFullYear()).slice(2);
+}
+function iaSetCase(k){ iaAuditCase = k; renderIssueAdmin(); }
+function renderIaAudit(q){
+  const all = iaAudit.rows;
+  const cnt = {};
+  all.forEach(x => new Set(x.rs.map(AuditInvoice.caseOf)).forEach(k => { cnt[k] = (cnt[k] || 0) + 1; }));
+  if (iaAuditCase && !cnt[iaAuditCase]) iaAuditCase = '';
+  document.getElementById('iaSubText').textContent = iaAudit.err
+    ? 'Gagal memuat: ' + iaAudit.err
+    : `⚠ ${all.length} invoice bermasalah (hasil AUDIT di Invoice Pipeline, semua bulan) — klik untuk filter per case:`;
+  document.getElementById('iaChips').innerHTML = all.length
+    ? `<button class="ia-chip${iaAuditCase ? '' : ' active'}" onclick="iaSetCase('')">Semua (${all.length})</button>` +
+      AuditInvoice.CASES.filter(([k]) => cnt[k]).map(([k, label]) =>
+        `<button class="ia-chip${iaAuditCase === k ? ' active' : ''}" onclick="iaSetCase('${k}')">⚠ ${iaEsc(label)} (${cnt[k]})</button>`).join('')
+    : '';
+  let rows = all.map(x => ({ r: x.r, rs: iaAuditCase ? x.rs.filter(t => AuditInvoice.caseOf(t) === iaAuditCase) : x.rs })).filter(x => x.rs.length);
+  if (q) rows = rows.filter(({ r }) => [r._branch, r.invoiceNo, r.customer, r.salesman].join(' ').toUpperCase().includes(q));
+  document.getElementById('iaAudBody').innerHTML = rows.length ? rows.map(({ r, rs }) => {
+    const br = String(r._branch || '').toUpperCase();
+    return '<tr>' +
+      `<td><span class="ia-br ${iaEsc(br)}">${iaEsc(r._branch)}</span></td>` +
+      `<td>${iaEsc(r.invoiceNo)}</td>` +
+      `<td>${iaEsc(r.customer)}</td>` +
+      `<td>${iaFmtDate(r.printDate)}</td>` +
+      `<td>${iaFmtDate(r.trackingDate)}</td>` +
+      `<td>${iaEsc(r.salesman)}</td>` +
+      `<td class="num">${r.amount === '' || r.amount == null ? '—' : Math.round(r.amount).toLocaleString('id-ID')}</td>` +
+      `<td>${iaEsc(r.status)}</td>` +
+      `<td>${rs.map(t => `<span class="ia-reason">⚠ ${iaEsc(t)}</span>`).join('')}</td>` +
+      '</tr>';
+  }).join('') + `<tr><td colspan="9" style="font-weight:700">Total ${rows.length} invoice</td></tr>`
+  : '<tr><td colspan="9" class="muted" style="text-align:center;padding:20px">Tidak ada data ✓</td></tr>';
 }
 function renderIssueAdmin(){
   const q = (document.getElementById('ia_q').value || '').trim().toUpperCase();
+  const isAud = iaTab === 'audit', isNota = iaTab === 'nota' || iaTab === 'retur';
+  document.getElementById('iaKasPanel').style.display = isAud || isNota ? 'none' : '';
+  document.getElementById('iaAudPanel').style.display = isAud ? '' : 'none';
+  document.getElementById('iaNotaPanel').style.display = isNota ? '' : 'none';
+  if (isAud) return renderIaAudit(q);
+  if (isNota) return renderIaPiut(iaTab, q);
   const all = iaLists[iaTab] || [];
   const rows = q ? all.filter(r => (String(r.branch) + ' ' + String(r.no_faktur) + ' ' + String(r.keterangan)).toUpperCase().includes(q)) : all;
-  document.getElementById('iaSubText').textContent = iaTab === 'salah'
-    ? `⚠ Salah No Faktur di Kas Kecil — ${all.length} pembayaran memakai No Faktur yang tidak ada di data invoices. Mohon diperbaiki.`
-    : `⚠ Sudah Dibayar di Kas Kecil, Tracking Belum FULL — ${all.length} invoice (tgl bayar s/d ${iaDMon(iaLists.cut)}, H-2). Mohon dicek.`;
+  document.getElementById('iaSubText').textContent = iaLists.err ? 'Gagal memuat: ' + iaLists.err : '';
   const tot = rows.reduce((s, r) => s + (Number(r.nilai) || 0), 0);
   document.getElementById('iaBody').innerHTML = rows.length ? rows.map(r => {
     const tr = String(r.tracking || '');
@@ -1943,6 +2182,448 @@ document.getElementById('pinInput').addEventListener('keydown', e => { if (e.key
     setXDirty(false);
     gmRender();
     toast('Tanda X tersimpan');
+  };
+})();
+</script>
+<script>
+// ===== ARMADA: mobil, ban, aki, request service =====
+// Patokan ganti ban (per posisi) & aki: 8 bulan (hanya tanda, tidak diblok).
+// Request service: kode otomatis, biaya jasa & harga sparepart ditandai lunas.
+(function(){
+  const MIN_BULAN = 8;
+  const POSISI = {
+    '4 RODA': ['Ban 1','Ban 2','Ban 3','Ban 4'],
+    '6 RODA': ['Ban 1','Ban 2','Ban 3','Ban 4','Ban 5','Ban 6']
+  };
+  const ALL_POS = POSISI['6 RODA'];
+  const CABANG = ['DAF','ABP','KSI','TFDAF'];
+  const BLN = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  let D = { today: '', mobil: [], ban: [], aki: [], service: [], sparepart_master: [] };
+  let sub = 'mobil';
+  let modal = null;   // {kind, data}
+
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const $ = id => document.getElementById(id);
+  function dmy(iso){ const m = String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[3]+'-'+BLN[+m[2]-1]+'-'+m[1].slice(2) : ''; }
+  function todayWIT(){ return new Date(Date.now() + 9*3600*1000).toISOString().slice(0,10); }
+  // sama dengan Postgres: tanggal + interval 'N months' (akhir bulan dijepit)
+  function addMonths(iso, n){
+    const [y,m,d] = iso.split('-').map(Number);
+    const t = new Date(Date.UTC(y, m-1+n, 1));
+    const last = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth()+1, 0)).getUTCDate();
+    t.setUTCDate(Math.min(d, last));
+    return t.toISOString().slice(0,10);
+  }
+  function daysBetween(a, b){ return Math.round((Date.parse(b) - Date.parse(a)) / 86400000); }
+  function umur(iso){
+    const n = daysBetween(iso, D.today || todayWIT());
+    const bln = Math.floor(n / 30.44);
+    return bln >= 1 ? bln + ' bln ' + Math.round(n - bln*30.44) + ' hr' : n + ' hari';
+  }
+  // status boleh ganti dari tgl pasang terakhir
+  function cek(last){
+    if (!last) return { ok: true, html: '<span class="am-st none">Belum ada data</span>' };
+    const boleh = addMonths(last.tgl_pasang, MIN_BULAN);
+    const sisa = daysBetween(D.today || todayWIT(), boleh);
+    if (sisa <= 0) return { ok: true, boleh, html: '<span class="am-st ok">Boleh ganti</span>' };
+    return { ok: false, boleh, html: '' };
+  }
+  const lastBan = (mid, pos) => D.ban.find(b => b.mobil_id === mid && b.posisi === pos);   // data urut terbaru dulu
+  const lastAki = mid => D.aki.find(a => a.mobil_id === mid);
+  const mobilById = id => D.mobil.find(m => m.id === id);
+  const posOf = m => POSISI[m.tipe] || POSISI['4 RODA'];
+  const brPill = c => c ? '<span class="ia-br ' + esc(c) + '">' + esc(c) + '</span>' : '';
+
+  async function rpc(name, args){
+    const { data, error } = await getSupabase().rpc(name, { p_pin: PIN, ...args });
+    if (error) throw new Error(error.message);
+    return data;
+  }
+
+  window.amLoad = async function(){
+    $('am_info').textContent = 'Memuat...';
+    try{
+      const r = await rpc('armada_get', {});
+      D = { today: r.today || todayWIT(), mobil: r.mobil||[], ban: r.ban||[], aki: r.aki||[], service: r.service||[], sparepart_master: r.sparepart_master||[] };
+      window._amLoaded = true;
+      $('am_info').textContent = D.mobil.length + ' mobil · hari ini ' + dmy(D.today);
+    }catch(e){
+      $('am_info').textContent = 'Gagal memuat: ' + e.message + (/armada_get/.test(e.message) ? ' (jalankan armada_hrd.sql dulu)' : '');
+    }
+    amRender();
+  };
+
+  window.amSub = function(t){
+    sub = t;
+    document.querySelectorAll('#tab-armada .subnav button').forEach(b => b.classList.toggle('active', b.dataset.am === t));
+    amRender();
+  };
+
+  function filtered(){
+    const q = $('am_q').value.trim().toLowerCase(), tp = $('am_tipe').value;
+    return D.mobil.filter(m => (!tp || m.tipe === tp) &&
+      (!q || [m.plat, m.merk, m.cabang, m.catatan].join(' ').toLowerCase().includes(q)));
+  }
+
+  function setCnt(id, n){ const el = $(id); el.textContent = n; el.style.display = n ? '' : 'none'; }
+
+  window.amRender = function(){
+    const aktif = D.mobil.filter(m => m.aktif);
+    let nBan = 0, nAki = 0;
+    aktif.forEach(m => {
+      posOf(m).forEach(p => { const l = lastBan(m.id, p); if (l && cek(l).ok) nBan++; });
+      const a = lastAki(m.id); if (a && cek(a).ok) nAki++;
+    });
+    setCnt('amCntBan', nBan); setCnt('amCntAki', nAki);
+    setCnt('amCntSvc', D.service.filter(s => !s.jasa_lunas).length);
+    setCnt('amCntSp', D.service.reduce((a, s) => a + (s.items || []).filter(x => !x.lunas).length, 0));
+    $('am_actions').style.display = (sub === 'service' || sub === 'sparepart') ? '' : 'none';
+
+    const btn = $('am_add');
+    btn.textContent = sub === 'service' ? '+ Request Service' : '+ Tambah Mobil';
+    btn.style.display = (sub === 'mobil' || sub === 'service') ? '' : 'none';
+    const rows = filtered();
+    const H = $('amHead'), B = $('amBody'), N = $('am_note');
+
+    if (sub === 'mobil'){
+      N.textContent = 'Tipe 4 roda = 4 ban, 6 roda = 6 ban. Foto pajak & STNK bisa diganti kapan saja (misal setelah perpanjang). Mobil nonaktif tetap disimpan untuk riwayat.';
+      H.innerHTML = '<tr><th class="num">No</th><th>Plat</th><th>Tipe</th><th>Merk / Model</th><th class="num">Tahun</th><th>Cabang</th><th>Foto Pajak</th><th>Foto STNK</th><th>Status</th><th>Catatan</th><th></th></tr>';
+      const fotoBtn = (m, j, has) => has
+        ? '<button class="secondary sm" onclick="amFotoView(\'' + j + '\',' + m.id + ',\'' + esc(m.plat) + '\')">Lihat</button>'
+        : '<button class="sm" onclick="amFotoPick(\'' + j + '\',' + m.id + ')">Upload</button>';
+      B.innerHTML = rows.map((m,i) => '<tr class="' + (m.aktif ? '' : 'am-off') + '"><td class="num">' + (i+1) + '</td><td><b>' + esc(m.plat) + '</b></td><td>' + esc(m.tipe) +
+        '</td><td>' + esc(m.merk) + '</td><td class="num">' + esc(m.tahun||'') + '</td><td>' + brPill(m.cabang) +
+        '</td><td>' + fotoBtn(m, 'PAJAK', m.has_pajak) + '</td><td>' + fotoBtn(m, 'STNK', m.has_stnk) +
+        '</td><td>' + (m.aktif ? '<span class="pill ok">Aktif</span>' : '<span class="pill absent">Nonaktif</span>') + '</td><td>' + esc(m.catatan) +
+        '</td><td><button class="secondary sm" onclick="amEditMobil(' + m.id + ')">Edit</button></td></tr>').join('')
+        || '<tr><td colspan="11" class="muted">Belum ada mobil. Klik "+ Tambah Mobil".</td></tr>';
+      return;
+    }
+
+    if (sub === 'ban'){
+      const list = rows.filter(m => m.aktif);
+      const show6 = list.some(m => m.tipe === '6 RODA');
+      const cols = show6 ? ALL_POS : POSISI['4 RODA'];
+      N.textContent = 'Tiap ban dihitung sendiri. Patokan ganti ban ± ' + MIN_BULAN + ' bulan (lebih lama tidak apa-apa). Tanda "Boleh ganti" muncul kalau sudah ' + MIN_BULAN + ' bulan.';
+      H.innerHTML = '<tr><th>Plat</th><th>Tipe</th>' + cols.map(p => '<th>' + p + '</th>').join('') + '</tr>';
+      B.innerHTML = list.map(m => {
+        const mp = posOf(m);
+        return '<tr><td><b>' + esc(m.plat) + '</b><br>' + brPill(m.cabang) + '</td><td>' + esc(m.tipe) + '</td>' + cols.map(p => {
+          if (!mp.includes(p)) return '<td class="muted">—</td>';
+          const l = lastBan(m.id, p), c = cek(l);
+          return '<td><div class="am-tire">' + (l ? '<b>' + esc(l.kode || '-') + '</b><br>Pasang ' + dmy(l.tgl_pasang) + ' · ' + umur(l.tgl_pasang) + '<br>' : '') + c.html +
+            '<br><button class="' + (c.ok ? '' : 'secondary ') + 'sm" style="margin-top:4px" onclick="amBan(' + m.id + ',\'' + p + '\')">Ganti / Riwayat</button></div></td>';
+        }).join('') + '</tr>';
+      }).join('') || '<tr><td colspan="10" class="muted">Belum ada mobil aktif.</td></tr>';
+      return;
+    }
+
+    if (sub === 'aki'){
+      const list = rows.filter(m => m.aktif);
+      N.textContent = 'Patokan ganti aki ± ' + MIN_BULAN + ' bulan (lebih lama tidak apa-apa).';
+      H.innerHTML = '<tr><th>Plat</th><th>Tipe</th><th>Cabang</th><th>Merk Aki</th><th>Tgl Pasang</th><th>Umur</th><th>Status</th><th>Patokan Ganti</th><th></th></tr>';
+      B.innerHTML = list.map(m => {
+        const a = lastAki(m.id), c = cek(a);
+        return '<tr><td><b>' + esc(m.plat) + '</b></td><td>' + esc(m.tipe) + '</td><td>' + brPill(m.cabang) + '</td><td>' + esc(a ? a.merk : '') +
+          '</td><td>' + (a ? dmy(a.tgl_pasang) : '') + '</td><td>' + (a ? umur(a.tgl_pasang) : '') + '</td><td>' + c.html + '</td><td>' + (c.boleh ? dmy(c.boleh) : '') +
+          '</td><td><button class="' + (c.ok ? '' : 'secondary ') + 'sm" onclick="amAki(' + m.id + ')">Ganti / Riwayat</button></td></tr>';
+      }).join('') || '<tr><td colspan="9" class="muted">Belum ada mobil aktif.</td></tr>';
+      return;
+    }
+
+    // service
+    const ids = new Set(rows.map(m => m.id));
+    const svc = D.service.filter(s => ids.has(s.mobil_id));
+    const A = $('am_actions');
+    const stF = (cur) => '<select id="am_lunasf" onchange="amRender()">' +
+      [['belum','Belum lunas'],['lunas','Lunas'],['','Semua']].map(([v,l]) => '<option value="' + v + '"' + (v === cur ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>';
+    const curF = $('am_lunasf') ? $('am_lunasf').value : 'belum';
+    const pass = lunas => !curF || (curF === 'lunas') === !!lunas;
+    const lunasPill = (l, at) => l ? '<span class="pill ok">Lunas</span>' + (at ? '<br><span class="muted">' + dmy(String(at).slice(0,10)) + '</span>' : '') : '<span class="pill late">Belum</span>';
+
+    if (sub === 'service'){
+      const list = svc.filter(s => pass(s.jasa_lunas));
+      N.textContent = 'Biaya = biaya jasa service. Centang request lalu klik "Tandai Lunas" saat jasa service dibayar. Harga sparepart diisi di tab Sparepart.';
+      const sel = list.filter(s => selSvc.has(s.id));
+      const tot = sel.reduce((a, s) => a + Number(s.biaya || 0), 0);
+      A.innerHTML = stF(curF) + ' <button class="sm" onclick="amLunas(\'JASA\',true)"' + (sel.length ? '' : ' disabled') + '>Tandai Lunas (' + sel.length + ')</button>' +
+        ' <button class="secondary sm" onclick="amLunas(\'JASA\',false)"' + (sel.length ? '' : ' disabled') + '>Batal Lunas</button>' +
+        (sel.length ? ' <span class="muted">Total dipilih: <b>' + rupiah(tot) + '</b></span>' : '');
+      const allOn = list.length && list.every(s => selSvc.has(s.id));
+      H.innerHTML = '<tr><th><input type="checkbox" ' + (allOn ? 'checked' : '') + ' onclick="amSelAll(\'svc\',this.checked)"></th><th>Kode</th><th>Tgl</th><th>Plat</th><th>Cabang</th><th>Sparepart</th><th class="num">Biaya</th><th>Jasa</th><th>Catatan</th><th></th></tr>';
+      B.innerHTML = list.map(s => {
+        const m = mobilById(s.mobil_id) || {};
+        const sp = (s.items || []).map(x => esc(x.nama) + (x.qty ? ' ×' + esc(x.qty) : '') + (x.ket ? ' <span class="muted">(' + esc(x.ket) + ')</span>' : '')).join('<br>');
+        return '<tr><td><input type="checkbox" ' + (selSvc.has(s.id) ? 'checked' : '') + ' onclick="amSel(\'svc\',' + s.id + ',this.checked)"></td><td><b>' + esc(s.kode) + '</b></td><td>' + dmy(s.tgl) +
+          '</td><td><b>' + esc(m.plat) + '</b><br><span class="muted">' + esc(m.tipe) + '</span></td><td>' + brPill(m.cabang) + '</td><td>' + (sp || '<span class="muted">-</span>') +
+          '</td><td class="num">' + (s.biaya ? numID(s.biaya) : '<span class="muted">-</span>') + '</td><td>' + lunasPill(s.jasa_lunas, s.jasa_lunas_at) +
+          '</td><td style="white-space:normal;min-width:140px">' + esc(s.catatan) + '</td><td><button class="secondary sm" onclick="amEditSvc(' + s.id + ')">Edit</button></td></tr>';
+      }).join('') || '<tr><td colspan="10" class="muted">Tidak ada request service.</td></tr>';
+      if (list.length) B.insertAdjacentHTML('beforeend', '<tr class="foot"><td colspan="6"><b>Total</b></td><td class="num"><b>' + numID(list.reduce((a, s) => a + Number(s.biaya || 0), 0)) + '</b></td><td colspan="3"></td></tr>');
+      return;
+    }
+
+    // sparepart yang diajukan
+    const items = [];
+    svc.forEach(s => (s.items || []).forEach(x => { if (pass(x.lunas)) items.push({ ...x, s }); }));
+    N.textContent = 'Semua sparepart dari request service. Isi harga satuan, lalu centang dan klik "Tandai Lunas" saat sudah dibayar.';
+    const sel = items.filter(x => selItem.has(x.id));
+    const tot = sel.reduce((a, x) => a + Number(x.harga || 0) * Number(x.qty || 1), 0);
+    A.innerHTML = stF(curF) + ' <button class="sm" onclick="amLunas(\'ITEM\',true)"' + (sel.length ? '' : ' disabled') + '>Tandai Lunas (' + sel.length + ')</button>' +
+      ' <button class="secondary sm" onclick="amLunas(\'ITEM\',false)"' + (sel.length ? '' : ' disabled') + '>Batal Lunas</button>' +
+      (sel.length ? ' <span class="muted">Total dipilih: <b>' + rupiah(tot) + '</b></span>' : '');
+    const allOn = items.length && items.every(x => selItem.has(x.id));
+    H.innerHTML = '<tr><th><input type="checkbox" ' + (allOn ? 'checked' : '') + ' onclick="amSelAll(\'item\',this.checked)"></th><th>Kode Request</th><th>Tgl</th><th>Plat</th><th>Cabang</th><th>Sparepart</th><th class="num">Qty</th><th>Keterangan</th><th class="num">Harga Satuan</th><th class="num">Total</th><th>Status</th></tr>';
+    B.innerHTML = items.map(x => {
+      const m = mobilById(x.s.mobil_id) || {};
+      const q = Number(x.qty || 1), t = x.harga ? Number(x.harga) * q : 0;
+      return '<tr><td><input type="checkbox" ' + (selItem.has(x.id) ? 'checked' : '') + ' onclick="amSel(\'item\',' + x.id + ',this.checked)"></td><td><b>' + esc(x.s.kode) + '</b></td><td>' + dmy(x.s.tgl) +
+        '</td><td><b>' + esc(m.plat) + '</b></td><td>' + brPill(m.cabang) + '</td><td>' + esc(x.nama) + '</td><td class="num">' + esc(x.qty ?? '') + '</td><td>' + esc(x.ket) +
+        '</td><td class="num">' + (x.lunas ? numID(x.harga) : '<input class="am-harga" inputmode="numeric" value="' + (x.harga ? numID(x.harga) : '') + '" placeholder="isi harga" onchange="amHarga(' + x.id + ',this)">') +
+        '</td><td class="num">' + (t ? numID(t) : '<span class="muted">-</span>') + '</td><td>' + lunasPill(x.lunas, x.lunas_at) + '</td></tr>';
+    }).join('') || '<tr><td colspan="11" class="muted">Tidak ada sparepart.</td></tr>';
+    if (items.length) B.insertAdjacentHTML('beforeend', '<tr class="foot"><td colspan="9"><b>Total</b></td><td class="num"><b>' +
+      numID(items.reduce((a, x) => a + Number(x.harga || 0) * Number(x.qty || 1), 0)) + '</b></td><td></td></tr>');
+  };
+
+  // ---------- pilih & lunas ----------
+  const selSvc = new Set(), selItem = new Set();
+  window.amSel = function(k, id, on){ const S = k === 'svc' ? selSvc : selItem; on ? S.add(id) : S.delete(id); amRender(); };
+  window.amSelAll = function(k, on){
+    document.querySelectorAll('#amBody input[type=checkbox]').forEach(c => {
+      const m = String(c.getAttribute('onclick') || '').match(/,(\d+),this/);
+      if (m) (k === 'svc' ? selSvc : selItem)[on ? 'add' : 'delete'](Number(m[1]));
+    });
+    amRender();
+  };
+  window.amHarga = async function(id, el){
+    const raw = el.value.replace(/\D/g, '');
+    const h = raw === '' ? null : Number(raw);
+    try{
+      await rpc('armada_set_harga', { p_item_id: id, p_harga: h });
+      D.service.forEach(s => (s.items || []).forEach(x => { if (x.id === id) x.harga = h; }));
+      toast('Harga tersimpan');
+      amRender();
+    }catch(e){ toast('Gagal: ' + e.message); }
+  };
+  window.amLunas = async function(jenis, lunas){
+    const S = jenis === 'JASA' ? selSvc : selItem;
+    const ids = [...S];
+    if (!ids.length) return;
+    const what = jenis === 'JASA' ? ids.length + ' jasa service' : ids.length + ' sparepart';
+    if (!confirm((lunas ? 'Tandai LUNAS ' : 'Batalkan lunas ') + what + '?')) return;
+    try{
+      await rpc('armada_set_lunas', { p_jenis: jenis, p_ids: ids, p_lunas: lunas });
+      S.clear();
+      toast(lunas ? 'Ditandai lunas' : 'Lunas dibatalkan');
+      await amLoad();
+    }catch(e){ toast('Gagal: ' + e.message); }
+  };
+
+  // ---------- modal ----------
+  function openModal(kind, title, subTxt, body, saveLabel, data){
+    modal = { kind, data };
+    $('amm_title').textContent = title;
+    $('amm_sub').innerHTML = subTxt || '';
+    $('amm_body').innerHTML = body;
+    $('amm_err').textContent = '';
+    const sv = $('amm_save');
+    sv.style.display = saveLabel ? '' : 'none';
+    sv.textContent = saveLabel || 'Simpan';
+    sv.disabled = false;
+    $('amModal').style.display = 'flex';
+  }
+  const opt = (list, cur) => list.map(v => '<option' + (v === cur ? ' selected' : '') + '>' + esc(v) + '</option>').join('');
+  const inp = (id, label, v, attr, full) => '<label' + (full ? ' class="full"' : '') + '>' + label + '<input id="' + id + '" value="' + esc(v ?? '') + '" ' + (attr||'') + '></label>';
+
+  window.amAdd = function(){ sub === 'service' ? amEditSvc(null) : amEditMobil(null); };
+
+  window.amEditMobil = function(id){
+    const m = id ? mobilById(id) : { tipe: '4 RODA', aktif: true };
+    openModal('mobil', id ? 'Edit Mobil ' + m.plat : 'Tambah Mobil', '',
+      inp('amf_plat', 'Plat nomor *', m.plat, 'style="text-transform:uppercase"') +
+      '<label>Tipe *<select id="amf_tipe">' + opt(['4 RODA','6 RODA'], m.tipe) + '</select></label>' +
+      inp('amf_merk', 'Merk / Model', m.merk) + inp('amf_tahun', 'Tahun', m.tahun, 'type="number"') +
+      '<label>Cabang<select id="amf_cabang"><option value=""></option>' + opt(CABANG, m.cabang) + '</select></label>' +
+      inp('amf_catatan', 'Catatan', m.catatan) +
+      '<label>Foto Pajak' + (m.has_pajak ? ' <span class="pill ok">sudah ada · pilih file untuk ganti</span>' : '') + '<input type="file" id="amf_pajak" accept="image/*"></label>' +
+      '<label>Foto STNK' + (m.has_stnk ? ' <span class="pill ok">sudah ada · pilih file untuk ganti</span>' : '') + '<input type="file" id="amf_stnk" accept="image/*"></label>' +
+      '<label class="chk full"><input type="checkbox" id="amf_aktif"' + (m.aktif ? ' checked' : '') + '> Aktif</label>' +
+      (id ? '<div class="full"><button class="danger sm" onclick="amDelMobil(' + id + ')">Hapus mobil ini</button> <span class="muted">Riwayat ban, aki &amp; service ikut terhapus. Kalau mobil sudah tidak dipakai, cukup hilangkan centang Aktif.</span></div>' : ''),
+      'Simpan', { id });
+  };
+
+  window.amDelMobil = async function(id){
+    const m = mobilById(id);
+    if (!confirm('Hapus mobil ' + m.plat + ' beserta semua riwayat ban, aki & service-nya?')) return;
+    try{ await rpc('armada_delete_mobil', { p_id: id }); $('amModal').style.display = 'none'; toast('Mobil dihapus'); amLoad(); }
+    catch(e){ $('amm_err').textContent = e.message; }
+  };
+
+  function histTable(list, kind){
+    if (!list.length) return '<p class="muted">Belum ada riwayat.</p>';
+    const ban = kind === 'ban';
+    return '<table class="am-hist"><thead><tr><th>Tgl Pasang</th><th>' + (ban ? 'Kode Ban</th><th>Foto Kode' : 'Merk Aki') + '</th><th></th></tr></thead><tbody>' +
+      list.map((x,i) => '<tr><td>' + dmy(x.tgl_pasang) + (i === 0 ? ' <span class="pill ok">terpasang</span>' : '') + '</td><td>' + esc(ban ? x.kode : x.merk) + '</td>' +
+        (ban ? '<td>' + (x.has_foto ? '<button class="secondary sm" onclick="amFotoView(\'BAN\',' + x.id + ',\'' + esc(x.kode) + '\')">Lihat</button>' : '<span class="muted">-</span>') + '</td>' : '') +
+        '<td><button class="secondary sm" title="Hapus (salah input)" onclick="amDelHist(\'' + kind + '\',' + x.id + ')">✕</button></td></tr>').join('') + '</tbody></table>';
+  }
+  function gantiForm(c, kind){
+    const t = D.today || todayWIT();
+    const tgl = inp('amf_tgl', 'Tanggal pasang *', t, 'type="date" max="' + t + '"');
+    if (kind === 'ban') return inp('amf_kode', 'Kode ban *', '', 'style="text-transform:uppercase"') + tgl +
+      '<label class="full">Foto kode ban *<input type="file" id="amf_foto" accept="image/*" capture="environment"></label>';
+    return inp('amf_merk', 'Merk aki *', '') + tgl;
+  }
+
+  // ---------- foto ----------
+  const FOTO_LBL = { PAJAK: 'Foto Pajak', STNK: 'Foto STNK', BAN: 'Foto Kode Ban' };
+  window.amFotoPick = function(jenis, refId){
+    const f = document.createElement('input');
+    f.type = 'file'; f.accept = 'image/*';
+    f.onchange = async () => {
+      if (!f.files[0]) return;
+      toast('Mengupload foto...');
+      try{
+        await rpc('armada_foto_upload', { p_jenis: jenis, p_ref_id: refId, p_image: await kyCompress(f.files[0]) });
+        toast(FOTO_LBL[jenis] + ' tersimpan');
+        $('amImgModal').style.display = 'none';
+        amLoad();
+      }catch(e){ toast('Gagal upload: ' + e.message); }
+    };
+    f.click();
+  };
+  window.amFotoView = async function(jenis, refId, label){
+    try{
+      const r = await rpc('armada_foto_get', { p_jenis: jenis, p_ref_id: refId });
+      if (!r || !r.image){ toast('Foto belum ada'); return; }
+      $('ami_title').textContent = FOTO_LBL[jenis] + ' — ' + label;
+      $('ami_sub').textContent = 'Diupload ' + dmy(String(r.uploaded_at).slice(0,10));
+      $('ami_img').src = r.image;
+      const g = $('ami_ganti');
+      g.style.display = jenis === 'BAN' ? 'none' : '';
+      g.onclick = () => amFotoPick(jenis, refId);
+      $('amImgModal').style.display = 'flex';
+    }catch(e){ toast('Gagal: ' + e.message); }
+  };
+
+  window.amBan = function(mid, pos){
+    const m = mobilById(mid), list = D.ban.filter(b => b.mobil_id === mid && b.posisi === pos), c = cek(list[0]);
+    openModal('ban', pos + ' — ' + m.plat, m.tipe + (m.merk ? ' · ' + esc(m.merk) : ''),
+      gantiForm(c, 'ban') + '<div class="full"><h3 style="font-size:13px;margin:8px 0 4px">Riwayat ' + esc(pos) + '</h3>' + histTable(list, 'ban') + '</div>',
+      'Simpan Ganti Ban', { mid, pos });
+  };
+  window.amAki = function(mid){
+    const m = mobilById(mid), list = D.aki.filter(a => a.mobil_id === mid), c = cek(list[0]);
+    openModal('aki', 'Aki — ' + m.plat, m.tipe + (m.merk ? ' · ' + esc(m.merk) : ''),
+      gantiForm(c, 'aki') + '<div class="full"><h3 style="font-size:13px;margin:8px 0 4px">Riwayat aki</h3>' + histTable(list, 'aki') + '</div>',
+      'Simpan Ganti Aki', { mid });
+  };
+  window.amDelHist = async function(kind, id){
+    if (!confirm('Hapus riwayat ' + kind + ' ini? (hanya untuk salah input)')) return;
+    try{
+      await rpc(kind === 'ban' ? 'armada_hapus_ban' : 'armada_hapus_aki', { p_id: id });
+      const d = modal.data;
+      await amLoad();
+      kind === 'ban' ? amBan(d.mid, d.pos) : amAki(d.mid);
+      toast('Riwayat dihapus');
+    }catch(e){ $('amm_err').textContent = e.message; }
+  };
+
+  // ---------- service ----------
+  // baris sparepart: pilih dari daftar, atau "+ Tambah sparepart baru" -> jadi kolom ketik
+  function spRow(x){
+    x = x || {};
+    const list = [...new Set([...(D.sparepart_master || []), ...(x.nama ? [x.nama] : [])])].sort();
+    const lock = x.lunas;
+    const pick = lock
+      ? '<input class="sp-nama" value="' + esc(x.nama) + '" disabled style="width:220px">'
+      : '<select class="sp-nama" style="width:220px" onchange="amSpPick(this)"><option value="">— pilih sparepart —</option>' +
+        list.map(n => '<option' + (n === x.nama ? ' selected' : '') + '>' + esc(n) + '</option>').join('') +
+        '<option value="__new">+ Tambah sparepart baru…</option></select>';
+    return '<tr data-id="' + (x.id || '') + '"><td>' + pick + '</td>' +
+      '<td><input class="sp-qty" type="number" min="0" placeholder="Qty" value="' + esc(x.qty ?? '') + '" style="width:70px"' + (lock ? ' disabled' : '') + '></td>' +
+      '<td><input class="sp-ket" placeholder="Keterangan" value="' + esc(x.ket) + '" style="width:170px"' + (lock ? ' disabled' : '') + '></td>' +
+      '<td>' + (lock ? '<span class="pill ok">Lunas</span>' : '<button class="secondary sm" onclick="this.closest(\'tr\').remove()">✕</button>') + '</td></tr>';
+  }
+  window.amSpPick = function(sel){
+    if (sel.value !== '__new') return;
+    const i = document.createElement('input');
+    i.className = 'sp-nama'; i.placeholder = 'Nama sparepart baru'; i.style.width = '220px'; i.style.textTransform = 'uppercase';
+    sel.replaceWith(i); i.focus();
+  };
+  window.amSpAdd = function(){ $('amf_sp').insertAdjacentHTML('beforeend', spRow()); };
+
+  window.amEditSvc = function(id){
+    if (!D.mobil.length){ toast('Tambah mobil dulu'); return; }
+    const s = id ? D.service.find(x => x.id === id) : { tgl: D.today || todayWIT(), items: [] };
+    const mobOpt = D.mobil.filter(m => m.aktif || m.id === s.mobil_id)
+      .map(m => '<option value="' + m.id + '"' + (m.id === s.mobil_id ? ' selected' : '') + '>' + esc(m.plat) + ' · ' + esc(m.tipe) + (m.cabang ? ' · ' + esc(m.cabang) : '') + '</option>').join('');
+    const sp = (s.items && s.items.length ? s.items : [{}]).map(spRow).join('');
+    const anyLunas = s.jasa_lunas || (s.items || []).some(x => x.lunas);
+    openModal('service', id ? 'Edit Request Service' : 'Request Service Baru', '',
+      '<label>Kode request<input value="' + esc(s.kode || 'otomatis saat disimpan') + '" disabled></label>' +
+      inp('amf_tgl', 'Tanggal *', s.tgl, 'type="date"') +
+      '<label class="full">Mobil *<select id="amf_mobil"><option value=""></option>' + mobOpt + '</select></label>' +
+      '<div class="full"><div class="muted" style="margin-bottom:4px">Sparepart yang diganti</div><table class="am-sp"><tbody id="amf_sp">' + sp + '</tbody></table>' +
+      '<button class="secondary sm" style="margin-top:4px" onclick="amSpAdd()">+ Sparepart</button></div>' +
+      inp('amf_biaya', 'Biaya' + (s.jasa_lunas ? ' <span class="pill ok">lunas</span>' : ''), s.biaya ? numID(s.biaya) : '', 'inputmode="numeric"' + (s.jasa_lunas ? ' disabled' : '')) +
+      inp('amf_catatan', 'Catatan', s.catatan) +
+      (id && !anyLunas ? '<div class="full"><button class="danger sm" onclick="amDelSvc(' + id + ')">Hapus request ini</button></div>' : ''),
+      'Simpan', { id });
+  };
+  window.amDelSvc = async function(id){
+    if (!confirm('Hapus request service ini?')) return;
+    try{ await rpc('armada_hapus_service', { p_id: id }); $('amModal').style.display = 'none'; toast('Request dihapus'); amLoad(); }
+    catch(e){ $('amm_err').textContent = e.message; }
+  };
+
+  window.amModalSave = async function(){
+    const v = id => (($(id) && $(id).value) || '').trim();
+    const sv = $('amm_save'), err = $('amm_err'), d = modal.data;
+    err.textContent = '';
+    let name, args, msg;
+    if (modal.kind === 'mobil'){
+      if (!v('amf_plat')){ err.textContent = 'Plat wajib diisi'; return; }
+      name = 'armada_save_mobil'; msg = 'Mobil tersimpan';
+      args = { p_data: { id: d.id || '', plat: v('amf_plat').toUpperCase(), tipe: v('amf_tipe'), merk: v('amf_merk'), tahun: v('amf_tahun'),
+        cabang: v('amf_cabang'), catatan: v('amf_catatan'), aktif: $('amf_aktif').checked } };
+      const fp = $('amf_pajak').files[0], fs = $('amf_stnk').files[0];
+      sv.disabled = true;
+      try{
+        const id = await rpc(name, args);
+        if (fp) await rpc('armada_foto_upload', { p_jenis: 'PAJAK', p_ref_id: id, p_image: await kyCompress(fp) });
+        if (fs) await rpc('armada_foto_upload', { p_jenis: 'STNK',  p_ref_id: id, p_image: await kyCompress(fs) });
+        $('amModal').style.display = 'none'; toast(msg); await amLoad();
+      }catch(e){ err.textContent = e.message; sv.disabled = false; amLoad(); }
+      return;
+    } else if (modal.kind === 'ban' || modal.kind === 'aki'){
+      const ban = modal.kind === 'ban', tgl = v('amf_tgl');
+      const isi = ban ? v('amf_kode') : v('amf_merk');
+      if (!isi || !tgl){ err.textContent = (ban ? 'Kode ban' : 'Merk aki') + ' dan tanggal wajib diisi'; return; }
+      if (ban && !$('amf_foto').files[0]){ err.textContent = 'Foto kode ban wajib diupload'; return; }
+      if (tgl > (D.today || todayWIT())){ err.textContent = 'Tanggal tidak boleh di masa depan'; return; }
+      const p = { mobil_id: d.mid, tgl_pasang: tgl };
+      if (ban){
+        sv.disabled = true;
+        try{ p.foto = await kyCompress($('amf_foto').files[0]); }
+        catch(e){ err.textContent = e.message; sv.disabled = false; return; }
+        p.posisi = d.pos; p.kode = isi.toUpperCase(); name = 'armada_ganti_ban'; msg = 'Ganti ban tersimpan';
+      } else { p.merk = isi; name = 'armada_ganti_aki'; msg = 'Ganti aki tersimpan'; }
+      args = { p_data: p };
+    } else {
+      if (!v('amf_mobil') || !v('amf_tgl')){ err.textContent = 'Mobil dan tanggal wajib diisi'; return; }
+      const items = [...document.querySelectorAll('#amf_sp tr')].map(tr => ({
+        id: tr.dataset.id || '', nama: tr.querySelector('.sp-nama').value.trim().toUpperCase(),
+        qty: tr.querySelector('.sp-qty').value, ket: tr.querySelector('.sp-ket').value.trim()
+      })).filter(x => x.nama && x.nama !== '__NEW').map(x => ({ ...x, qty: x.qty === '' ? null : Number(x.qty) }));
+      name = 'armada_save_service'; msg = 'Request service tersimpan';
+      args = { p_data: { id: d.id || '', mobil_id: Number(v('amf_mobil')), tgl: v('amf_tgl'), items,
+        biaya: v('amf_biaya').replace(/\D/g, ''), catatan: v('amf_catatan') } };
+    }
+    sv.disabled = true;
+    try{ await rpc(name, args); $('amModal').style.display = 'none'; toast(msg); await amLoad(); }
+    catch(e){ err.textContent = e.message; sv.disabled = false; }
   };
 })();
 </script>
