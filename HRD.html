@@ -844,8 +844,11 @@ function renderIaPiut(t, q){
   : '<tr><td colspan="9" class="muted" style="text-align:center;padding:20px">Tidak ada data ✓</td></tr>';
 }
 function iaFmtDate(v){
-  const d = AuditInvoice.parseAnyDate(v);
-  if (!d) return '—';
+  // tanggal ISO (YYYY-MM-DD...) dibaca sendiri, tidak bergantung audit_invoice.js
+  const m = String(v || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return m[3] + '-' + IA_BLN[Number(m[2]) - 1] + '-' + m[1].slice(2);
+  const d = window.AuditInvoice && AuditInvoice.parseAnyDate ? AuditInvoice.parseAnyDate(v) : null;
+  if (!d) return v ? String(v) : '—';
   return String(d.getDate()).padStart(2, '0') + '-' + IA_BLN[d.getMonth()] + '-' + String(d.getFullYear()).slice(2);
 }
 function iaSetCase(k){ iaAuditCase = k; renderIssueAdmin(); }
