@@ -172,6 +172,20 @@
   .lamaForm .inp { width: 100%; }
   .lamaForm .inp.num { text-align: right; }
   @media (max-width: 760px) { .lamaForm { grid-template-columns: 1fr 1fr; } }
+  .lamaForm .w4 { grid-column: 1 / -1; }
+  .lamaForm div.fl { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-muted); }
+  .lamaForm .inp.bad { border-color: var(--urgent); }
+  .tbHint { font-size: 11px; opacity: .7; }
+  .tbFotos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  @media (max-width: 760px) { .tbFotos { grid-template-columns: 1fr; } }
+  .tbFoto { border: 1px dashed var(--border); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 6px; color: var(--text); }
+  .tbFoto img { max-height: 120px; object-fit: contain; border-radius: 6px; background: #000; }
+  .tbFoto input { font-size: 12px; color: var(--text-muted); }
+  .tbFoto.bad { border-color: var(--urgent); }
+  .cdSt { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+  .cdSt.DIAJUKAN { background: rgba(232,196,61,.15); color: var(--warn); }
+  .cdSt.DISETUJUI { background: rgba(76,175,125,.15); color: var(--ok); }
+  .cdSt.DITOLAK { background: rgba(225,85,84,.15); color: var(--urgent); }
   .badge.LAMA { background: rgba(242,177,52,.15); color: #f2b134; }
   .warnBg { position: fixed; inset: 0; background: rgba(0,0,0,.7); display: flex; align-items: center; justify-content: center; z-index: 60; padding: 16px; }
   .warnBg.hidden { display: none; }
@@ -285,6 +299,7 @@
       <button class="tabBtn" data-tab="report">Report Urgent</button>
       <button class="tabBtn" data-tab="wh">Riwayat Warning</button>
       <button class="tabBtn" data-tab="master">Master Kolektor</button>
+      <button class="tabBtn" data-tab="cust">Database Customer</button>
     </div>
 
     <!-- ============ PIUTANG ============ -->
@@ -296,7 +311,7 @@
           <button class="pill" data-b="ABP">ABP</button>
           <button class="pill" data-b="KSI">KSI</button>
         </div>
-        <div class="actions"><button class="btn hidden" id="katAddBtn" title="Tambah kategori Tagihan Kasus">+ Kategori</button><button class="btn" id="lamaBtn" title="Input faktur 2023-2025 yang belum lunas">+ Faktur Lama</button><button class="btn" id="exportBtn">Export Excel</button></div>
+        <div class="actions"><button class="btn hidden" id="katAddBtn" title="Tambah kategori Tagihan Kasus">+ Kategori</button><button class="btn blue" id="tbBtn" title="Ajukan toko / customer baru">+ Ajukan Toko Baru</button><button class="btn" id="lamaBtn" title="Input faktur 2023-2025 yang belum lunas">+ Faktur Lama</button><button class="btn" id="exportBtn">Export Excel</button></div>
       </div>
       <div class="controls">
         <input type="text" id="q1" placeholder="Search invoice, customer, salesman, atau tanggal (29/09/2026)...">
@@ -534,6 +549,31 @@
       </div>
     </section>
 
+    <!-- ============ DATABASE CUSTOMER ============ -->
+    <section id="tab-cust" class="hidden">
+      <div class="topbar" style="margin-bottom:8px;">
+        <div class="branchPills" id="cdBranch">
+          <button class="pill active" data-b="">Semua</button>
+          <button class="pill" data-b="DAF">DAF</button>
+          <button class="pill" data-b="ABP">ABP</button>
+          <button class="pill" data-b="KSI">KSI</button>
+        </div>
+        <div class="actions">
+          <select class="inp sm" id="cdStatus"><option value="">Semua status</option><option>DIAJUKAN</option><option>DISETUJUI</option><option>DITOLAK</option></select>
+          <input type="text" class="inp sm" id="cdQ" placeholder="Cari nama, KTP, NPWP, HP, alamat..." style="min-width:220px;">
+          <button class="btn blue" id="cdAddBtn">+ Ajukan Toko Baru</button>
+        </div>
+      </div>
+      <div class="meta" id="cdInfo" style="margin-bottom:8px;"></div>
+      <div class="tableWrap tall">
+        <table>
+          <thead><tr><th>Diajukan</th><th>Cabang</th><th>Customer Name</th><th>Nama NPWP</th><th>No NPWP</th><th>Alamat</th><th>No KTP</th><th>Nama KTP</th><th>No HP Pemilik</th><th>Jadwal Tagih</th><th>Foto</th><th>Status</th><th></th></tr></thead>
+          <tbody id="cdBody"></tbody>
+        </table>
+        <div class="empty hidden" id="cdEmpty">Belum ada data customer.</div>
+      </div>
+    </section>
+
     <!-- ============ MASTER ============ -->
     <section id="tab-master" class="hidden">
       <div class="card">
@@ -646,6 +686,38 @@
           <tbody id="lmBody"></tbody>
         </table>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: ajukan toko baru -->
+<div id="tbModal" class="modalBg hidden">
+  <div class="modal" style="width:900px;">
+    <div class="hd"><div><h3>Ajukan Toko Baru</h3><div class="meta">Semua wajib diisi, kecuali NPWP (nama, nomor &amp; foto NPWP boleh kosong).</div></div><button class="x" data-close="tbModal">×</button></div>
+    <div class="bd">
+      <div class="lamaForm">
+        <label>Cabang *<select class="inp" id="tbBranch"><option value="">- pilih -</option><option>DAF</option><option>ABP</option><option>KSI</option></select></label>
+        <label class="w2">Customer Name *<input class="inp" id="tbNama" placeholder="Nama toko"></label>
+        <label>No HP Pemilik *<input class="inp" id="tbHp" inputmode="numeric" maxlength="15" placeholder="08xxxxxxxxxx"></label>
+        <label>No KTP * <span class="tbHint">16 angka</span><input class="inp" id="tbKtp" inputmode="numeric" maxlength="16"></label>
+        <label class="w2">Nama KTP * <span class="tbHint">huruf saja</span><input class="inp" id="tbNamaKtp"></label>
+        <label>No NPWP <span class="tbHint">angka saja, 15/16 digit</span><input class="inp" id="tbNpwp" inputmode="numeric" maxlength="16"></label>
+        <label class="w2">Nama NPWP <span class="tbHint">huruf saja</span><input class="inp" id="tbNamaNpwp"></label>
+        <label class="w4">Alamat * <span class="tbHint">huruf &amp; angka, tanpa tanda baca</span><input class="inp" id="tbAlamat"></label>
+        <div class="w4 fl">Jadwal Tagih * <div class="hariBox" id="tbHari"></div></div>
+        <div class="w4 fl"><span>Foto</span>
+          <div class="tbFotos">
+            <div class="tbFoto" data-j="KTP"><b>Foto KTP *</b><img class="hidden"><input type="file" accept="image/*"></div>
+            <div class="tbFoto" data-j="NPWP"><b>Foto NPWP (opsional)</b><img class="hidden"><input type="file" accept="image/*"></div>
+            <div class="tbFoto" data-j="DEPAN"><b>Tampak Depan Tempat Usaha *</b><img class="hidden"><input type="file" accept="image/*"></div>
+          </div>
+        </div>
+      </div>
+      <div class="errNote hidden" id="tbErr" style="margin:12px 0 0;"></div>
+    </div>
+    <div class="ft">
+      <span class="small muted">* wajib</span>
+      <div class="actions"><button class="btn" data-close="tbModal">Batal</button><button class="btn blue" id="tbSave">Ajukan</button></div>
     </div>
   </div>
 </div>
@@ -837,7 +909,7 @@
   }
   /* ---- peran: 'full' | 'adminkol' | '' (ditolak).
      Ini hanya untuk tampilan; pengaman sebenarnya ada di server (assert_piutang_access). ---- */
-  const ADMINKOL_TABS = ['piutang', 'retur', 'rekap', 'hasil', 'master'];
+  const ADMINKOL_TABS = ['piutang', 'retur', 'rekap', 'hasil', 'master', 'cust'];
   let role = '';
   function roleOf(label) {
     const l = String(label || '').trim().toUpperCase();
@@ -1100,7 +1172,7 @@
     document.getElementById('lhSub').classList.toggle('hidden', top !== 'lh');
     document.querySelectorAll('#lhSub button').forEach(x => x.classList.toggle('active', x.dataset.sub === t));
     const sec = ['kasus', 'retur', 'cash'].includes(currentTab) ? 'piutang' : currentTab;
-    ['piutang', 'rekap', 'hasil', 'lh', 'trf', 'lunas', 'giro', 'report', 'wh', 'master'].forEach(s => document.getElementById('tab-' + s).classList.toggle('hidden', s !== sec));
+    ['piutang', 'rekap', 'hasil', 'lh', 'trf', 'lunas', 'giro', 'report', 'wh', 'master', 'cust'].forEach(s => document.getElementById('tab-' + s).classList.toggle('hidden', s !== sec));
     if (currentTab === 'rekap') { rkWarnOk = false; openWarn(); }
     renderCurrent();
   }
@@ -1405,6 +1477,7 @@
       else if (currentTab === 'report') renderReport();
       else if (currentTab === 'wh') await loadWH();
       else if (currentTab === 'master') renderMaster();
+      else if (currentTab === 'cust') await cdLoad();
     } catch (e) { showErr(e.message || String(e)); }
   }
 
@@ -2201,6 +2274,141 @@
     document.getElementById('lamaModal').classList.remove('hidden');
     lmReset(); lmLoad();
   });
+
+  /* ================= DATABASE CUSTOMER & AJUKAN TOKO BARU (customer_db.sql) ================= */
+  let cdData = [], cdBr = '', cdErrMsg = '';
+  const tbFoto = { KTP: '', NPWP: '', DEPAN: '' };
+  const TB_HARI = [1, 2, 3, 4, 5, 6]; // Senin - Sabtu (Minggu tutup)
+  document.getElementById('tbHari').innerHTML = TB_HARI.map(h => `<label><input type="checkbox" value="${h}"> ${HARI[h]}</label>`).join('');
+  // filter ketik: angka saja / huruf saja / huruf+angka (tanpa tanda baca)
+  const TB_FILTER = { tbHp: /[^0-9]/g, tbKtp: /[^0-9]/g, tbNpwp: /[^0-9]/g, tbNamaKtp: /[^A-Za-z ]/g, tbNamaNpwp: /[^A-Za-z ]/g, tbAlamat: /[^A-Za-z0-9 ]/g };
+  Object.entries(TB_FILTER).forEach(([id, re]) => document.getElementById(id).addEventListener('input', e => {
+    const el = e.target, v = el.value.replace(re, '');
+    if (v !== el.value) { el.value = v; toast(re.source.includes('A-Z') ? (id === 'tbAlamat' ? 'Alamat tanpa tanda baca' : 'Hanya huruf, tanpa tanda baca') : 'Hanya angka'); }
+    el.classList.remove('bad');
+  }));
+  // kompres foto: sisi terpanjang max 1280px, JPEG
+  function tbCompress(file) {
+    return new Promise((resolve, reject) => {
+      const img = new Image(), url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const s = Math.min(1, 1280 / Math.max(img.width, img.height));
+        const c = document.createElement('canvas'); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+        const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+        let q = 0.82, out = c.toDataURL('image/jpeg', q);
+        while (out.length > 700000 && q > 0.4) { q -= 0.1; out = c.toDataURL('image/jpeg', q); }
+        resolve(out);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('File bukan gambar yang valid')); };
+      img.src = url;
+    });
+  }
+  document.querySelectorAll('#tbModal .tbFoto').forEach(box => box.querySelector('input').addEventListener('change', async e => {
+    const f = e.target.files[0], im = box.querySelector('img'), j = box.dataset.j;
+    tbFoto[j] = ''; im.classList.add('hidden');
+    if (!f) return;
+    try { tbFoto[j] = await tbCompress(f); im.src = tbFoto[j]; im.classList.remove('hidden'); box.classList.remove('bad'); }
+    catch (err) { e.target.value = ''; alert(err.message || err); }
+  }));
+  function tbOpen() {
+    ['tbBranch', 'tbNama', 'tbHp', 'tbKtp', 'tbNamaKtp', 'tbNpwp', 'tbNamaNpwp', 'tbAlamat'].forEach(id => { const el = document.getElementById(id); el.value = ''; el.classList.remove('bad'); });
+    if (fBranch) document.getElementById('tbBranch').value = fBranch;
+    document.querySelectorAll('#tbHari input').forEach(c => c.checked = false);
+    document.querySelectorAll('#tbModal .tbFoto').forEach(b => { b.classList.remove('bad'); b.querySelector('input').value = ''; b.querySelector('img').classList.add('hidden'); });
+    tbFoto.KTP = tbFoto.NPWP = tbFoto.DEPAN = '';
+    document.getElementById('tbErr').classList.add('hidden');
+    document.getElementById('tbModal').classList.remove('hidden');
+  }
+  document.getElementById('tbBtn').addEventListener('click', tbOpen);
+  document.getElementById('cdAddBtn').addEventListener('click', tbOpen);
+  document.getElementById('tbSave').addEventListener('click', async () => {
+    const v = id => document.getElementById(id).value.trim().replace(/\s+/g, ' ');
+    const errs = [], bad = id => document.getElementById(id).classList.add('bad');
+    const r = {
+      branch: v('tbBranch'), customer_name: v('tbNama').toUpperCase(), no_hp: v('tbHp'), no_ktp: v('tbKtp'),
+      nama_ktp: v('tbNamaKtp').toUpperCase(), no_npwp: v('tbNpwp'), nama_npwp: v('tbNamaNpwp').toUpperCase(), alamat: v('tbAlamat').toUpperCase(),
+      jadwal_tagih: [...document.querySelectorAll('#tbHari input:checked')].map(c => +c.value),
+      foto_ktp: tbFoto.KTP, foto_npwp: tbFoto.NPWP, foto_depan: tbFoto.DEPAN
+    };
+    document.querySelectorAll('#tbModal .bad').forEach(x => x.classList.remove('bad'));
+    if (!r.branch) { errs.push('Cabang wajib dipilih'); bad('tbBranch'); }
+    if (!r.customer_name) { errs.push('Customer Name wajib diisi'); bad('tbNama'); }
+    if (!/^[0-9]{9,15}$/.test(r.no_hp)) { errs.push('No HP Pemilik wajib, 9-15 angka'); bad('tbHp'); }
+    if (!/^[0-9]{16}$/.test(r.no_ktp)) { errs.push('No KTP wajib 16 angka'); bad('tbKtp'); }
+    if (!/^[A-Z ]+$/.test(r.nama_ktp)) { errs.push('Nama KTP wajib, huruf saja'); bad('tbNamaKtp'); }
+    if (r.no_npwp && !/^[0-9]{15,16}$/.test(r.no_npwp)) { errs.push('No NPWP harus 15/16 angka'); bad('tbNpwp'); }
+    if (r.nama_npwp && !/^[A-Z ]+$/.test(r.nama_npwp)) { errs.push('Nama NPWP huruf saja'); bad('tbNamaNpwp'); }
+    if (r.no_npwp && !r.nama_npwp) { errs.push('Nama NPWP wajib kalau No NPWP diisi'); bad('tbNamaNpwp'); }
+    if (!/^[A-Z0-9 ]+$/.test(r.alamat)) { errs.push('Alamat wajib, tanpa tanda baca'); bad('tbAlamat'); }
+    if (!r.jadwal_tagih.length) errs.push('Jadwal Tagih wajib dipilih minimal 1 hari');
+    if (!r.foto_ktp) { errs.push('Foto KTP wajib'); document.querySelector('.tbFoto[data-j="KTP"]').classList.add('bad'); }
+    if (!r.foto_depan) { errs.push('Foto tampak depan tempat usaha wajib'); document.querySelector('.tbFoto[data-j="DEPAN"]').classList.add('bad'); }
+    const en = document.getElementById('tbErr');
+    if (errs.length) { en.innerHTML = errs.map(esc).join('<br>'); en.classList.remove('hidden'); return; }
+    en.classList.add('hidden');
+    const btn = document.getElementById('tbSave'); btn.disabled = true; btn.textContent = 'Mengirim...';
+    try {
+      await rpc('ajukan_customer', { p_row: r });
+      document.getElementById('tbModal').classList.add('hidden');
+      toast('Toko baru diajukan');
+      if (currentTab === 'cust') await cdLoad();
+    } catch (e) { en.textContent = e.message || String(e); en.classList.remove('hidden'); }
+    finally { btn.disabled = false; btn.textContent = 'Ajukan'; }
+  });
+
+  async function cdLoad() {
+    try { cdData = (await rpc('get_customer_db')) || []; cdErrMsg = ''; }
+    catch (e) { cdData = []; cdErrMsg = /get_customer_db/.test(e.message || '') ? 'Jalankan customer_db.sql dulu di Supabase SQL Editor.' : (e.message || String(e)); }
+    cdRender();
+  }
+  // tanggal dd-mmm jam WIT (UTC+9)
+  const cdTgl = ts => { if (!ts) return ''; const d = new Date(new Date(ts).getTime() + 9 * 3600000); return `${String(d.getUTCDate()).padStart(2, '0')}-${BLN[d.getUTCMonth()]} ${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`; };
+  function cdRender() {
+    const st = document.getElementById('cdStatus').value, q = document.getElementById('cdQ').value.trim().toUpperCase();
+    const list = cdData.filter(r => (!cdBr || r.branch === cdBr) && (!st || r.status === st) &&
+      (!q || [r.customer_name, r.nama_npwp, r.no_npwp, r.alamat, r.no_ktp, r.nama_ktp, r.no_hp].some(x => String(x || '').toUpperCase().includes(q))));
+    const isFull = role === 'full';
+    const fb = (r, j, has) => has ? `<button class="btn sm" data-cdfoto="${r.id}" data-j="${j}">${j === 'DEPAN' ? 'Depan' : j}</button>` : '';
+    document.getElementById('cdBody').innerHTML = list.map(r => `<tr>
+      <td class="meta">${esc(cdTgl(r.created_at))}</td>
+      <td style="background:${BR_COL[r.branch] || ''}; color:#222; font-weight:600;">${esc(r.branch)}</td>
+      <td><b>${esc(r.customer_name)}</b></td>
+      <td>${esc(r.nama_npwp || '-')}</td><td class="meta">${esc(r.no_npwp || '-')}</td>
+      <td>${esc(r.alamat)}</td><td class="meta">${esc(r.no_ktp)}</td><td>${esc(r.nama_ktp)}</td><td class="meta">${esc(r.no_hp)}</td>
+      <td>${esc(hariLabel(r.jadwal_tagih))}</td>
+      <td style="white-space:nowrap;">${fb(r, 'KTP', r.has_ktp)} ${fb(r, 'NPWP', r.has_npwp)} ${fb(r, 'DEPAN', r.has_depan)}</td>
+      <td><span class="cdSt ${esc(r.status)}">${esc(r.status)}</span>${r.alasan_tolak ? `<div class="meta">${esc(r.alasan_tolak)}</div>` : ''}</td>
+      <td style="white-space:nowrap;">${isFull && r.status === 'DIAJUKAN' ? `<button class="btn sm blue" data-cdok="${r.id}">Setujui</button> <button class="btn sm red" data-cdno="${r.id}">Tolak</button>` : ''}</td>
+    </tr>`).join('');
+    document.getElementById('cdEmpty').classList.toggle('hidden', list.length > 0);
+    const nAju = cdData.filter(r => r.status === 'DIAJUKAN').length;
+    document.getElementById('cdInfo').textContent = cdErrMsg || `${list.length} dari ${cdData.length} customer · ${nAju} menunggu persetujuan`;
+  }
+  document.querySelectorAll('#cdBranch .pill').forEach(p => p.addEventListener('click', () => {
+    cdBr = p.dataset.b; document.querySelectorAll('#cdBranch .pill').forEach(x => x.classList.toggle('active', x === p)); cdRender();
+  }));
+  document.getElementById('cdStatus').addEventListener('change', cdRender);
+  document.getElementById('cdQ').addEventListener('input', cdRender);
+  document.getElementById('cdBody').addEventListener('click', async e => {
+    const f = e.target.closest('[data-cdfoto]'), ok = e.target.closest('[data-cdok]'), no = e.target.closest('[data-cdno]');
+    if (f) {
+      const w = window.open('', '_blank'); if (!w) return alert('Popup diblokir browser');
+      w.document.title = 'Foto ' + f.dataset.j; w.document.body.style.cssText = 'margin:0;background:#111;color:#ccc;font-family:sans-serif;';
+      w.document.body.textContent = 'Memuat foto...';
+      try { const src = await rpc('get_customer_foto', { p_id: +f.dataset.cdfoto, p_jenis: f.dataset.j }); w.document.body.innerHTML = src ? `<img src="${src}" style="max-width:100%;">` : 'Foto tidak ada'; }
+      catch (err) { w.document.body.textContent = err.message || String(err); }
+      return;
+    }
+    if (ok || no) {
+      const id = +(ok || no).dataset[ok ? 'cdok' : 'cdno'], r = cdData.find(x => x.id === id);
+      let alasan = null;
+      if (ok && !confirm(`Setujui toko ${r ? r.customer_name : ''}?`)) return;
+      if (no) { alasan = prompt(`Alasan tolak ${r ? r.customer_name : ''}:`); if (alasan === null) return; if (!alasan.trim()) return alert('Alasan tolak wajib diisi'); }
+      try { await rpc('putus_customer', { p_id: id, p_setuju: !!ok, p_alasan: alasan }); toast(ok ? 'Disetujui' : 'Ditolak'); await cdLoad(); }
+      catch (err) { alert(err.message || err); }
+    }
+  });
   // klik badge LAMA di tabel Piutang → buka form ubah faktur lama itu
   document.addEventListener('click', async e => {
     const b = e.target.closest('[data-lama-edit]'); if (!b) return;
@@ -2783,7 +2991,14 @@
     document.getElementById('hsSelClear').onclick = () => { hsSel = { bid: null, ids: new Set() }; renderHasil(); };
   }
   // bagi baris pembayaran ke faktur sesuai urutan: tiap faktur diisi sampai sisanya habis, kelebihan masuk faktur terakhir
-  function allocate(items, lines) {
+  // cicilId: faktur yang dicicil (diisi paling akhir, dapat sisa/kekurangan); default faktur paling bawah
+  function allocate(items, lines, cicilId) {
+    const ci = cicilId == null ? -1 : items.findIndex(i => String(i.id) === String(cicilId));
+    if (ci >= 0 && ci !== items.length - 1) {
+      const ord = [...items.filter((_, k) => k !== ci), items[ci]];
+      const r = allocate(ord, lines);
+      return items.map(it => r.find(a => a.item === it));
+    }
     const pool = lines.map(l => ({ ...l, rem: Math.round(l.nilai) }));
     return items.map((it, k) => {
       const last = k === items.length - 1;
@@ -2802,10 +3017,10 @@
   }
 
   /* ---- modal input hasil ---- */
-  let hmItems = [], hmMode = 'bayar', hmLines = [];
+  let hmItems = [], hmMode = 'bayar', hmLines = [], hmCicil = null;
   function openHasil(items, batch, gagalOnly) {
     if (!items.length) return;
-    hmItems = items;
+    hmItems = items; hmCicil = null;
     const one = items.length === 1 ? items[0] : null;
     document.getElementById('hmTitle').textContent = one ? one.invoice_no : `${items.length} invoice${gagalOnly ? ' · Gagal tagih' : ''}`;
     document.getElementById('hmSub').textContent = [...new Set(items.map(i => tokoName(i.customer)))].join(', ') + ' · ' + batch.kolektor;
@@ -2902,12 +3117,15 @@
     let box = document.getElementById('hmAlloc');
     if (!box) { box = document.createElement('div'); box.id = 'hmAlloc'; document.getElementById('hmBayar').appendChild(box); }
     if (hmItems.length < 2 || hmMode !== 'bayar') { box.innerHTML = ''; return; }
-    const al = allocate(hmItems, hmLines.filter(l => l.nilai > 0));
+    const al = allocate(hmItems, hmLines.filter(l => l.nilai > 0), hmCicil);
+    const kurang = sumBy(hmItems, i => i.sisa) - sumBy(hmLines, l => l.nilai) > TOL;
+    const curCicil = hmCicil != null ? String(hmCicil) : String(hmItems[hmItems.length - 1].id);
     box.innerHTML = `<div class="small muted" style="margin-top:10px;">Pembagian ke faktur:</div><div class="alloc">${al.map(a => {
       const tot = sumBy(a.lines, l => l.nilai), rest = Math.round(a.item.sisa) - tot;
       const st = !tot ? '<span style="color:var(--urgent)">tidak kebagian</span>' : Math.abs(rest) <= TOL ? '<span style="color:var(--ok)">LUNAS</span>' : rest > 0 ? `<span style="color:var(--warn)">kurang ${fmt(rest)}</span>` : `<span style="color:var(--urgent)">lebih ${fmt(-rest)}</span>`;
-      return `<div><span><span class="brTag ${esc(a.item.branch)}">${esc(a.item.branch)}</span>${esc(a.item.invoice_no)} <span class="muted">${a.lines.map(l => METODE_LBL[l.metode] + ' ' + fmt(l.nilai)).join(' + ')}</span></span><span>${st}</span></div>`;
+      return `<div><span><span class="brTag ${esc(a.item.branch)}">${esc(a.item.branch)}</span>${esc(a.item.invoice_no)} <span class="muted">${a.lines.map(l => METODE_LBL[l.metode] + ' ' + fmt(l.nilai)).join(' + ')}</span></span><span>${kurang && String(a.item.id) !== curCicil ? `<button class="btn sm" data-cicil="${esc(String(a.item.id))}" title="Jadikan faktur ini yang dicicil" style="margin-right:6px;padding:1px 8px;">Cicil ini</button>` : ''}${st}</span></div>`;
     }).join('')}</div>`;
+    box.querySelectorAll('[data-cicil]').forEach(b => b.addEventListener('click', () => { hmCicil = b.dataset.cicil; renderAlloc(); }));
   }
   document.getElementById('hmSave').addEventListener('click', async () => {
     const err = document.getElementById('hmErr'), btn = document.getElementById('hmSave');
@@ -2924,7 +3142,7 @@
         gabung_id: hmMulti() && isGabMetode(l.metode) ? (l.gabung_id || Date.now().toString(36) + Math.random().toString(36).slice(2, 8)) : null }));
       // gabungan hanya kalau 1 giro/TF benar-benar terbagi ke >1 toko (beda toko atau beda cabang)
       const gbr = {};
-      allocate(hmItems, lines).forEach(a => a.lines.forEach(l => { if (l.gabung_id) (gbr[l.gabung_id] = gbr[l.gabung_id] || new Set()).add(tokoKey(a.item.branch, a.item.customer)); }));
+      allocate(hmItems, lines, hmCicil).forEach(a => a.lines.forEach(l => { if (l.gabung_id) (gbr[l.gabung_id] = gbr[l.gabung_id] || new Set()).add(tokoKey(a.item.branch, a.item.customer)); }));
       lines.forEach(l => { if (l.gabung_id && !(gbr[l.gabung_id] && gbr[l.gabung_id].size > 1)) { l.masuk_branch = null; l.gabung_id = null; } });
       if (!lines.length) { err.textContent = 'Isi minimal satu pembayaran, atau pilih Gagal Tagih.'; err.classList.remove('hidden'); return; }
       const badCash = lines.find(l => l.metode === 'CASH' && l.nilai % 100 !== 0);
@@ -2934,7 +3152,7 @@
     btn.disabled = true;
     try {
       if (hmMode === 'gagal') for (const i of hmItems) await rpc('save_tagih_hasil', { p_item_id: i.id, ...payload });
-      else for (const a of allocate(hmItems, payload.p_bayar)) {
+      else for (const a of allocate(hmItems, payload.p_bayar, hmCicil)) {
         if (a.lines.length) await rpc('save_tagih_hasil', { p_item_id: a.item.id, ...payload, p_bayar: a.lines });
       }
       document.getElementById('hasilModal').classList.add('hidden');
