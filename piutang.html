@@ -266,6 +266,7 @@
       </div>
       <div class="actions">
         <span class="meta" id="roleTag"></span>
+        <button class="btn hidden" id="usulBtn" title="Usulan admin kolektor pindah ke Masalah Retur (sisa ≥ 500.000)">Pengajuan Masalah Retur <span class="badge URGENT" id="usulCnt">0</span></button>
         <button class="btn primary" id="refreshBtn">Refresh</button>
         <button class="btn red" id="logoutBtn">Logout</button>
       </div>
@@ -280,9 +281,7 @@
       <button class="tabBtn" data-tab="kasus">Tagihan Kasus</button>
       <button class="tabBtn" data-tab="retur">Masalah Retur</button>
       <button class="tabBtn" data-tab="cash">Customer Cash</button>
-      <button class="tabBtn" data-tab="trf">Posting Transfer</button>
       <button class="tabBtn" data-tab="lunas">Pelunasan Harian</button>
-      <button class="tabBtn" data-tab="giro">Giro Pending</button>
       <button class="tabBtn" data-tab="report">Report Urgent</button>
       <button class="tabBtn" data-tab="wh">Riwayat Warning</button>
       <button class="tabBtn" data-tab="master">Master Kolektor</button>
@@ -366,6 +365,13 @@
       <div id="hsCards"></div>
       <div id="hsSelBar" class="hidden"></div>
     </section>
+
+    <!-- sub tab di bawah Laporan Harian Kolektor: Laporan / Posting Transfer / Giro Pending -->
+    <div class="seg hidden" id="lhSub" style="margin:0 0 12px; width:max-content;">
+      <button data-sub="lh">Laporan Harian</button>
+      <button data-sub="trf">Posting Transfer</button>
+      <button data-sub="giro">Giro Pending</button>
+    </div>
 
     <!-- ============ LAPORAN HARIAN KOLEKTOR ============ -->
     <section id="tab-lh" class="hidden">
@@ -456,18 +462,23 @@
           <button class="active" data-m="">Semua</button>
           <button data-m="TF">Transfer</button>
           <button data-m="GIRO">Giro</button>
-          <button data-m="CASH">Tunai</button>
         </div>
+        <div class="seg" id="trfStSeg" style="height:36px;">
+          <button class="active" data-s="">Semua</button>
+          <button data-s="BELUM">Belum Posting</button>
+          <button data-s="SUDAH">Sudah Posting</button>
+        </div>
+        <label class="meta" title="Yang sudah posting ditampilkan mulai tanggal tagih ini">Sudah posting dari tgl tagih <input type="date" class="inp" id="trfFrom"></label>
         <input type="text" class="inp" id="trfQ" placeholder="Cari toko / invoice / giro..." style="min-width:220px;">
         <span class="meta" id="trfSum"></span>
         <div class="actions" style="margin-left:auto;">
           <button class="btn blue" id="trfPostBtn" disabled>Pindahkan ke transfer2</button>
         </div>
       </div>
-      <div class="meta" style="margin:0 0 8px;">Hasil tagih yang sudah di-Submit dan belum masuk transfer2. Tgl transfer2: Transfer = tgl transfer · Giro = tgl JT giro · Tunai = hari kerja berikutnya.</div>
+      <div class="meta" style="margin:0 0 8px;">Hasil tagih yang sudah di-Submit. Belum posting = bisa dipilih &amp; dipindah ke transfer2 · Sudah posting = sudah masuk transfer2 (terkunci). Tgl transfer2: Transfer = tgl transfer · Giro = tgl JT giro (Toko = Bank NoGiro NamaCustomer). Tunai diposting lewat Laporan Harian.</div>
       <div class="tableWrap tall">
         <table>
-          <thead><tr><th class="chk"><input type="checkbox" id="trfAll" title="Pilih semua hasil filter"></th><th>Tgl transfer2</th><th>Jenis</th><th>Cabang</th><th>Toko (transfer2)</th><th>Customer</th><th>Invoice</th><th>Giro</th><th>Tgl Tagih</th><th class="num">Nilai</th></tr></thead>
+          <thead><tr><th class="chk"><input type="checkbox" id="trfAll" title="Pilih semua hasil filter"></th><th>Tgl transfer2</th><th>Jenis</th><th>Cabang</th><th>Toko (transfer2)</th><th>Customer</th><th>Invoice</th><th>Giro</th><th>Tgl Tagih</th><th class="num">Nilai</th><th>Status</th></tr></thead>
           <tbody id="trfBody"></tbody>
         </table>
         <div class="empty hidden" id="trfEmpty">Tidak ada data yang perlu dipindah.</div>
@@ -640,6 +651,13 @@
 </div>
 
 <!-- Modal: riwayat pembayaran ERP -->
+<div id="usulModal" class="modalBg hidden">
+  <div class="modal" style="width:980px;">
+    <div class="hd"><div><h3>Pengajuan Masalah Retur</h3><div class="meta">Usulan admin kolektor · Setujui = faktur pindah ke Masalah Retur</div></div><button class="x" data-close="usulModal">×</button></div>
+    <div class="bd" id="usulBody"></div>
+  </div>
+</div>
+
 <div id="payModal" class="modalBg hidden">
   <div class="modal">
     <div class="hd"><div><h3 id="pmTitle">—</h3><div class="meta" id="pmSub"></div></div><button class="x" data-close="payModal">×</button></div>
@@ -717,6 +735,8 @@
   const SUPABASE_URL = 'https://swxgkuaoctrcfbgncwaz.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_0e8sOfljWkkin-hwhNweEw_CWqt1Az-';
   const TOL = 300;
+  // tidak dibulatkan otomatis: isian awal = sisa apa adanya, nanti Simpan menolak kalau CASH ada pecahan < 100
+  const cash100 = (m, v) => Math.max(0, Math.round(+v || 0));
   const PAGE_SIZE = 100;
   const HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
   const HARI_S = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
@@ -731,6 +751,9 @@
   let KASUS_KAT = ['POT GAJI', 'NOTA HILANG', 'PINDAH STOCK', 'TAGIHAN MACET'];
   let kasusKatOk = true;
   let kasusMap = new Map(), returMap = new Map(), returOk = true, pScope = 'normal';
+  let usulMap = new Map(), usulOk = true;
+  // admin kolektor: faktur pernah cicil tapi sisa >= 500rb -> hanya bisa diusulkan, full access yang setujui
+  const returUsulable = r => isAdminKol() && r.payCount > 0 && r.paid > 0 && r.sisa >= RETUR_MAX && !usulMap.has(invKey(r.branch, r.invoiceNo));
   // syarat pindah ke Masalah Retur: pernah bayar cicil. Admin kolektor: sisa juga harus < 500rb; full access: berapa pun sisanya.
   const RETUR_MAX = 500000;
   const returEligible = r => r.payCount > 0 && r.paid > 0 && (!isAdminKol() || r.sisa < RETUR_MAX);
@@ -921,7 +944,58 @@
     // kalau piutang_retur.sql belum di-run -> kosong saja, tab lain tetap jalan
     try { const arr = (await rpc('get_piutang_retur')) || []; returOk = true; returMap = new Map(arr.map(x => [invKey(x.branch, x.invoice_no), x])); }
     catch (e) { returOk = false; returMap = new Map(); }
+    // kalau piutang_retur_usul.sql belum di-run -> fitur pengajuan nonaktif
+    try { const arr = (await rpc('get_piutang_retur_usul')) || []; usulOk = true; usulMap = new Map(arr.map(x => [invKey(x.branch, x.invoice_no), x])); }
+    catch (e) { usulOk = false; usulMap = new Map(); }
+    renderUsulBtn();
   }
+  function renderUsulBtn() {
+    const b = document.getElementById('usulBtn');
+    b.classList.toggle('hidden', isAdminKol() || !usulOk);
+    document.getElementById('usulCnt').textContent = usulMap.size;
+    document.getElementById('usulCnt').className = 'badge ' + (usulMap.size ? 'URGENT' : 'NONE');
+  }
+  function openUsul() {
+    const body = document.getElementById('usulBody');
+    const byKey = new Map(rows.map(r => [invKey(r.branch, r.invoiceNo), r]));
+    const list = [...usulMap.values()];
+    const sel = new Set();
+    const draw = () => {
+      body.innerHTML = !list.length ? '<div class="muted">Tidak ada pengajuan.</div>' : `
+        <div class="tableWrap"><table><thead><tr><th class="chk"><input type="checkbox" id="usulAll"></th><th>Cabang</th><th>No Invoice</th><th>Customer</th>
+          <th class="num">Amount</th><th class="num">Dibayar</th><th class="num">Sisa</th><th>Alasan</th><th>Diajukan</th></tr></thead>
+        <tbody>${list.map((u, i) => { const r = byKey.get(invKey(u.branch, u.invoice_no)) || {}; return `<tr>
+          <td class="chk"><input type="checkbox" data-ui="${i}" ${sel.has(i) ? 'checked' : ''}></td>
+          <td>${esc(u.branch)}</td><td class="invNo">${esc(u.invoice_no)}</td><td class="wrapTxt">${esc(r.customer || '—')}</td>
+          <td class="num">${r.amount != null ? fmt(r.amount) : '—'}</td><td class="num">${r.paid != null ? fmt(r.paid) : '—'}</td>
+          <td class="num sisa">${r.sisa != null ? fmt(r.sisa) : '<span class="muted">sudah lunas?</span>'}</td>
+          <td class="wrapTxt small">${esc(u.alasan) || '—'}</td><td class="small">${u.created_at ? dMon(u.created_at) : '—'}</td></tr>`; }).join('')}</tbody></table></div>
+        <div class="actions" style="margin-top:10px;display:flex;gap:8px;align-items:center;">
+          <span><b>${sel.size}</b> dipilih</span>
+          <button class="btn sm primary" id="usulOk" ${sel.size ? '' : 'disabled'}>Setujui & Pindahkan</button>
+          <button class="btn sm red" id="usulNo" ${sel.size ? '' : 'disabled'}>Tolak</button>
+        </div>`;
+      if (!list.length) return;
+      document.getElementById('usulAll').checked = sel.size === list.length;
+      document.getElementById('usulAll').onchange = e => { sel.clear(); if (e.target.checked) list.forEach((_, i) => sel.add(i)); draw(); };
+      body.querySelectorAll('[data-ui]').forEach(c => c.onchange = () => { const i = +c.dataset.ui; c.checked ? sel.add(i) : sel.delete(i); draw(); });
+      const go = async (btn, setuju) => {
+        const items = [...sel].map(i => ({ branch: list[i].branch, invoice_no: list[i].invoice_no }));
+        if (!confirm(setuju ? `Setujui ${items.length} faktur pindah ke Masalah Retur?` : `Tolak ${items.length} pengajuan? (faktur tetap di Piutang)`)) return;
+        btn.disabled = true;
+        try {
+          await rpc('putus_piutang_retur_usul', { p_items: items, p_setuju: setuju });
+          await loadRetur(); enrich(); renderPiutang(); postIssues();
+          document.getElementById('usulModal').classList.add('hidden');
+        } catch (e) { alert(e.message || e); btn.disabled = false; }
+      };
+      document.getElementById('usulOk').onclick = e => go(e.target, true);
+      document.getElementById('usulNo').onclick = e => go(e.target, false);
+    };
+    draw();
+    document.getElementById('usulModal').classList.remove('hidden');
+  }
+  document.getElementById('usulBtn').addEventListener('click', openUsul);
   function enrich() {
     rows.forEach(r => {
       const t = tokoMap.get(tokoKey(r.branch, r.customer));
@@ -940,6 +1014,7 @@
       const ks = kasusMap.get(k);
       r.kasus = !!ks; r.kasusAlasan = ks ? (ks.alasan || '') : ''; r.kasusKat = ks ? (ks.kategori || '') : ''; r.kasusTgl = ks ? parseAnyDate(ks.created_at) : null;
       const rt = returMap.get(k);
+      r.usul = usulMap.has(k);
       r.retur = !!rt && !r.kasus; r.returAlasan = rt ? (rt.alasan || '') : ''; r.returTgl = rt ? parseAnyDate(rt.created_at) : null;
       r.isCash = isCashCust(r.customer);
     });
@@ -1014,14 +1089,28 @@
   }
 
   /* ================= tabs ================= */
-  document.querySelectorAll('#tabBar .tabBtn').forEach(b => b.addEventListener('click', () => {
-    if (isAdminKol() && !ADMINKOL_TABS.includes(b.dataset.tab)) return;
-    currentTab = b.dataset.tab;
-    document.querySelectorAll('#tabBar .tabBtn').forEach(x => x.classList.toggle('active', x === b));
+  // Posting Transfer & Giro Pending = sub tab di bawah Laporan Harian Kolektor
+  const LH_SUBS = ['lh', 'trf', 'giro'];
+  let lhSubLast = 'lh';
+  function showTab(t) {
+    currentTab = t;
+    const top = LH_SUBS.includes(t) ? 'lh' : t;
+    if (top === 'lh') lhSubLast = t;
+    document.querySelectorAll('#tabBar .tabBtn').forEach(x => x.classList.toggle('active', x.dataset.tab === top));
+    document.getElementById('lhSub').classList.toggle('hidden', top !== 'lh');
+    document.querySelectorAll('#lhSub button').forEach(x => x.classList.toggle('active', x.dataset.sub === t));
     const sec = ['kasus', 'retur', 'cash'].includes(currentTab) ? 'piutang' : currentTab;
-    ['piutang', 'rekap', 'hasil', 'lh', 'trf', 'lunas', 'giro', 'report', 'wh', 'master'].forEach(t => document.getElementById('tab-' + t).classList.toggle('hidden', t !== sec));
+    ['piutang', 'rekap', 'hasil', 'lh', 'trf', 'lunas', 'giro', 'report', 'wh', 'master'].forEach(s => document.getElementById('tab-' + s).classList.toggle('hidden', s !== sec));
     if (currentTab === 'rekap') { rkWarnOk = false; openWarn(); }
     renderCurrent();
+  }
+  document.querySelectorAll('#tabBar .tabBtn').forEach(b => b.addEventListener('click', () => {
+    if (isAdminKol() && !ADMINKOL_TABS.includes(b.dataset.tab)) return;
+    showTab(b.dataset.tab === 'lh' ? lhSubLast : b.dataset.tab);
+  }));
+  document.querySelectorAll('#lhSub button').forEach(b => b.addEventListener('click', () => {
+    if (isAdminKol()) return;
+    showTab(b.dataset.sub);
   }));
 
   /* ================= WARNING sebelum Rekap Tagih =================
@@ -1618,7 +1707,7 @@
       tb.innerHTML = pageRows.map((r, i) => `
         <tr class="${r.payCount ? 'clickable' : ''}" data-i="${s + i}">
           <td class="chk dragChk" data-dk="${esc(invKey(r.branch, r.invoiceNo))}"><input type="checkbox" ${pSel.has(invKey(r.branch, r.invoiceNo)) ? 'checked' : ''}></td>
-          <td>${esc(r.branch)}</td><td class="invNo noClick">${esc(r.invoiceNo)}${r.lama ? (isAdminKol() ? ' <span class="badge LAMA" title="Faktur lama, diinput manual">LAMA</span>' : ` <span class="badge LAMA" data-lama-edit="${esc(r.branch)}|${esc(r.invoiceNo)}" style="cursor:pointer" title="Faktur lama, diinput manual — klik untuk ubah">LAMA ✎</span>`) : ''}</td><td class="wrapTxt noClick">${esc(r.customer)}</td>
+          <td>${esc(r.branch)}</td><td class="invNo noClick">${esc(r.invoiceNo)}${r.lama ? (isAdminKol() ? ' <span class="badge LAMA" title="Faktur lama, diinput manual">LAMA</span>' : ` <span class="badge LAMA" data-lama-edit="${esc(r.branch)}|${esc(r.invoiceNo)}" style="cursor:pointer" title="Faktur lama, diinput manual — klik untuk ubah">LAMA ✎</span>`) : ''}${r.usul && !r.retur ? ' <span class="badge WARNING" title="Diusulkan pindah ke Masalah Retur, menunggu persetujuan Full Access">USUL RETUR</span>' : ''}</td><td class="wrapTxt noClick">${esc(r.customer)}</td>
           <td>${r.trackDate ? dmy(r.trackDate) : '—'}</td><td>${esc(r.salesman)}</td>
           <td>${r.kolNama ? esc(r.kolNama) : '<span class="muted">—</span>'}</td>
           <td class="num">${fmt(r.amount)}</td><td class="num ${r.paid ? '' : 'muted'}">${r.paid ? fmt(r.paid) : '—'}</td>
@@ -1701,12 +1790,15 @@
     const selRt = sel.filter(returEligible);
     const adm = isAdminKol();
     const rtRule = adm ? 'Hanya faktur yang pernah bayar cicil & sisa < 500.000' : 'Hanya faktur yang pernah bayar cicil';
-    const rtBtn = pScope === 'normal' ? `<button class="btn sm red" id="selRetur" ${selRt.length ? '' : 'disabled'} title="${rtRule}">Pindah ke Masalah Retur (${selRt.length} memenuhi)</button>` : '';
+    const selUsul = sel.filter(returUsulable), selSudahUsul = sel.filter(r => r.usul);
+    const usulBtn = adm && usulOk ? `<button class="btn sm red" id="selUsul" ${selUsul.length ? '' : 'disabled'} title="Faktur pernah cicil & sisa ≥ 500.000 — perlu persetujuan Full Access">Usulkan ke Masalah Retur (${selUsul.length})</button>` : '';
+    const batalUsulBtn = adm && selSudahUsul.length ? `<button class="btn sm" id="selBatalUsul">Batalkan Usulan (${selSudahUsul.length})</button>` : '';
+    const rtBtn = pScope === 'normal' ?`<button class="btn sm red" id="selRetur" ${selRt.length ? '' : 'disabled'} title="${rtRule}">Pindah ke Masalah Retur (${selRt.length} memenuhi)</button>` : '';
     bar.innerHTML = `<span><b>${sel.length}</b> invoice dipilih · Sisa <b>${fmt(sumBy(sel, r => r.sisa))}</b></span>
       ${pScope === 'retur'
         ? `<button class="btn sm blue" id="selUnretur">Kembalikan ke Piutang</button>`
         : adm
-        ? (pScope === 'normal' ? `<input class="inp sm" id="selAlasan" placeholder="Alasan retur (opsional)" style="min-width:200px;">${rtBtn}` : '')
+        ? (pScope === 'normal' ? `<input class="inp sm" id="selAlasan" placeholder="Alasan retur (opsional)" style="min-width:200px;">${rtBtn}${usulBtn}${batalUsulBtn}` : '')
         : pScope === 'kasus'
         ? `<select class="inp sm" id="selKat"><option value="">— Kategori —</option>${KASUS_KAT.map(c => `<option>${c}</option>`).join('')}</select><button class="btn sm" id="selKatSave">Set Kategori</button>
            <input class="inp sm" id="selKAlasan" placeholder="Alasan baru" style="min-width:180px;"><button class="btn sm" id="selAlasanSave">Set Alasan</button>
@@ -1748,6 +1840,12 @@
         run(br, 'set_piutang_retur', { p_items: selRt.map(r => ({ branch: r.branch, invoice_no: r.invoiceNo })), p_alasan: document.getElementById('selAlasan').value.trim() || null },
           `Pindahkan ${selRt.length} invoice ke Masalah Retur?` + (skip ? `\n${skip} invoice lain dilewati (${adm ? 'belum pernah cicil / sisa ≥ 500.000' : 'belum pernah cicil'}).` : '') + `\nInvoice ini hilang dari piutang normal & usulan rekap tagih.`);
       };
+      const bu = document.getElementById('selUsul');
+      if (bu) bu.onclick = () => run(bu, 'usul_piutang_retur', { p_items: selUsul.map(r => ({ branch: r.branch, invoice_no: r.invoiceNo })), p_alasan: document.getElementById('selAlasan').value.trim() || null },
+        `Usulkan ${selUsul.length} invoice ke Masalah Retur?\nFaktur tetap di Piutang sampai Full Access menyetujui.`);
+      const bb = document.getElementById('selBatalUsul');
+      if (bb) bb.onclick = () => run(bb, 'batal_piutang_retur_usul', { p_items: selSudahUsul.map(r => ({ branch: r.branch, invoice_no: r.invoiceNo })) },
+        `Batalkan usulan retur untuk ${selSudahUsul.length} invoice?`);
     }
   }
   async function openPayments(r) {
@@ -2256,7 +2354,8 @@
     }));
     document.getElementById('rkCreateBtn').addEventListener('click', () => rkCreate(kid, br));
   }
-  // daftar rekap yang sudah dibuat di tanggal ini → tombol 🖨 untuk cetak ulang
+  // daftar rekap yang sudah dibuat di tanggal ini → tombol 🖨 untuk cetak ulang, ✕ Faktur untuk hapus faktur
+  const rkOpenDone = new Set(), rkDelSel = new Set();
   function renderRekapDone() {
     const kid = document.getElementById('rkKol').value, kn = kid && kolById.get(kid) ? kolById.get(kid).nama : '';
     const list = rkSplit(rkData.batches).filter(b => !kn || b.kolektor === kn)
@@ -2266,8 +2365,41 @@
       <thead><tr><th>Cabang</th><th>Kolektor</th><th class="num">Invoice</th><th class="num">Sisa</th><th>Status</th><th></th></tr></thead><tbody>
       ${list.map(b => `<tr><td>${esc(b.branch)}</td><td>${esc(b.kolektor)}</td><td class="num">${b.items.length}</td><td class="num">${fmt(sumBy(b.items, i => i.sisa))}</td>
         <td><span class="badge ${esc(b.status || '')}">${esc(b.status || '')}</span></td>
-        <td class="actions"><button class="btn sm" data-rkre="${b.id}|${esc(b.branch)}" title="Cetak ulang PDF">&#128424; PDF</button></td></tr>`).join('')}
+        <td class="actions"><button class="btn sm" data-rkre="${b.id}|${esc(b.branch)}" title="Cetak ulang PDF">&#128424; PDF</button>
+          ${b.status === 'DITAGIH' ? `<button class="btn sm" data-rkedit="${b.id}|${esc(b.branch)}" title="Hapus faktur dari rekap">&#10005; Faktur</button>` : ''}</td></tr>
+        ${rkOpenDone.has(b.id + '|' + b.branch) ? `<tr><td colspan="6" style="background:var(--surface2,rgba(255,255,255,.03));">
+          <table style="width:100%;"><thead><tr><th class="chk"></th><th>Toko</th><th>Invoice</th><th class="num">Sisa</th><th>Ket</th></tr></thead><tbody>
+          ${b.items.slice().sort((x, y) => String(x.customer).localeCompare(String(y.customer))).map(i => { const lk = !!i.hasil || (i.bayar || []).length > 0; return `<tr>
+            <td class="chk"><input type="checkbox" data-rkdel="${i.id}" ${rkDelSel.has(String(i.id)) ? 'checked' : ''} ${lk ? 'disabled title="Sudah ada hasil tagih"' : ''}></td>
+            <td>${esc(i.customer || '')}</td><td class="invNo">${esc(i.invoice_no)}</td><td class="num">${fmt(i.sisa)}</td>
+            <td>${lk ? '<span class="muted">sudah ada hasil</span>' : ''}</td></tr>`; }).join('')}
+          </tbody></table>
+          <div style="margin-top:8px;display:flex;gap:8px;"><button class="btn sm" style="color:var(--urgent);" data-rkdelgo="${b.id}|${esc(b.branch)}">Hapus faktur terpilih</button>
+          <button class="btn sm" data-rkedit="${b.id}|${esc(b.branch)}">Tutup</button></div></td></tr>` : ''}`).join('')}
       </tbody></table></div></div>` : '';
+    el.querySelectorAll('[data-rkedit]').forEach(btn => btn.addEventListener('click', () => {
+      const k = btn.dataset.rkedit;
+      rkOpenDone.has(k) ? rkOpenDone.delete(k) : rkOpenDone.add(k);
+      rkDelSel.clear(); renderRekapDone();
+    }));
+    el.querySelectorAll('[data-rkdel]').forEach(cb => cb.addEventListener('change', () => {
+      cb.checked ? rkDelSel.add(cb.dataset.rkdel) : rkDelSel.delete(cb.dataset.rkdel);
+    }));
+    el.querySelectorAll('[data-rkdelgo]').forEach(btn => btn.addEventListener('click', async () => {
+      const [id, br] = btn.dataset.rkdelgo.split('|');
+      const b = rkData.batches.find(x => String(x.id) === id);
+      const ids = b ? b.items.filter(i => i.branch === br && rkDelSel.has(String(i.id))).map(i => +i.id) : [];
+      if (!ids.length) { alert('Centang faktur yang mau dihapus dulu.'); return; }
+      const nos = b.items.filter(i => ids.includes(+i.id)).map(i => i.invoice_no);
+      if (!confirm(`Hapus ${ids.length} faktur dari rekap ${b.kolektor} · ${br}?\n\n${nos.join('\n')}`)) return;
+      btn.disabled = true; btn.textContent = 'Menghapus...';
+      try {
+        const res = await rpc('remove_tagih_items', { p_item_ids: ids });
+        toast(`${res.removed || 0} faktur dihapus dari rekap`);
+        rkDelSel.clear();
+        await loadRekap();
+      } catch (e) { alert('Gagal hapus faktur: ' + (e.message || e)); btn.disabled = false; btn.textContent = 'Hapus faktur terpilih'; }
+    }));
     el.querySelectorAll('[data-rkre]').forEach(btn => btn.addEventListener('click', () => {
       const [id, br] = btn.dataset.rkre.split('|');
       const b = rkData.batches.find(x => String(x.id) === id);
@@ -2581,8 +2713,19 @@
     renderSelBar();
     el.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', () => { const f = findItem(btn.dataset.edit); openHasil([f.i], f.b); }));
     el.querySelectorAll('[data-lunas]').forEach(btn => btn.addEventListener('click', async () => {
-      const f = findItem(btn.dataset.lunas); btn.disabled = true;
-      try { await rpc('save_tagih_hasil', { p_item_id: f.i.id, p_gagal: false, p_alasan: null, p_bayar: [{ metode: 'CASH', nilai: Math.round(f.i.sisa) }] }); await loadHasil(); }
+      const f = findItem(btn.dataset.lunas);
+      let nilai = Math.round(+f.i.sisa || 0);
+      // sisa ada pecahan < Rp100 → admin wajib tulis ulang nilai tunai (kelipatan 100), tidak dibulatkan otomatis
+      while (nilai % 100 !== 0) {
+        const s = prompt(`Sisa ${fmt(nilai)} ada pecahan di bawah Rp100.\nTunai tidak boleh ada pecahan < 100.\n\nTulis nilai Cash yang diterima (kelipatan 100):`, '');
+        if (s === null) return;
+        const v = parseInt(String(s).replace(/[^\d]/g, ''), 10);
+        if (!v) { alert('Nilai tidak valid.'); continue; }
+        if (v % 100 !== 0) { alert(`${fmt(v)} masih ada pecahan di bawah Rp100. Tulis ulang.`); continue; }
+        nilai = v;
+      }
+      btn.disabled = true;
+      try { await rpc('save_tagih_hasil', { p_item_id: f.i.id, p_gagal: false, p_alasan: null, p_bayar: [{ metode: 'CASH', nilai }] }); await loadHasil(); }
       catch (e) { alert(e.message || e); btn.disabled = false; }
     }));
     el.querySelectorAll('[data-gagal-toko]').forEach(btn => btn.addEventListener('click', () => {
@@ -2687,7 +2830,7 @@
     document.getElementById('hmCatatan').value = base ? al.slice(base.length).replace(/^:\s*/, '') : al;
     document.getElementById('hmNote').value = one && one.hasil !== 'GAGAL' ? (one.alasan || '') : '';
     setHmMode(gagalOnly || (one && one.hasil === 'GAGAL') ? 'gagal' : 'bayar');
-    if (hmMode === 'bayar' && !hmLines.length) hmLines.push({ metode: 'CASH', nilai: Math.round(sisa) });
+    if (hmMode === 'bayar' && !hmLines.length) hmLines.push({ metode: 'CASH', nilai: cash100('CASH', sisa) });
     renderLines();
     document.getElementById('hmErr').classList.add('hidden');
     document.getElementById('hasilModal').classList.remove('hidden');
@@ -2701,7 +2844,7 @@
   }
   document.querySelectorAll('.modeSeg button').forEach(b => b.addEventListener('click', () => {
     setHmMode(b.dataset.m);
-    if (b.dataset.m === 'bayar' && !hmLines.length) { hmLines.push({ metode: 'CASH', nilai: Math.round(sumBy(hmItems, i => i.sisa)) }); renderLines(); }
+    if (b.dataset.m === 'bayar' && !hmLines.length) { hmLines.push({ metode: 'CASH', nilai: cash100('CASH', sumBy(hmItems, i => i.sisa)) }); renderLines(); }
   }));
   // tanda lebih/kurang bayar di rekap tagih
   const selTag = (tot, sisa) => { const d = Math.round(+tot || 0) - Math.round(+sisa || 0); return Math.abs(d) <= TOL ? '' : d > 0 ? `<div class="small" style="color:var(--urgent)">lebih ${fmt(d)}</div>` : `<div class="small" style="color:var(--warn)">kurang ${fmt(-d)}</div>`; };
@@ -2740,13 +2883,13 @@
     document.querySelectorAll('#hmLines [data-del]').forEach(b => b.addEventListener('click', () => { hmLines.splice(+b.dataset.del, 1); renderLines(); }));
     document.querySelectorAll('#hmLines [data-fill]').forEach(b => b.addEventListener('click', () => {
       const idx = +b.dataset.fill, other = sumBy(hmLines.filter((_, j) => j !== idx), l => l.nilai);
-      hmLines[idx].nilai = Math.max(0, Math.round(sumBy(hmItems, i => i.sisa) - other)); renderLines();
+      hmLines[idx].nilai = cash100(hmLines[idx].metode, sumBy(hmItems, i => i.sisa) - other); renderLines();
     }));
     updHmTotal();
   }
   document.querySelectorAll('#hmBayar [data-add]').forEach(b => b.addEventListener('click', () => {
     const rest = Math.max(0, Math.round(sumBy(hmItems, i => i.sisa) - sumBy(hmLines, l => l.nilai)));
-    hmLines.push({ metode: b.dataset.add, nilai: rest, tgl_trf: '', giro_bank: '', giro_no: '', giro_jt: '' }); renderLines();
+    hmLines.push({ metode: b.dataset.add, nilai: cash100(b.dataset.add, rest), tgl_trf: '', giro_bank: '', giro_no: '', giro_jt: '' }); renderLines();
   }));
   function updHmTotal() {
     const el = document.getElementById('hmTotal');
@@ -2784,6 +2927,8 @@
       allocate(hmItems, lines).forEach(a => a.lines.forEach(l => { if (l.gabung_id) (gbr[l.gabung_id] = gbr[l.gabung_id] || new Set()).add(tokoKey(a.item.branch, a.item.customer)); }));
       lines.forEach(l => { if (l.gabung_id && !(gbr[l.gabung_id] && gbr[l.gabung_id].size > 1)) { l.masuk_branch = null; l.gabung_id = null; } });
       if (!lines.length) { err.textContent = 'Isi minimal satu pembayaran, atau pilih Gagal Tagih.'; err.classList.remove('hidden'); return; }
+      const badCash = lines.find(l => l.metode === 'CASH' && l.nilai % 100 !== 0);
+      if (badCash) { err.textContent = `Tunai ${fmt(badCash.nilai)} tidak boleh ada pecahan di bawah Rp100. Tulis ulang nilai Cash yang diterima (kelipatan 100).`; err.classList.remove('hidden'); return; }
       payload = { p_gagal: false, p_alasan: document.getElementById('hmNote').value.trim() || null, p_bayar: lines };
     }
     btn.disabled = true;
@@ -3505,34 +3650,48 @@
   }
 
   /* ---------- Posting Transfer: TF / Giro / Tunai hasil tagih → transfer2 ---------- */
-  let trfRows = [], trfBranch = '', trfMetode = '';
+  let trfRows = [], trfBranch = '', trfMetode = '', trfSt = '', trfPostedErr = '';
   const trfSel = new Set();
   const TRF_LBL = { TF: 'Transfer', GIRO: 'Giro', CASH: 'Tunai' };
   const trfKey = r => r.ids.join(',');
+  // jam posting dalam WIT (UTC+9)
+  const trfWit = v => { if (!v) return ''; const x = new Date(new Date(v).getTime() + 9 * 3600e3); return `${dMon(x.toISOString().slice(0, 10))} ${x.toISOString().slice(11, 16)}`; };
+  const trfFromEl = document.getElementById('trfFrom');
+  if (!trfFromEl.value) { const x = new Date(Date.now() + 9 * 3600e3); x.setUTCDate(x.getUTCDate() - 30); trfFromEl.value = x.toISOString().slice(0, 10); }
   async function loadTrf() {
-    trfRows = (await rpc('get_tagih_trf_pending')) || [];
-    const ada = new Set(trfRows.map(trfKey));
+    const pend = ((await rpc('get_tagih_trf_pending')) || []).map(r => ({ ...r, posted: false }));
+    let done = []; trfPostedErr = '';
+    try { done = ((await rpc('get_tagih_trf_posted', { p_from: trfFromEl.value || null })) || []).map(r => ({ ...r, posted: true })); }
+    catch (e) { trfPostedErr = 'Daftar yang sudah posting belum bisa tampil — run tagih_trf_posted.sql di Supabase SQL Editor.'; }
+    // Tunai tidak diposting di sini (lewat Laporan Harian Kolektor) → hanya Transfer & Giro
+    trfRows = pend.concat(done).filter(r => r.metode !== 'CASH');
+    const ada = new Set(pend.map(trfKey));
     [...trfSel].forEach(k => { if (!ada.has(k)) trfSel.delete(k); });
     renderTrf();
   }
   function trfFiltered() {
     const q = document.getElementById('trfQ').value.trim().toLowerCase();
     return trfRows.filter(r => (!trfBranch || r.branch === trfBranch) && (!trfMetode || r.metode === trfMetode) &&
+      (!trfSt || (trfSt === 'SUDAH') === r.posted) &&
       (!q || [r.toko, r.customer, r.invoice_nos, r.giro].join(' ').toLowerCase().includes(q)));
   }
   function renderTrf() {
     const list = trfFiltered();
     document.getElementById('trfBody').innerHTML = list.map(r => { const k = trfKey(r); return `
-      <tr class="br-${esc(r.branch)}"><td class="chk"><input type="checkbox" class="trfChk" data-k="${esc(k)}" ${trfSel.has(k) ? 'checked' : ''}></td>
+      <tr class="br-${esc(r.branch)}"${r.posted ? ' style="opacity:.6"' : ''}><td class="chk">${r.posted ? '' : `<input type="checkbox" class="trfChk" data-k="${esc(k)}" ${trfSel.has(k) ? 'checked' : ''}>`}</td>
         <td>${dMon(r.tgl)}</td><td><span class="badge">${TRF_LBL[r.metode] || esc(r.metode)}</span></td>
         <td><span class="brTag ${esc(r.branch)}">${esc(r.branch)}</span></td><td class="wrapTxt">${esc(r.toko)}</td>
         <td class="wrapTxt small">${esc(r.customer)}</td><td class="wrapTxt small invNo">${esc(r.invoice_nos)}</td>
-        <td class="small">${esc(r.giro || '')}</td><td>${dMon(r.tgl_tagih)}</td><td class="num">${fmt(r.nilai)}</td></tr>`; }).join('');
+        <td class="small">${esc(r.giro || '')}</td><td>${dMon(r.tgl_tagih)}</td><td class="num">${fmt(r.nilai)}</td>
+        <td>${r.posted ? `<span style="color:var(--ok); font-weight:600;">✓ Sudah posting</span><div class="small muted">${trfWit(r.posted_at)}</div>` : '<span style="color:var(--warn); font-weight:600;">Belum posting</span>'}</td></tr>`; }).join('');
     document.getElementById('trfEmpty').classList.toggle('hidden', list.length > 0);
-    const sel = trfRows.filter(r => trfSel.has(trfKey(r)));
-    document.getElementById('trfAll').checked = list.length > 0 && list.every(r => trfSel.has(trfKey(r)));
-    document.getElementById('trfSum').innerHTML = `${list.length} baris · total <b>${fmt(sumBy(list, r => +r.nilai))}</b>` +
-      (sel.length ? ` · dipilih <b>${sel.length}</b> = <b>${fmt(sumBy(sel, r => +r.nilai))}</b>` : '');
+    const sel = trfRows.filter(r => !r.posted && trfSel.has(trfKey(r)));
+    const open = list.filter(r => !r.posted), done = list.filter(r => r.posted);
+    document.getElementById('trfAll').checked = open.length > 0 && open.every(r => trfSel.has(trfKey(r)));
+    document.getElementById('trfSum').innerHTML = `${list.length} baris · belum posting <b style="color:var(--warn)">${open.length}</b> = <b>${fmt(sumBy(open, r => +r.nilai))}</b>` +
+      ` · sudah posting <b style="color:var(--ok)">${done.length}</b> = <b>${fmt(sumBy(done, r => +r.nilai))}</b>` +
+      (sel.length ? ` · dipilih <b>${sel.length}</b> = <b>${fmt(sumBy(sel, r => +r.nilai))}</b>` : '') +
+      (trfPostedErr ? `<div style="color:var(--urgent)">${esc(trfPostedErr)}</div>` : '');
     const pb = document.getElementById('trfPostBtn');
     pb.disabled = !sel.length; pb.textContent = `Pindahkan ke transfer2${sel.length ? ` (${sel.length})` : ''}`;
   }
@@ -3540,7 +3699,11 @@
     const c = e.target.closest('.trfChk'); if (!c) return;
     c.checked ? trfSel.add(c.dataset.k) : trfSel.delete(c.dataset.k); renderTrf();
   });
-  document.getElementById('trfAll').addEventListener('change', e => { trfFiltered().forEach(r => e.target.checked ? trfSel.add(trfKey(r)) : trfSel.delete(trfKey(r))); renderTrf(); });
+  document.querySelectorAll('#trfStSeg button').forEach(b => b.addEventListener('click', () => {
+    trfSt = b.dataset.s; document.querySelectorAll('#trfStSeg button').forEach(x => x.classList.toggle('active', x === b)); renderTrf();
+  }));
+  trfFromEl.addEventListener('change', () => loadTrf().catch(e => alert(e.message || e)));
+  document.getElementById('trfAll').addEventListener('change', e => { trfFiltered().filter(r => !r.posted).forEach(r => e.target.checked ? trfSel.add(trfKey(r)) : trfSel.delete(trfKey(r))); renderTrf(); });
   document.querySelectorAll('#trfBranchPills .pill').forEach(p => p.addEventListener('click', () => {
     trfBranch = p.dataset.b; document.querySelectorAll('#trfBranchPills .pill').forEach(x => x.classList.toggle('active', x === p)); renderTrf();
   }));
@@ -3550,10 +3713,10 @@
   let trfTimer = null;
   document.getElementById('trfQ').addEventListener('input', () => { clearTimeout(trfTimer); trfTimer = setTimeout(renderTrf, 250); });
   document.getElementById('trfPostBtn').addEventListener('click', async () => {
-    const sel = trfRows.filter(r => trfSel.has(trfKey(r)));
+    const sel = trfRows.filter(r => !r.posted && trfSel.has(trfKey(r)));
     if (!sel.length) return;
     const per = m => sumBy(sel.filter(r => r.metode === m), r => +r.nilai);
-    if (!confirm(`Pindahkan ${sel.length} baris ke transfer2?\n\nTransfer: ${fmt(per('TF'))}\nGiro: ${fmt(per('GIRO'))}\nTunai: ${fmt(per('CASH'))}\nTotal: ${fmt(sumBy(sel, r => +r.nilai))}\n\nSetelah dipindah, hasil tagih ini terkunci.`)) return;
+    if (!confirm(`Pindahkan ${sel.length} baris ke transfer2?\n\nTransfer: ${fmt(per('TF'))}\nGiro: ${fmt(per('GIRO'))}\nTotal: ${fmt(sumBy(sel, r => +r.nilai))}\n\nSetelah dipindah, hasil tagih ini terkunci.`)) return;
     const pb = document.getElementById('trfPostBtn'); pb.disabled = true; pb.textContent = 'Memindahkan...';
     try {
       const res = await rpc('post_tagih_trf', { p_ids: sel.flatMap(r => r.ids) });
