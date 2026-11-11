@@ -35,6 +35,13 @@
   .branchPills { display: flex; gap: 6px; margin-bottom: 10px; }
   .pill { padding: 5px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-muted); font-size: 13px; cursor: pointer; }
   .pill.active { border-color: var(--paid); color: var(--paid); background: rgba(91,141,239,.12); }
+  .kolPills { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-end; margin-bottom: 10px; }
+  .kolPills > .meta { margin-bottom: 11px; }
+  /* tombol tanpa grup diberi jarak bawah = padding bawah + border kotak grup, supaya sejajar */
+  .kolPills > .pill { margin-bottom: 6px; }
+  .kolGrp { display: flex; flex-direction: column; align-items: center; gap: 3px; border: 1px solid var(--border); border-radius: 12px; padding: 2px 6px 5px; }
+  .kolGrp .gh { font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: .5px; }
+  .kolGrp .gp { display: flex; gap: 4px; }
   h1 { font-family: var(--font-display); font-size: 24px; margin: 0; }
   h3 { font-family: var(--font-display); font-size: 16px; margin: 0; }
   .meta { color: var(--text-muted); font-size: 12px; font-family: var(--font-mono); }
@@ -91,6 +98,7 @@
   tbody td.wrapTxt { white-space: normal; min-width: 180px; }
   tbody tr:hover { background: var(--surface-2); }
   tbody tr.clickable { cursor: pointer; }
+  tbody tr.clickable td.noClick { cursor: text; user-select: text; }
   tr.grp td { background: var(--surface-2); font-weight: 600; font-size: 12.5px; }
   /* Report Urgent: klik toko -> rincian invoice */
   tr.rpRow { cursor: pointer; }
@@ -214,7 +222,11 @@
   tr.br-KSI td { background: rgba(253,186,116,.10); }
   .brTag { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 4px; color: #111; margin-right: 6px; }
   .brTag.DAF { background: #c6f6d5; } .brTag.ABP { background: #cfe3fd; } .brTag.KSI { background: #fed9b4; }
-  .selBar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; font-size: 13px; }
+  /* melayang di bawah layar, supaya tabel tidak geser saat pilih invoice */
+  .selBar { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 50;
+    max-width: calc(100vw - 32px); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px;
+    box-shadow: 0 8px 28px rgba(0,0,0,.55); }
   .selBar:empty { display: none; }
   .ageBoxes { display: inline-flex; gap: 4px; margin-right: 6px; vertical-align: middle; }
   .ageBox { width: 14px; height: 14px; border-radius: 3px; border: 2px solid transparent; opacity: .45; cursor: pointer; display: inline-block; }
@@ -285,7 +297,7 @@
           <button class="pill" data-b="ABP">ABP</button>
           <button class="pill" data-b="KSI">KSI</button>
         </div>
-        <div class="actions"><button class="btn" id="lamaBtn" title="Input faktur 2023-2025 yang belum lunas">+ Faktur Lama</button><button class="btn" id="exportBtn">Export Excel</button></div>
+        <div class="actions"><button class="btn hidden" id="katAddBtn" title="Tambah kategori Tagihan Kasus">+ Kategori</button><button class="btn" id="lamaBtn" title="Input faktur 2023-2025 yang belum lunas">+ Faktur Lama</button><button class="btn" id="exportBtn">Export Excel</button></div>
       </div>
       <div class="controls">
         <input type="text" id="q1" placeholder="Search invoice, customer, salesman, atau tanggal (29/09/2026)...">
@@ -317,10 +329,11 @@
           <button class="pill" data-b="ABP">ABP</button>
           <button class="pill" data-b="KSI">KSI</button>
         </div>
-        <label>Kolektor <select class="inp" id="rkKol"></select></label>
+        <select class="inp hidden" id="rkKol"></select>
         <label><input type="checkbox" id="rkIgnoreHari"> Abaikan hari tagih toko</label>
-        <input type="text" class="inp" id="rkQ" placeholder="Cari toko / invoice..." style="min-width:200px;">
+        <input type="text" class="inp" id="rkQ" placeholder="Cari toko / invoice... (F1)" style="min-width:200px;">
       </div>
+      <div class="kolPills" id="rkKolPills"></div>
       <div id="rkNote"></div>
       <div>
         <div class="topbar" style="margin-bottom:8px;">
@@ -342,13 +355,13 @@
           <button class="pill" data-b="ABP">ABP</button>
           <button class="pill" data-b="DAF">DAF</button>
         </div>
-        <label>Kolektor <select class="inp" id="hsKol"><option value="">Semua</option></select></label>
         <input type="search" class="inp" id="hsSearch" placeholder="Cari toko / no invoice / nilai (F1)" autocomplete="off">
         <div class="actions" style="margin-left:auto;">
           <button class="btn" id="hsPrintAll">Print Hasil Semua</button>
           <button class="btn blue" id="hsPostBtn">Posting Tanggal Ini</button>
         </div>
       </div>
+      <div class="kolPills" id="hsKol"></div>
       <div id="hsDayInfo"></div>
       <div id="hsCards"></div>
       <div id="hsSelBar" class="hidden"></div>
@@ -715,6 +728,8 @@
 
   let pin = '';
   let rows = [];
+  let KASUS_KAT = ['POT GAJI', 'NOTA HILANG', 'PINDAH STOCK', 'TAGIHAN MACET'];
+  let kasusKatOk = true;
   let kasusMap = new Map(), returMap = new Map(), returOk = true, pScope = 'normal';
   // syarat pindah ke Masalah Retur: pernah bayar cicil. Admin kolektor: sisa juga harus < 500rb; full access: berapa pun sisanya.
   const RETUR_MAX = 500000;
@@ -894,6 +909,13 @@
   async function loadKasus() {
     const arr = (await rpc('get_piutang_kasus')) || [];
     kasusMap = new Map(arr.map(x => [invKey(x.branch, x.invoice_no), x]));
+    // kategori (piutang_kasus_kategori.sql) — kalau belum di-run, kosong saja
+    try {
+      const kt = (await rpc('get_piutang_kasus_kategori')) || [];
+      kasusKatOk = true;
+      kt.forEach(x => { const o = kasusMap.get(invKey(x.branch, x.invoice_no)); if (o) { o.kategori = x.kategori || ''; o.alasan = x.alasan; } });
+    } catch (e) { kasusKatOk = false; }
+    try { const l = await rpc('get_kasus_kategori_list'); if (Array.isArray(l) && l.length) KASUS_KAT = l; } catch (e) { }
   }
   async function loadRetur() {
     // kalau piutang_retur.sql belum di-run -> kosong saja, tab lain tetap jalan
@@ -916,7 +938,7 @@
       r.active = activeMap.get(k) || null;
       r.recent = recentMap.get(k) || null;
       const ks = kasusMap.get(k);
-      r.kasus = !!ks; r.kasusAlasan = ks ? (ks.alasan || '') : ''; r.kasusTgl = ks ? parseAnyDate(ks.created_at) : null;
+      r.kasus = !!ks; r.kasusAlasan = ks ? (ks.alasan || '') : ''; r.kasusKat = ks ? (ks.kategori || '') : ''; r.kasusTgl = ks ? parseAnyDate(ks.created_at) : null;
       const rt = returMap.get(k);
       r.retur = !!rt && !r.kasus; r.returAlasan = rt ? (rt.alasan || '') : ''; r.returTgl = rt ? parseAnyDate(rt.created_at) : null;
       r.isCash = isCashCust(r.customer);
@@ -948,10 +970,45 @@
     const ks = (ctx.kolektor || []).filter(k => k.aktif);
     return (withAll ? `<option value="">${allLbl}</option>` : '') + ks.map(k => `<option value="${k.id}">${esc(k.nama)}</option>`).join('');
   }
+  /* Tombol kolektor berjajar ke kanan, urutan tetap. KOYA & ARSO jadi header, di bawahnya HASAN / KATENAN.
+     list = [{ v: nilai, nama }], active = nilai terpilih, withAll = tampilkan tombol "Semua" (nilai '') */
+  const KOL_URUT = ['KOTA', 'ABE', 'SENTANI', 'SPM', 'KOYA', 'ARSO', 'KANTOR'];
+  const KOL_GRUP = ['ABE', 'KOYA', 'ARSO'];
+  function kolPillsHtml(list, active, withAll) {
+    const nrm = s => String(s || '').trim().replace(/\s+/g, ' ').toUpperCase();
+    const grpOf = n => KOL_GRUP.find(g => n === g || n.startsWith(g + ' ')) || '';
+    const rank = n => { const g = grpOf(n), i = KOL_URUT.indexOf(g || n); return i < 0 ? 99 : i; };
+    const sorted = [...list].sort((a, b) => { const A = nrm(a.nama), B = nrm(b.nama); return rank(A) - rank(B) || A.localeCompare(B); });
+    // KANTOR & nama di luar daftar tetap di paling kanan (KANTOR terakhir)
+    const kn = sorted.filter(x => nrm(x.nama) === 'KANTOR'); const rest = sorted.filter(x => nrm(x.nama) !== 'KANTOR');
+    const pill = (v, lbl) => `<button class="pill${String(v) === String(active) ? ' active' : ''}" data-k="${esc(v)}">${esc(lbl)}</button>`;
+    let h = '<span class="meta">Kolektor</span>' + (withAll ? pill('', 'Semua') : '');
+    const done = new Set();
+    [...rest, ...kn].forEach(x => {
+      const n = nrm(x.nama), g = grpOf(n);
+      if (!g) { h += pill(x.v, x.nama); return; }
+      if (done.has(g)) return; done.add(g);
+      const anggota = sorted.filter(y => grpOf(nrm(y.nama)) === g);
+      h += `<div class="kolGrp"><span class="gh">${g}</span><div class="gp">${anggota.map(y => pill(y.v, nrm(y.nama).slice(g.length).trim() || g)).join('')}</div></div>`;
+    });
+    return h;
+  }
+  function renderRkKolPills() {
+    const sel = document.getElementById('rkKol');
+    // kolektor "X" tidak ditampilkan di Rekap Tagih
+    const list = (ctx.kolektor || []).filter(k => k.aktif && String(k.nama || '').trim().toUpperCase() !== 'X').map(k => ({ v: String(k.id), nama: k.nama }));
+    document.getElementById('rkKolPills').innerHTML = kolPillsHtml(list, sel.value, false);
+  }
+  document.getElementById('rkKolPills').addEventListener('click', e => {
+    const p = e.target.closest('.pill'); if (!p) return;
+    document.getElementById('rkKol').value = p.dataset.k;
+    renderRkKolPills(); renderRekap();
+  });
   function fillKolSelects() {
     const keep = (id, html) => { const el = document.getElementById(id); const v = el.value; el.innerHTML = html; if ([...el.options].some(o => o.value === v)) el.value = v; };
     keep('kolFilter', kolOptions(true, 'Semua kolektor') + '<option value="-">— Belum ada kolektor —</option>');
     keep('rkKol', kolOptions(true, '— pilih kolektor —'));
+    renderRkKolPills();
     keep('tkAssign', kolOptions(true, 'Semua kolektor') + '<option value="-">— Belum ada kolektor —</option>');
     keep('tkSetKol', '<option value="">— pilih kolektor —</option>' + kolOptions(false) + '<option value="-">✕ Lepas kolektor</option>');
   }
@@ -993,16 +1050,20 @@
   const wmDraftKey = () => 'piutang_warn_draft_' + wmToday();
   function wmDraftGet() { try { return JSON.parse(localStorage.getItem(wmDraftKey()) || '{}'); } catch (e) { return {}; } }
   function wmDraftSet(o) { try { localStorage.setItem(wmDraftKey(), JSON.stringify(o)); } catch (e) {} }
+  // tanda "sudah isi hari ini" disimpan di browser → pop up cukup 1x per hari walau halaman dibuka ulang
+  const wmDoneKey = 'piutang_warn_done_day';
+  function wmMarkDone() { wmDoneDay = wmToday(); try { localStorage.setItem(wmDoneKey, wmDoneDay); } catch (e) {} }
   async function openWarn() {
     if (rkWarnOk || currentTab !== 'rekap') return;
     if (!rows.length) return; // data belum dimuat; dipanggil lagi setelah loadAll
     // sudah diisi hari ini? → lewati (1x per hari)
+    try { if (localStorage.getItem(wmDoneKey) === wmToday()) wmDoneDay = wmToday(); } catch (e) {}
     if (wmDoneDay === wmToday()) { rkWarnOk = true; return; }
     if (wmChecking) return;
     wmChecking = true;
     try {
       const done = await rpc('cek_piutang_warning_hari_ini', {});
-      if (done) { wmDoneDay = wmToday(); rkWarnOk = true; return; }
+      if (done) { wmMarkDone(); rkWarnOk = true; return; }
     } catch (e) { /* fungsi belum ada → tetap tampilkan pop up */ }
     finally { wmChecking = false; }
     if (rkWarnOk || currentTab !== 'rekap') return;
@@ -1188,10 +1249,10 @@
     document.getElementById('warnModal').classList.add('hidden');
     document.querySelector('#tabBar .tabBtn[data-tab="piutang"]').click();
   });
-  // full access boleh lewati warning (tidak dicatat sebagai sudah isi hari ini)
+  // full access boleh lewati warning (pop up tidak muncul lagi di browser ini sampai besok)
   document.getElementById('wmSkip').addEventListener('click', () => {
     if (role !== 'full') return;
-    rkWarnOk = true;
+    rkWarnOk = true; wmMarkDone();
     document.getElementById('warnModal').classList.add('hidden');
   });
   document.getElementById('wmSave').addEventListener('click', async () => {
@@ -1230,7 +1291,7 @@
         await rpc('save_piutang_warning_detail', { p_alasan_id: aid, p_rows: detRows.slice(k, k + 10) });
       }
       btn.textContent = btn.dataset.lbl || btn.textContent;
-      rkWarnOk = true; wmDoneDay = wmToday();
+      rkWarnOk = true; wmMarkDone();
       try { const d = wmDraftGet(); delete d.__ex; wmDraftSet(d); } catch (e) {}
       document.getElementById('warnModal').classList.add('hidden');
       toast('Alasan tersimpan — tidak perlu isi lagi sampai besok');
@@ -1443,8 +1504,10 @@
     const q1 = document.getElementById('q1').value.trim().toLowerCase();
     const q2 = document.getElementById('q2').value.trim().toLowerCase();
     const kf = document.getElementById('kolFilter').value;
+    // tab Tagihan Kasus: search juga cari di alasan & kategori kasus
+    const hay = r => pScope === 'kasus' ? r._q + ' ' + (r.kasusAlasan + ' ' + r.kasusKat).toLowerCase() : r._q;
     return rows.filter(r => (pScope === 'kasus' ? r.kasus : pScope === 'retur' ? r.retur : pScope === 'cash' ? (!r.kasus && !r.retur && r.isCash) : (!r.kasus && !r.retur && !r.isCash))
-      && (!fBranch || r.branch === fBranch) && (!q1 || r._q.includes(q1)) && (!q2 || r._q.includes(q2))
+      && (!fBranch || r.branch === fBranch) && (!q1 || hay(r).includes(q1)) && (!q2 || hay(r).includes(q2))
       && (!kf || (kf === '-' ? !r.kolId : r.kolId === kf)));
   }
   const pFiltered = base => base.filter(r => (!fAge || r.age === fAge) && (!fJenis || r.jenis === fJenis));
@@ -1529,7 +1592,8 @@
       if (!kkMap && !kkLoading) loadKasKecil().then(() => { kkApply(); if (pScope === 'cash') renderPiutang(); });
       kkApply();
     }
-    const cols = view === 'inv' ? [{ k: '_sel', t: '' }, ...INV_COLS, ...(pScope === 'kasus' ? [{ k: 'kasusAlasan', t: 'Alasan Kasus' }, { k: 'kasusTgl', t: 'Tgl Kasus' }] : []), ...(pScope === 'retur' ? [{ k: 'returAlasan', t: 'Alasan Retur' }, { k: 'returTgl', t: 'Tgl Pindah' }] : []), ...(pScope === 'cash' ? [{ k: 'kkNilai', t: 'Kas Kecil', num: 1 }] : [])] : CUST_COLS;
+    document.getElementById('katAddBtn').classList.toggle('hidden', pScope !== 'kasus' || isAdminKol());
+    const cols = view === 'inv' ? [{ k: '_sel', t: '' }, ...INV_COLS, ...(pScope === 'kasus' ? [{ k: 'kasusKat', t: 'Kategori' }, { k: 'kasusAlasan', t: 'Alasan Kasus' }, { k: 'kasusTgl', t: 'Tgl Kasus' }] : []), ...(pScope === 'retur' ? [{ k: 'returAlasan', t: 'Alasan Retur' }, { k: 'returTgl', t: 'Tgl Pindah' }] : []), ...(pScope === 'cash' ? [{ k: 'kkNilai', t: 'Kas Kecil', num: 1 }] : [])] : CUST_COLS;
     if (!cols.some(c => c.k === sortKey)) { sortKey = 'days'; sortDir = -1; }
     const list = sortList(view === 'inv' ? inv : groupCustomers(inv));
     document.getElementById('thead').innerHTML = '<tr>' + cols.map(c =>
@@ -1554,7 +1618,7 @@
       tb.innerHTML = pageRows.map((r, i) => `
         <tr class="${r.payCount ? 'clickable' : ''}" data-i="${s + i}">
           <td class="chk dragChk" data-dk="${esc(invKey(r.branch, r.invoiceNo))}"><input type="checkbox" ${pSel.has(invKey(r.branch, r.invoiceNo)) ? 'checked' : ''}></td>
-          <td>${esc(r.branch)}</td><td class="invNo">${esc(r.invoiceNo)}${r.lama ? (isAdminKol() ? ' <span class="badge LAMA" title="Faktur lama, diinput manual">LAMA</span>' : ` <span class="badge LAMA" data-lama-edit="${esc(r.branch)}|${esc(r.invoiceNo)}" style="cursor:pointer" title="Faktur lama, diinput manual — klik untuk ubah">LAMA ✎</span>`) : ''}</td><td class="wrapTxt">${esc(r.customer)}</td>
+          <td>${esc(r.branch)}</td><td class="invNo noClick">${esc(r.invoiceNo)}${r.lama ? (isAdminKol() ? ' <span class="badge LAMA" title="Faktur lama, diinput manual">LAMA</span>' : ` <span class="badge LAMA" data-lama-edit="${esc(r.branch)}|${esc(r.invoiceNo)}" style="cursor:pointer" title="Faktur lama, diinput manual — klik untuk ubah">LAMA ✎</span>`) : ''}</td><td class="wrapTxt noClick">${esc(r.customer)}</td>
           <td>${r.trackDate ? dmy(r.trackDate) : '—'}</td><td>${esc(r.salesman)}</td>
           <td>${r.kolNama ? esc(r.kolNama) : '<span class="muted">—</span>'}</td>
           <td class="num">${fmt(r.amount)}</td><td class="num ${r.paid ? '' : 'muted'}">${r.paid ? fmt(r.paid) : '—'}</td>
@@ -1562,11 +1626,29 @@
           <td>${r.age ? `<span class="badge ${r.age}">${r.age}</span>` : '—'}</td>
           <td><span class="badge ${r.jenis}">${r.jenis === 'CICILAN' ? 'CICILAN ×' + r.payCount : 'BELUM BAYAR'}</span></td>
           <td>${tagihBadge(r)}</td>
-          ${pScope === 'kasus' ? `<td class="wrapTxt small">${esc(r.kasusAlasan) || '—'}</td><td>${r.kasusTgl ? dmy(r.kasusTgl) : '—'}</td>` : ''}
+          ${pScope === 'kasus' ? (isAdminKol()
+            ? `<td class="small">${esc(r.kasusKat) || '—'}</td><td class="wrapTxt small">${esc(r.kasusAlasan) || '—'}</td>`
+            : `<td class="noClick"><select class="inp sm kasusKatSel" data-kk="${esc(r.branch)}|${esc(r.invoiceNo)}" title="Ubah kategori kasus"><option value="">—</option>${KASUS_KAT.map(c => `<option ${r.kasusKat === c ? 'selected' : ''}>${c}</option>`).join('')}</select></td>`
+              + `<td class="wrapTxt small noClick kasusAlasanEdit" data-kk="${esc(r.branch)}|${esc(r.invoiceNo)}" style="cursor:pointer" title="Klik untuk ubah alasan">${esc(r.kasusAlasan) || '<span class="muted">—</span>'} <span class="muted">✎</span></td>`)
+            + `<td>${r.kasusTgl ? dmy(r.kasusTgl) : '—'}</td>` : ''}
           ${pScope === 'retur' ? `<td class="wrapTxt small">${esc(r.returAlasan) || '—'}</td><td>${r.returTgl ? dmy(r.returTgl) : '—'}</td>` : ''}
           ${pScope === 'cash' ? `<td class="num">${kkCell(r)}</td>` : ''}
         </tr>`).join('');
-      tb.querySelectorAll('tr.clickable').forEach(tr => tr.addEventListener('click', e => { if (e.target.closest('td.dragChk')) return; openPayments(list[+tr.dataset.i]); }));
+      tb.querySelectorAll('tr.clickable').forEach(tr => tr.addEventListener('click', e => { if (e.target.closest('td.dragChk') || (e.target.closest('td.noClick') && !e.target.closest('[data-lama-edit]'))) return; openPayments(list[+tr.dataset.i]); }));
+      if (pScope === 'kasus') {
+        const kkItem = el => { const [branch, invoice_no] = el.dataset.kk.split('|'); return [{ branch, invoice_no }]; };
+        tb.querySelectorAll('.kasusKatSel').forEach(sel => {
+          sel.addEventListener('click', e => e.stopPropagation());
+          sel.addEventListener('change', () => editKasus(kkItem(sel), { p_kategori: sel.value || null, p_set_kategori: true }));
+        });
+        tb.querySelectorAll('.kasusAlasanEdit').forEach(td => td.addEventListener('click', e => {
+          e.stopPropagation();
+          const r = rows.find(x => invKey(x.branch, x.invoiceNo) === invKey(...td.dataset.kk.split('|')));
+          const v = prompt('Alasan kasus:', r ? r.kasusAlasan : '');
+          if (v === null) return;
+          editKasus(kkItem(td), { p_alasan: v.trim() || null, p_set_alasan: true });
+        }));
+      }
       tb.querySelectorAll('td.dragChk').forEach(td => td.addEventListener('pointerdown', e => {
         e.preventDefault();
         const on = !td.querySelector('input').checked;
@@ -1583,12 +1665,13 @@
     } else {
       tb.innerHTML = pageRows.map(g => `
         <tr class="clickable" data-c="${esc(g.customer)}" data-b="${esc(g.branch)}">
-          <td>${esc(g.branch)}</td><td class="wrapTxt">${esc(g.customer)}</td><td>${g.kolNama ? esc(g.kolNama) : '<span class="muted">—</span>'}</td>
+          <td>${esc(g.branch)}</td><td class="wrapTxt noClick">${esc(g.customer)}</td><td>${g.kolNama ? esc(g.kolNama) : '<span class="muted">—</span>'}</td>
           <td class="wrapTxt">${esc(g.salesman)}</td><td class="num">${g.count}</td><td class="num ${g.cicil ? '' : 'muted'}">${g.cicil || '—'}</td>
           <td class="num">${fmt(g.amount)}</td><td class="num sisa">${fmt(g.sisa)}</td>
           <td class="num">${g.days === null ? '—' : g.days + ' d'}</td><td>${g.age ? `<span class="badge ${g.age}">${g.age}</span>` : '—'}</td>
         </tr>`).join('');
-      tb.querySelectorAll('tr.clickable').forEach(tr => tr.addEventListener('click', () => {
+      tb.querySelectorAll('tr.clickable').forEach(tr => tr.addEventListener('click', e => {
+        if (e.target.closest('td.noClick')) return;
         document.getElementById('q1').value = tr.dataset.c; setBranch(tr.dataset.b); setView('inv');
       }));
     }
@@ -1602,6 +1685,11 @@
     renderPSelBar();
     document.getElementById('pPrev').onclick = () => { page--; renderPiutang(); };
     document.getElementById('pNext').onclick = () => { page++; renderPiutang(); };
+  }
+  async function editKasus(items, params) {
+    if (!kasusKatOk) { alert('Jalankan piutang_kasus_kategori.sql di Supabase SQL Editor dulu.'); renderPiutang(); return; }
+    try { await rpc('edit_piutang_kasus', { p_items: items, ...params }); await loadKasus(); enrich(); renderPiutang(); postIssues(); }
+    catch (e) { alert(e.message || e); renderPiutang(); }
   }
   function renderPSelBar() {
     const bar = document.getElementById('selBar');
@@ -1620,7 +1708,9 @@
         : adm
         ? (pScope === 'normal' ? `<input class="inp sm" id="selAlasan" placeholder="Alasan retur (opsional)" style="min-width:200px;">${rtBtn}` : '')
         : pScope === 'kasus'
-        ? `<button class="btn sm blue" id="selUnkasus">Kembalikan ke Piutang</button>`
+        ? `<select class="inp sm" id="selKat"><option value="">— Kategori —</option>${KASUS_KAT.map(c => `<option>${c}</option>`).join('')}</select><button class="btn sm" id="selKatSave">Set Kategori</button>
+           <input class="inp sm" id="selKAlasan" placeholder="Alasan baru" style="min-width:180px;"><button class="btn sm" id="selAlasanSave">Set Alasan</button>
+           <button class="btn sm blue" id="selUnkasus">Kembalikan ke Piutang</button>`
         : `<input class="inp sm" id="selAlasan" placeholder="Alasan (opsional)" style="min-width:200px;"><button class="btn sm red" id="selKasus">Pindah ke Tagihan Kasus</button>${rtBtn}`}
       <button class="btn sm" id="selClear">Batal pilih</button>`;
     document.getElementById('selClear').onclick = () => { pSel.clear(); renderPiutang(); };
@@ -1637,6 +1727,16 @@
     } else if (pScope === 'kasus') {
       const b = document.getElementById('selUnkasus');
       b.onclick = () => run(b, 'unset_piutang_kasus', { p_items: items }, `Kembalikan ${sel.length} invoice ke piutang normal?`);
+      document.getElementById('selKatSave').onclick = () => {
+        const v = document.getElementById('selKat').value;
+        if (!confirm(`Set kategori ${sel.length} invoice jadi "${v || 'kosong'}"?`)) return;
+        pSel.clear(); editKasus(items, { p_kategori: v || null, p_set_kategori: true });
+      };
+      document.getElementById('selAlasanSave').onclick = () => {
+        const v = document.getElementById('selKAlasan').value.trim();
+        if (!confirm(`Set alasan ${sel.length} invoice jadi "${v || 'kosong'}"?`)) return;
+        pSel.clear(); editKasus(items, { p_alasan: v || null, p_set_alasan: true });
+      };
     } else {
       const b = document.getElementById('selKasus');
       if (b) b.onclick = () => run(b, 'set_piutang_kasus', { p_items: items, p_alasan: document.getElementById('selAlasan').value.trim() || null },
@@ -1679,7 +1779,7 @@
       Branch: r.branch, 'Invoice No': r.invoiceNo, Customer: r.customer, 'Print Date': dmy(r.printDate), 'Tracking Date': dmy(r.trackDate),
       Salesman: r.salesman, Kolektor: r.kolNama, Amount: Math.round(r.amount), Dibayar: Math.round(r.paid), Sisa: Math.round(r.sisa),
       'Umur Nota': r.days, Status: r.age, Jenis: r.jenis, Tagih: tagihTxt(r),
-      ...(pScope === 'kasus' ? { 'Alasan Kasus': r.kasusAlasan, 'Tgl Kasus': dmy(r.kasusTgl) } : {}),
+      ...(pScope === 'kasus' ? { 'Kategori Kasus': r.kasusKat, 'Alasan Kasus': r.kasusAlasan, 'Tgl Kasus': dmy(r.kasusTgl) } : {}),
       ...(pScope === 'retur' ? { 'Alasan Retur': r.returAlasan, 'Tgl Pindah': dmy(r.returTgl) } : {}),
       ...(pScope === 'cash' ? { 'Kas Kecil Nilai': r.kk ? Math.round(r.kkNilai) : '', 'Kas Kecil Status': r.kkStat || '', 'Kas Kecil Selisih': r.kk ? Math.round(r.kkNilai - r.sisa) : '' } : {})
     }))), 'Per Invoice');
@@ -1992,6 +2092,13 @@
     try { lmData = (await rpc('get_piutang_lama')) || []; lmRender(); }
     catch (e) { document.getElementById('lmBody').innerHTML = `<tr><td colspan="10" style="color:var(--urgent);padding:12px;">Gagal memuat: ${esc(e.message || e)}<br>Pastikan piutang_lama.sql sudah dijalankan di Supabase.</td></tr>`; }
   }
+  document.getElementById('katAddBtn').addEventListener('click', async () => {
+    if (!kasusKatOk) { alert('Jalankan piutang_kasus_kategori.sql di Supabase SQL Editor dulu.'); return; }
+    const v = prompt('Nama kategori baru:\n(sudah ada: ' + KASUS_KAT.join(', ') + ')');
+    if (v === null || !v.trim()) return;
+    try { await rpc('add_kasus_kategori', { p_nama: v.trim() }); await loadKasus(); enrich(); renderPiutang(); }
+    catch (e) { alert(e.message || e); }
+  });
   document.getElementById('lamaBtn').addEventListener('click', () => {
     document.getElementById('lamaModal').classList.remove('hidden');
     lmReset(); lmLoad();
@@ -2195,7 +2302,7 @@
       await reloadCtx(); enrich(); await loadRekap();
       // langsung unduh PDF rekap kolektor × cabang ini
       const kn = kolById.get(kid) ? kolById.get(kid).nama : '';
-      const b = rkData.batches.find(x => x.kolektor === kn && x.items.some(i => i.branch === br));
+      const b = rkData.batches.find(x => res.batch_id && x.id === res.batch_id) || rkData.batches.find(x => x.kolektor === kn && x.items.some(i => i.branch === br));
       if (b) await rkPdf({ ...b, items: b.items.filter(i => i.branch === br) }, br);
     } catch (e) { alert('Gagal buat rekap: ' + (e.message || e)); renderRekap(); }
   }
@@ -2345,7 +2452,12 @@
     document.querySelectorAll('#hsBranchPills .pill').forEach(x => x.classList.toggle('active', x === p));
     renderHasil();
   }));
-  document.getElementById('hsKol').addEventListener('change', () => renderHasil());
+  // filter kolektor: tombol pill berjajar ke kanan (bukan dropdown)
+  let hsKolNow = '';
+  document.getElementById('hsKol').addEventListener('click', e => {
+    const p = e.target.closest('.pill'); if (!p) return;
+    hsKolNow = p.dataset.k; renderHasil();
+  });
   // cari: nama toko / no invoice / nilai faktur
   const hsSearchEl = document.getElementById('hsSearch');
   let hsSearchT = null;
@@ -2353,9 +2465,12 @@
   hsSearchEl.addEventListener('keydown', e => { if (e.key === 'Escape') { hsSearchEl.value = ''; renderHasil(); } });
   document.addEventListener('keydown', e => {
     if (e.key !== 'F1') return;
-    if (document.getElementById('tab-hasil').classList.contains('hidden')) return;
+    // F1 = fokus ke kotak cari di tab yang sedang terbuka (Hasil Tagih / Rekap Tagih)
+    const box = !document.getElementById('tab-hasil').classList.contains('hidden') ? hsSearchEl
+      : !document.getElementById('tab-rekap').classList.contains('hidden') ? document.getElementById('rkQ') : null;
+    if (!box) return;
     e.preventDefault();
-    hsSearchEl.focus(); hsSearchEl.select();
+    box.focus(); box.select();
   });
   function hsMatch(i) {
     const q = hsSearchEl.value.trim().toLowerCase();
@@ -2367,12 +2482,11 @@
   }
   function renderHasil() {
     buildGab();
-    const kolSel = document.getElementById('hsKol');
+    const kolBox = document.getElementById('hsKol');
     const kols = [...new Set(hsData.batches.map(b => b.kolektor))].sort();
-    if (kolSel.value && !kols.includes(kolSel.value)) kolSel.value = '';
-    const kolNow = kolSel.value;
-    kolSel.innerHTML = '<option value="">Semua</option>' + kols.map(k => `<option value="${esc(k)}">${esc(k)}</option>`).join('');
-    kolSel.value = kolNow;
+    if (hsKolNow && !kols.includes(hsKolNow)) hsKolNow = '';
+    const kolNow = hsKolNow;
+    kolBox.innerHTML = kols.length ? kolPillsHtml(kols.map(k => ({ v: k, nama: k })), kolNow, true) : '';
     const tgl = document.getElementById('hsDate').value;
     const posted = hsData.hari && hsData.hari.posted_at;
     const trfDone = hsData.hari && hsData.hari.trf_posted_at;
@@ -2399,7 +2513,7 @@
     if (!shown.length) { el.innerHTML = `<div class="card"><div class="empty">Tidak ada data untuk filter ini.</div></div>`; renderSelBar(); return; }
     el.innerHTML = shown.map(b => {
       const t = batchTotals(b.items), open = b.status === 'DITAGIH';
-      return `<div class="card"><div class="hd"><div><h3>${esc(b.kolektor)} <span class="badge ${b.status}">${b.status}</span></h3>
+      return `<div class="card"><div class="hd"><div><h3>${esc(b.kolektor)} ${['DAF', 'ABP', 'KSI'].filter(br => b.items.some(i => i.branch === br)).map(br => `<span class="brTag ${br}">${br}</span>`).join('')} <span class="badge ${b.status}">${b.status}</span></h3>
         <div class="tot"><span>Total <b>${fmt(t.total)}</b></span><span>Gagal <b>${t.gagalN}</b></span>
         <span>Belum diisi <b style="color:${t.belumN ? 'var(--warn)' : 'inherit'}">${t.belumN}</b></span></div>
         ${branchRekap(b.items)}</div>
@@ -2410,11 +2524,11 @@
         ${byToko(b.items.filter(i => (!hsBranch || i.branch === hsBranch) && hsMatch(i))).map(g => {
           const gagalToko = open && g.length > 1 && g.some(y => !y.hasil)
             ? `<button class="btn sm red" data-gagal-toko="${b.id}|${esc(tokoKey(g[0].branch, g[0].customer))}" title="Gagal semua invoice toko ini">Gagal toko</button>` : '';
-          const pkOf = items => hsSel.bid === String(b.id) && items.every(i => hsSel.ids.has(String(i.id)));
+          const pkOf = items => hsSel.bid === selGrp(b) && items.every(i => hsSel.ids.has(String(i.id)));
           const chk = pk => open ? `<td class="chk"><input type="checkbox" tabindex="-1" ${pk ? 'checked' : ''}></td>` : '';
           const oneRow = (i, extra, sub, gt) => {
             const x = itemTotals(i), pk = pkOf([i]);
-            return `<tr class="br-${esc(i.branch)}${pk ? ' picked' : ''}${extra || ''}" data-row="${i.id}" data-bid="${b.id}">${chk(pk)}<td class="wrapTxt">${sub ? '<span class="muted" style="margin-left:14px;">└ </span>' : `<span class="brTag ${esc(i.branch)}">${esc(i.branch)}</span>${esc(tokoName(i.customer))} · `}<span class="invNo">${esc(i.invoice_no)}</span></td><td>${dmy(i.tracking_date)}</td><td class="num">${fmt(i.sisa)}</td>
+            return `<tr class="br-${esc(i.branch)}${pk ? ' picked' : ''}${extra || ''}" data-row="${i.id}" data-bid="${selGrp(b)}">${chk(pk)}<td class="wrapTxt">${sub ? '<span class="muted" style="margin-left:14px;">└ </span>' : `<span class="brTag ${esc(i.branch)}">${esc(i.branch)}</span>${esc(tokoName(i.customer))} · `}<span class="invNo">${esc(i.invoice_no)}</span></td><td>${dmy(i.tracking_date)}</td><td class="num">${fmt(i.sisa)}</td>
               <td>${i.hasil ? `<span class="badge ${i.hasil}">${hasilLbl(i.hasil)}</span>` : '<span class="badge NONE">BELUM DIISI</span>'}</td>
               <td class="wrapTxt small">${i.hasil === 'GAGAL' ? esc(i.alasan) : bayarDetail(i) + (i.alasan ? ` <span class="muted">— ${esc(i.alasan)}</span>` : '')}</td>
               <td class="num">${x.total ? fmt(x.total) + selTag(x.total, i.sisa) : '—'}</td>
@@ -2425,7 +2539,7 @@
             const key = items.map(i => i.id).join(','), pk = pkOf(items), isOpen = hsOpenGrp.has(key);
             const T = batchTotals(items), cicil = items.some(i => i.hasil === 'SEBAGIAN');
             const tr = items.map(i => i.tracking_date).filter(Boolean).sort();
-            const head = `<tr class="br-${esc(items[0].branch)} grpRow${pk ? ' picked' : ''}" data-rows="${key}" data-bid="${b.id}">${chk(pk)}
+            const head = `<tr class="br-${esc(items[0].branch)} grpRow${pk ? ' picked' : ''}" data-rows="${key}" data-bid="${selGrp(b)}">${chk(pk)}
               <td class="wrapTxt"><span class="brTag ${esc(items[0].branch)}">${esc(items[0].branch)}</span>${esc(tokoName(items[0].customer))} · <b>${items.length} faktur</b>
                 <button class="btn sm" data-grp-toggle="${key}" style="margin-left:6px;">${isOpen ? '▾ tutup' : '▸ rincian'}</button></td>
               <td>${tr.length ? dmy(tr[0]) + (tr.length > 1 && tr[0] !== tr[tr.length - 1] ? ' – ' + dmy(tr[tr.length - 1]) : '') : ''}</td><td class="num">${fmt(T.sisa)}</td>
@@ -2503,11 +2617,13 @@
     }));
   }
 
+  // pilih banyak dikelompokkan per kolektor (rekap dipisah per cabang, giro/TF gabungan beda cabang tetap bisa dipilih bareng)
+  function selGrp(b) { return 'k' + b.kolektor_id; }
   function selItems() {
     // urut sesuai tampilan di layar
-    const b = hsData.batches.find(x => String(x.id) === hsSel.bid);
-    if (!b) return { b: null, items: [] };
-    return { b, items: byToko(b.items).flat().filter(i => hsSel.ids.has(String(i.id))) };
+    const bs = hsData.batches.filter(x => selGrp(x) === hsSel.bid && x.status === 'DITAGIH');
+    if (!bs.length) return { b: null, items: [] };
+    return { b: bs[0], items: bs.flatMap(b => byToko(b.items).flat()).filter(i => hsSel.ids.has(String(i.id))) };
   }
   function renderSelBar() {
     const bar = document.getElementById('hsSelBar');
@@ -2915,7 +3031,11 @@
       const cash = batchTotals(x.batches.flatMap(b => b.items)).CASH;
       if (pend.length) return `<td><button class="btn sm primary" data-tcol="${d}">Kirim ${fmt(sumBy(pend, r => +r.nilai))}</button></td>`;
       if (!cash) return '<td></td>';
-      return x.batches.every(b => b.status === 'DICEK') ? '<td class="small" style="color:var(--ok)">✓ terkirim</td>' : '<td class="small muted">belum submit</td>';
+      const belum = [...new Set(x.batches.filter(b => b.status !== 'DICEK').map(b => {
+        const brs = ['KSI', 'ABP', 'DAF'].filter(br => b.items.some(i => i.branch === br));
+        return brs.length ? `${b.kolektor} (${brs.join(', ')})` : b.kolektor;
+      }))];
+      return !belum.length ? '<td class="small" style="color:var(--ok)">✓ terkirim</td>' : `<td class="small muted" title="${esc(belum.join(', '))}">belum submit: ${esc(belum.join(', '))}</td>`;
     };
     const tcTh = tc ? '<th>T COL → transfer2</th>' : '', tcTd = tc ? '<td></td>' : '';
     const brT = {}; BRG.forEach(br => brT[br] = kols.map(() => 0));
@@ -2925,9 +3045,17 @@
       const dayV = kols.map((_, j) => sumBy(per, v => v[j]));
       // kolektor yang batch-nya belum Submit Hasil (status bukan DICEK) → nilainya di-highlight
       const pendK = kols.map(k => x.batches.some(b => b.kolektor === k && b.status !== 'DICEK'));
-      const pcell = (v, j) => v && pendK[j] ? `<td class="num" style="${LH_PEND_CSS}" title="Belum Submit Hasil">${fmt(v)}</td>` : cell(v);
-      return `<tr class="lhDay"><td>${dMon(x.d)}</td>${dayV.map(() => '<td></td>').join('')}${cell(sumBy(dayV, v => v))}${tcCell(x)}</tr>` +
-        BRG.map((br, bi) => `<tr class="br-${br}"><td style="padding-left:22px;"><span class="brTag ${br}">${br}</span></td>${per[bi].map(pcell).join('')}${cell(sumBy(per[bi], v => v))}${tcTd}</tr>`).join('');
+      // cabang yang ada di rekap kolektor yang belum Submit Hasil
+      const pendKB = (j, br) => pendK[j] && x.batches.some(b => b.kolektor === kols[j] && b.status !== 'DICEK' && b.items.some(i => i.branch === br));
+      const pendKAny = j => BRG.some(br => pendKB(j, br));
+      const pcell = (v, j, br) => {
+        if (!pendKB(j, br)) return cell(v);
+        return `<td class="num${v ? '' : ' small'}" style="${LH_PEND_CSS}" title="${esc(kols[j])} ${br}: belum Submit Hasil">${v ? fmt(v) : 'belum submit'}</td>`;
+      };
+      // baris tanggal: hanya kalau rekap belum submit tapi tidak ada faktur di cabang mana pun
+      const dayMark = j => pendK[j] && !pendKAny(j) ? `<td class="num small" style="${LH_PEND_CSS}" title="Rekap ${esc(kols[j])} belum Submit Hasil">belum submit</td>` : '<td></td>';
+      return `<tr class="lhDay"><td>${dMon(x.d)}</td>${dayV.map((_, j) => dayMark(j)).join('')}${cell(sumBy(dayV, v => v))}${tcCell(x)}</tr>` +
+        BRG.map((br, bi) => `<tr class="br-${br}"><td style="padding-left:22px;"><span class="brTag ${br}">${br}</span></td>${per[bi].map((v, j) => pcell(v, j, br)).join('')}${cell(sumBy(per[bi], v => v))}${tcTd}</tr>`).join('');
     }).join('');
     const allT = kols.map((_, j) => sumBy(BRG, br => brT[br][j]));
     const foot = BRG.map(br => `<tr class="br-${br}"><td style="padding-left:22px;"><span class="brTag ${br}">${br}</span></td>${brT[br].map(cell).join('')}${cell(sumBy(brT[br], v => v))}${tcTd}</tr>`).join('');
@@ -2965,13 +3093,13 @@
     try {
       await lhLoadTcol();
       const rows = lhTcolPend.filter(r => String(r.tgl_tagih).slice(0, 10) === d)
-        .sort((a, b) => ['KSI', 'ABP', 'DAF'].indexOf(a.branch) - ['KSI', 'ABP', 'DAF'].indexOf(b.branch));
+        .sort((a, b) => String(a.toko).localeCompare(String(b.toko)) || ['KSI', 'ABP', 'DAF'].indexOf(a.branch) - ['KSI', 'ABP', 'DAF'].indexOf(b.branch));
       if (!rows.length) { alert('Tunai tanggal ini sudah terkirim / belum Submit Hasil.'); renderLH(); return; }
-      const list = rows.map(r => `${r.branch}  T COL  tgl ${dMon(r.tgl)}  ${fmt(r.nilai)}`).join('\n');
+      const list = rows.map(r => `${r.branch}  ${r.toko || 'T COL'}  tgl ${dMon(r.tgl)}  ${fmt(r.nilai)}`).join('\n');
       if (!confirm(`Kirim tunai tagih ${dMon(d)} ke transfer2?\n\n${list}\n\nTotal: ${fmt(sumBy(rows, r => +r.nilai))}\n\nSetelah dikirim, tunai ini terkunci.`)) { btn.disabled = false; return; }
       const res = await rpc('post_tagih_trf', { p_ids: rows.flatMap(r => r.ids) });
       try { await sb().rpc('run_transfer2_bank_sync', { p_pin: pin }); } catch (e2) { /* tidak kritis */ }
-      toast(`${res && res.n || rows.length} baris T COL masuk transfer2`);
+      toast(`${res && res.n || rows.length} baris tunai masuk transfer2`);
       await lhLoadTcol();
     } catch (e2) { alert('Gagal kirim ke transfer2: ' + (e2.message || e2)); }
     renderLH();
