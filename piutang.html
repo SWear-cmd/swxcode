@@ -2662,7 +2662,7 @@
   const hsOpenGrp = new Set();   // baris gabungan yang sedang dibuka rinciannya
   // kunci "alat bayar": faktur yang memakai alat bayar sama (Cash / TF tgl sama / Giro no sama / CN) digabung jadi 1 baris
   const payKeys = i => (i.bayar || []).filter(p => +p.nilai).map(p =>
-    p.metode === 'TF' ? 'TF|' + (p.tgl_trf || '') : p.metode === 'GIRO' ? 'GIRO|' + (p.giro_bank || '') + '|' + (p.giro_no || '') : p.metode);
+    p.metode === 'TF' ? 'TF|' + (p.tgl_trf || '') + (p.gabung_id ? '|' + p.gabung_id : '') : p.metode === 'GIRO' ? 'GIRO|' + (p.giro_bank || '') + '|' + (p.giro_no || '') : p.metode);
   function paySegments(g) {
     // g = faktur 1 toko, urut tampilan. Hasil: daftar segmen; segmen >1 faktur = baris gabungan
     const paid = g.filter(i => (i.hasil === 'BAYAR' || i.hasil === 'SEBAGIAN') && payKeys(i).length);
@@ -3139,11 +3139,12 @@
       const lines = hmLines.filter(l => l.nilai > 0).map(l => ({ metode: l.metode, nilai: Math.round(l.nilai), tgl_trf: l.metode === 'TF' ? l.tgl_trf : null,
         giro_bank: l.metode === 'GIRO' ? l.giro_bank : null, giro_no: l.metode === 'GIRO' ? l.giro_no : null, giro_jt: l.metode === 'GIRO' ? l.giro_jt : null,
         masuk_branch: hmMulti() && isGabMetode(l.metode) ? (hmBranches().length > 1 ? (l.masuk_branch || hmDefBranch()) : hmItems[0].branch) : null,
-        gabung_id: hmMulti() && isGabMetode(l.metode) ? (l.gabung_id || Date.now().toString(36) + Math.random().toString(36).slice(2, 8)) : null }));
+        gabung_id: (l.metode === 'TF' || (hmMulti() && l.metode === 'GIRO')) ? (l.gabung_id || Date.now().toString(36) + Math.random().toString(36).slice(2, 8)) : null }));
       // gabungan hanya kalau 1 giro/TF benar-benar terbagi ke >1 toko (beda toko atau beda cabang)
       const gbr = {};
       allocate(hmItems, lines, hmCicil).forEach(a => a.lines.forEach(l => { if (l.gabung_id) (gbr[l.gabung_id] = gbr[l.gabung_id] || new Set()).add(tokoKey(a.item.branch, a.item.customer)); }));
-      lines.forEach(l => { if (l.gabung_id && !(gbr[l.gabung_id] && gbr[l.gabung_id].size > 1)) { l.masuk_branch = null; l.gabung_id = null; } });
+      lines.forEach(l => { if (l.gabung_id && !(gbr[l.gabung_id] && gbr[l.gabung_id].size > 1)) { l.masuk_branch = null; if (l.metode !== 'TF') l.gabung_id = null; } });
+      // TF selalu punya gabung_id sendiri: 2 transfer di tanggal sama tetap 2 baris (tidak digabung)
       if (!lines.length) { err.textContent = 'Isi minimal satu pembayaran, atau pilih Gagal Tagih.'; err.classList.remove('hidden'); return; }
       const badCash = lines.find(l => l.metode === 'CASH' && l.nilai % 100 !== 0);
       if (badCash) { err.textContent = `Tunai ${fmt(badCash.nilai)} tidak boleh ada pecahan di bawah Rp100. Tulis ulang nilai Cash yang diterima (kelipatan 100).`; err.classList.remove('hidden'); return; }
