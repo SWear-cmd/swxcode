@@ -295,6 +295,16 @@ td.bad{color:var(--danger); font-weight:800}
 .kstat.ok{background:#2F9E5B; color:#fff}
 .kstat.bad{background:#D2453D; color:#fff}
 .kstat.wait{background:var(--kraft-soft); color:var(--ink)}
+.kgrow{display:flex; align-items:center; gap:12px; padding:12px 14px; border-top:1px solid var(--line)}
+.kgrow:first-child{border-top:0}
+.kgrow .main{flex:1; min-width:0}
+.kgrow.off .name{opacity:.55; text-decoration:line-through}
+.sw{position:relative; width:46px; height:26px; flex-shrink:0}
+.sw input{opacity:0; width:0; height:0; position:absolute}
+.sw i{position:absolute; inset:0; border-radius:13px; background:var(--line); transition:.15s; cursor:pointer}
+.sw i::after{content:""; position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%; background:#fff; transition:.15s}
+.sw input:checked + i{background:var(--ok)}
+.sw input:checked + i::after{left:23px}
 .kconf{display:flex; gap:10px; align-items:flex-start; margin-top:12px; font-size:14px; cursor:pointer}
 .kconf input{width:22px; height:22px; flex-shrink:0; margin-top:1px}
 .kmoney{font-size:24px; font-weight:800; text-align:right}
@@ -329,8 +339,43 @@ td.bad{color:var(--danger); font-weight:800}
 .hrow .hq input{width:100%; padding:8px; border-radius:8px; border:1.5px solid var(--line); background:var(--bg); text-align:right}
 .hrow .hq input.saved{border-color:var(--ok)}
 .hrow.nohrg{border-left:4px solid #D2453D}
+.hrow .htop{display:flex; gap:8px; align-items:flex-start}
+.hrow .htop > div{flex:1; min-width:0}
+.xtag{display:inline-block; font-size:11px; font-weight:700; padding:1px 6px; border-radius:5px; margin-left:6px; background:color-mix(in srgb, var(--ok) 18%, transparent); color:var(--ok); vertical-align:middle}
+#kbRes .row{padding:10px 14px}
+#kbRes .row .sub{font-size:12.5px; color:var(--muted)}
+.hrow .hq.isi{margin-top:4px}
+.hrow .hq.isi input{padding:6px 8px; font-size:13px; border-style:dashed}
+.hrow .hq.isi .ph{font-size:11.5px; color:var(--muted); align-self:end; padding-bottom:8px}
+.hrow .hq input.auto{color:var(--ok)}
+.hrow .hq input.dirty{border-color:var(--done); background:color-mix(in srgb, var(--done) 15%, var(--bg))}
+.hrow .hq input[readonly]{opacity:.7}
+.ajwait{margin-top:6px; font-size:12.5px; padding:6px 8px; border-radius:8px; background:color-mix(in srgb, var(--done) 18%, transparent); color:var(--ink)}
+.ajbar{position:sticky; bottom:0; z-index:5; background:var(--bg); padding:10px 0 6px; border-top:1px solid var(--line); margin-top:10px}
+.ajcnt{display:inline-block; min-width:20px; padding:1px 7px; border-radius:10px; background:#D2453D; color:#fff; font-size:12px; font-weight:800; margin-left:6px}
+.ajrow{padding:12px 14px; border-top:1px solid var(--line)}
+.ajrow:first-child{border-top:0}
+.ajrow .name{font-weight:700; font-size:14px}
+.ajrow .sub{font-size:12.5px; color:var(--muted)}
+.ajt{width:100%; border-collapse:collapse; font-size:13.5px; margin-top:8px}
+.ajt th{font-size:11.5px; color:var(--muted); font-weight:700; text-align:right; padding:3px 6px}
+.ajt td{padding:4px 6px; text-align:right; border-top:1px solid var(--line)}
+.ajt th:first-child,.ajt td:first-child{text-align:left; color:var(--muted)}
+.ajt td.up{color:var(--danger); font-weight:800}
+.ajt td.dn{color:var(--ok); font-weight:800}
+.ajbtn{display:flex; gap:8px; margin-top:10px}
+.ajbtn .btn{margin:0; padding:10px; font-size:14px}
+.ajst{font-size:11.5px; font-weight:800; padding:2px 8px; border-radius:6px; white-space:nowrap}
+.ajst.APPROVED{background:var(--ok-soft); color:var(--ok)}
+.ajst.REJECTED{background:color-mix(in srgb, var(--danger) 15%, transparent); color:var(--danger)}
+.ajst.BATAL{background:var(--line); color:var(--muted)}
 .pencil{border:1.5px solid var(--line); background:var(--surface); color:var(--ink); border-radius:8px; width:34px; height:30px; margin-left:8px; cursor:pointer; font-size:14px; vertical-align:middle}
 .kline b .pencil{font-weight:400}
+.rincrow{display:flex; gap:8px; margin-bottom:8px}
+.rincrow #btnKRinc{flex:1}
+#btnKEdit{width:auto; flex:0 0 auto; display:flex; align-items:center; gap:6px; padding:14px 18px}
+#btnKEdit.hidden{display:none}
+#btnKSet2 svg, #btnKEdit svg{display:block}
 .cal .d.sel{outline:3px solid var(--ink); outline-offset:2px}
 .cal .d.lib{opacity:.85; cursor:pointer}
 .cal .d.lib small{font-size:8px; font-weight:800}
@@ -456,10 +501,12 @@ td.bad{color:var(--danger); font-weight:800}
   <header class="bar">
     <button class="iconbtn back" id="kdBack" aria-label="Kembali">‹</button>
     <div class="ttl"><b>Opname Kanvas</b><small id="kdWho">Pilih kanvas</small></div>
+    <button class="iconbtn hidden" id="btnKGear" title="Setting kanvas" aria-label="Setting kanvas"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
     <button class="iconbtn hidden" id="btnLogoutK" title="Keluar" aria-label="Keluar">⏻</button>
   </header>
   <div class="wrap">
     <div id="kOv" class="hidden">
+      <button class="btn ghost hidden" id="koAju" style="margin-bottom:10px">Pengajuan harga kanvas</button>
       <div class="calnav">
         <button id="koPrev" aria-label="Bulan sebelumnya">‹</button>
         <b id="koMonth"></b>
@@ -480,24 +527,6 @@ td.bad{color:var(--danger); font-weight:800}
       <div id="koDay"></div>
     </div>
     <div id="kDivList"></div>
-    <button class="btn ghost hidden" id="btnKAdd" style="margin-top:16px">+ Tambah kanvas</button>
-    <div id="kAddWrap" class="hidden">
-      <div class="sec">Tambah kanvas (Full Access)</div>
-      <div class="form">
-        <span class="lbl">Divisi</span>
-        <select id="kaDiv" class="in"></select>
-        <span class="lbl">Nama kanvas</span>
-        <input id="kaNama" class="in" type="text" maxlength="60" placeholder="Contoh: Wendy KLK M1 STN" autocomplete="off">
-        <div class="exp2">
-          <div><span class="lbl">Grup</span><select id="kaGrp" class="in"><option>M1</option><option>M2</option><option>M3</option></select></div>
-          <div><span class="lbl">Lokasi</span><select id="kaLok" class="in"><option>ABE</option><option>STN</option></select></div>
-        </div>
-        <span class="lbl">Limit / modal (Rp)</span>
-        <input id="kaLimit" class="in num kmoney" type="text" inputmode="numeric" autocomplete="off" placeholder="0">
-        <div class="err" id="kaErr"></div>
-        <button class="btn" id="kaSave">Tambah kanvas</button>
-      </div>
-    </div>
   </div>
 </section>
 
@@ -554,6 +583,7 @@ td.bad{color:var(--danger); font-weight:800}
   <header class="bar">
     <button class="iconbtn back" aria-label="Kembali">‹</button>
     <div class="ttl"><b id="khTitle"></b><small id="khSub"></small></div>
+    <button class="iconbtn hidden" id="btnKSet2" title="Atur limit, harga & data kanvas" aria-label="Atur limit, harga & data kanvas"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
   </header>
   <div class="wrap">
     <div id="khStat"></div>
@@ -599,7 +629,10 @@ td.bad{color:var(--danger); font-weight:800}
     </div>
 
     <div id="khRinc" class="hidden">
-      <button class="btn ghost" id="btnKRinc" style="margin-bottom:8px">Lihat rincian item stock</button>
+      <div class="rincrow">
+        <button class="btn ghost" id="btnKRinc">Lihat rincian item stock</button>
+        <button class="btn ghost hidden" id="btnKEdit" title="Input / ubah item stock" aria-label="Input / ubah item stock"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg><span>Edit</span></button>
+      </div>
       <div class="tbl-wrap hidden" id="khRincTbl">
         <table>
           <thead><tr><th>NAMA BARANG</th><th class="r">KRT/PAK/PCS</th><th class="r">NILAI</th></tr></thead>
@@ -611,7 +644,6 @@ td.bad{color:var(--danger); font-weight:800}
     <button class="btn ghost hidden" id="btnKItems" style="margin-bottom:8px">Lihat / input item stock ›</button>
     <button class="btn hidden" id="btnKDone">Selesai stock</button>
     <button class="btn ghost hidden" id="btnKReopen" style="margin-top:8px">Buka lagi stock</button>
-    <button class="btn ghost hidden" id="btnKSet2" style="margin-top:8px">Atur limit, harga & data kanvas ini</button>
   </div>
 </section>
 
@@ -658,13 +690,24 @@ td.bad{color:var(--danger); font-weight:800}
     </div>
 
     <div id="ks-harga" class="hidden">
-      <div class="banner" style="margin-top:0">Harga berlaku untuk semua kanvas divisi ini. Harga per satuan: Karton, Lusin/Pak/Rcg, Pcs. Nilai stock = qty × harga. Ubah angka lalu pindah kolom, otomatis tersimpan.</div>
+      <div class="chips" id="ksLokChips" style="margin-top:0">
+        <button class="hlchip chip" data-l="ABE">Harga ABE</button>
+        <button class="hlchip chip" data-l="STN">Harga Sentani</button>
+      </div>
+      <div class="banner" id="ksLokInfo" style="margin-top:10px"></div>
+      <div class="banner hidden" id="ksAjuInfo" style="margin-top:10px;border-color:var(--done)"><b>Mode pengajuan.</b> Ubah angka harga, lalu tekan "Ajukan perubahan" di bawah. Harga baru berlaku setelah disetujui Full Access.</div>
+      <button class="btn ghost hidden" id="ksAjuOpen" style="margin-top:10px">Pengajuan harga</button>
       <input id="ksSearch" class="search" type="search" placeholder="Cari nama atau kode barang" style="margin-top:10px">
       <div class="chips">
         <button class="hchip chip on" data-f="all">Semua <span id="hcAll"></span></button>
         <button class="hchip chip" data-f="none">Belum ada harga <span id="hcNone"></span></button>
       </div>
+      <button class="btn ghost" id="ksAddBtn" style="margin-top:10px">+ Tambah barang ke list</button>
       <div id="ksList" class="list" style="margin-top:10px"></div>
+      <div class="ajbar hidden" id="ksAjuBar">
+        <input id="ksAjuNote" class="in" type="text" maxlength="200" placeholder="Catatan / alasan (boleh kosong)" autocomplete="off">
+        <button class="btn" id="ksAjuSend" style="margin-top:8px">Ajukan perubahan</button>
+      </div>
       <div class="sec">Tempel dari Excel</div>
       <div class="form">
         <span class="lbl">Format per baris: KODE, HARGA KRT, HARGA PAK, HARGA PCS (kolom dipisah Tab dari Excel atau titik koma)</span>
@@ -940,6 +983,75 @@ td.bad{color:var(--danger); font-weight:800}
   </div>
 </section>
 
+<div id="kgView" class="sheetbg hidden" role="dialog" aria-label="Setting kanvas">
+  <div class="sheet">
+    <div class="shead">
+      <div style="flex:1;min-width:0"><b>Setting kanvas</b><small>Tambah kanvas baru &amp; aktif / nonaktif kanvas</small></div>
+      <button class="iconbtn" id="kgClose" aria-label="Tutup">✕</button>
+    </div>
+    <div class="tabs">
+      <button class="tab kgtab on" data-t="list">Daftar kanvas</button>
+      <button class="tab kgtab" data-t="add">+ Tambah baru</button>
+    </div>
+    <div id="kg-list">
+      <div class="banner" style="margin-top:0">Matikan switch = kanvas tidak aktif, tidak muncul lagi di list harian. Data lama tetap tersimpan.</div>
+      <div id="kgList"></div>
+    </div>
+    <div id="kg-add" class="hidden">
+        <div class="form">
+        <span class="lbl">Divisi</span>
+        <select id="kaDiv" class="in"></select>
+        <span class="lbl">Nama kanvas</span>
+        <input id="kaNama" class="in" type="text" maxlength="60" placeholder="Contoh: Wendy KLK M1 STN" autocomplete="off">
+        <div class="exp2">
+          <div><span class="lbl">Grup</span><select id="kaGrp" class="in"><option>M1</option><option>M2</option><option>M3</option></select></div>
+          <div><span class="lbl">Lokasi</span><select id="kaLok" class="in"><option>ABE</option><option>STN</option></select></div>
+        </div>
+        <span class="lbl">Limit / modal (Rp)</span>
+        <input id="kaLimit" class="in num kmoney" type="text" inputmode="numeric" autocomplete="off" placeholder="0">
+        <div class="err" id="kaErr"></div>
+        <button class="btn" id="kaSave">Tambah kanvas</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="kajView" class="sheetbg hidden" role="dialog" aria-label="Pengajuan harga kanvas">
+  <div class="sheet">
+    <div class="shead">
+      <div style="flex:1;min-width:0"><b>Pengajuan harga kanvas</b><small id="kajSub"></small></div>
+      <button class="iconbtn" id="kajClose" aria-label="Tutup">✕</button>
+    </div>
+    <div class="tabs">
+      <button class="tab kajtab on" data-t="PENDING">Menunggu</button>
+      <button class="tab kajtab" data-t="RIWAYAT">Riwayat</button>
+    </div>
+    <div id="kajTop"></div>
+    <div id="kajList"></div>
+  </div>
+</div>
+
+<div id="kbView" class="sheetbg hidden" role="dialog" aria-label="Tambah barang kanvas">
+  <div class="sheet">
+    <div class="shead">
+      <div style="flex:1;min-width:0"><b>Tambah barang ke list</b><small id="kbDiv"></small></div>
+      <button class="iconbtn" id="kbClose" aria-label="Tutup">✕</button>
+    </div>
+    <span class="lbl">Cari di master produk (divisi lain)</span>
+    <input id="kbQ" class="search" type="search" placeholder="Ketik kode atau nama barang" autocomplete="off" style="margin-top:6px">
+    <div id="kbRes" class="list" style="margin-top:8px"></div>
+    <div class="sec">Tidak ada di master produk?</div>
+    <div class="form">
+      <span class="lbl">Kode barang (boleh kosong, otomatis dibuat)</span>
+      <input id="kbCode" class="in" type="text" autocomplete="off" placeholder="Kode">
+      <span class="lbl">Nama barang</span>
+      <input id="kbName" class="in" type="text" autocomplete="off" placeholder="Nama barang">
+      <div class="err" id="kbErr"></div>
+      <button class="btn" id="kbSave">Tambah barang baru</button>
+    </div>
+  </div>
+</div>
+
 <div id="diffView" class="sheetbg hidden" role="dialog" aria-label="Perbandingan barang">
   <div class="sheet">
     <div class="shead">
@@ -1156,7 +1268,9 @@ function loading(on, txt){ $('loading').classList.toggle('hidden', !on); if(txt)
 async function rpc(name, params = {}){
   const { data, error } = await sb().rpc(name, { p_pin: S.pin, ...params });
   if(error){
-    if(/pin/i.test(error.message)) { logout(); }
+    // logout hanya kalau PIN benar-benar ditolak, bukan error lain yang kebetulan menyebut "p_pin" (mis. fungsi belum ada)
+    const m = String(error.message || '');
+    if(/\bpin\b/i.test(m) && !/p_pin|function|schema cache|could not/i.test(m)) { logout(); }
     throw new Error(error.message);
   }
   return data;
@@ -3250,11 +3364,12 @@ async function openKDiv(push = true){
   if(!kvScoped()){
     $('kdBack').classList.remove('hidden'); $('btnLogoutK').classList.add('hidden');
     $('kdWho').textContent = 'Semua kanvas';
-    $('btnKAdd').classList.toggle('hidden', !isFullAccess()); $('kAddWrap').classList.add('hidden');
+    $('btnKGear').classList.toggle('hidden', !isFullAccess());
+    loadAjuCount();
     return loadKOv();
   }
   $('kDivList').innerHTML = '<div class="empty">Memuat…</div>';
-  $('btnKAdd').classList.toggle('hidden', !isFullAccess() || kvScoped()); $('kAddWrap').classList.add('hidden');
+  $('btnKGear').classList.add('hidden');
   const sc = kvScoped();
   $('kdBack').classList.toggle('hidden', sc); $('btnLogoutK').classList.toggle('hidden', !sc);
   $('kdWho').textContent = sc ? `${S.label}, ${fmtDay(jayapuraToday())}` : 'Pilih kanvas';
@@ -3263,7 +3378,7 @@ async function openKDiv(push = true){
     S.kv.units = r.units || []; S.kv.divs = r.divisi || [];
     $('kaDiv').innerHTML = S.kv.divs.map(d => `<option>${esc(d)}</option>`).join('');
     const U = S.kv.units.filter(u => u.aktif || isFullAccess());
-    if(!U.length){ $('kDivList').innerHTML = `<div class="empty">Belum ada kanvas.${isFullAccess() ? ' Tambahkan di bawah.' : ' Hubungi Full Access.'}</div>`; return; }
+    if(!U.length){ $('kDivList').innerHTML = `<div class="empty">Belum ada kanvas.${isFullAccess() ? ' Tambahkan lewat tombol ⚙.' : ' Hubungi Full Access.'}</div>`; return; }
     const groups = [...new Set(U.map(u => u.divisi))];
     $('kDivList').innerHTML = groups.map(g => `<div class="sec">Divisi ${esc(g)}</div><div class="list">` + U.filter(u => u.divisi === g).map(u => {
       const sub = [];
@@ -3408,11 +3523,52 @@ function renderKODay(){
   }));
 }
 
-$('btnKAdd').addEventListener('click', () => {
-  const open = $('kAddWrap').classList.toggle('hidden');
-  $('btnKAdd').textContent = open ? '+ Tambah kanvas' : '✕ Tutup form tambah kanvas';
-  if(!open) $('kaNama').focus();
-});
+/* ----- setting kanvas (gear) ----- */
+function setKGTab(t){
+  document.querySelectorAll('.kgtab').forEach(x => x.classList.toggle('on', x.dataset.t === t));
+  $('kg-list').classList.toggle('hidden', t !== 'list');
+  $('kg-add').classList.toggle('hidden', t !== 'add');
+  if(t === 'add') $('kaNama').focus();
+}
+document.querySelectorAll('.kgtab').forEach(b => b.addEventListener('click', () => setKGTab(b.dataset.t)));
+async function openKG(){
+  if(!isFullAccess()) return;
+  $('kgView').classList.remove('hidden'); setKGTab('list'); $('kaErr').textContent = '';
+  $('kgList').innerHTML = '<div class="empty">Memuat…</div>';
+  try{
+    const r = await rpc('get_kanvas_divisi') || {};
+    S.kv.kgUnits = r.units || [];
+    if(r.divisi) $('kaDiv').innerHTML = r.divisi.map(d => `<option>${esc(d)}</option>`).join('');
+    renderKG();
+  }catch(e){ $('kgList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+function renderKG(){
+  const U = S.kv.kgUnits || [];
+  if(!U.length){ $('kgList').innerHTML = '<div class="empty">Belum ada kanvas.</div>'; return; }
+  const groups = [...new Set(U.map(u => u.divisi))];
+  $('kgList').innerHTML = groups.map(g => `<div class="sec">Divisi ${esc(g)}</div><div class="list">` + U.filter(u => u.divisi === g).map(u =>
+    `<div class="kgrow${u.aktif ? '' : ' off'}"><div class="main"><div class="name">${esc(u.nama)}</div><div class="sub">${u.grp || u.lokasi ? esc(u.grp || '?') + ' ' + esc(u.lokasi || '?') + ' · ' : ''}${u.limit != null ? 'Limit ' + fmtRp(u.limit) : 'Limit belum diatur'}${u.aktif ? '' : ' · <b style="color:var(--danger)">Tidak aktif</b>'}</div></div><label class="sw" title="Aktif / nonaktif"><input type="checkbox" data-id="${u.id}"${u.aktif ? ' checked' : ''}><i></i></label></div>`
+  ).join('') + '</div>').join('');
+  $('kgList').querySelectorAll('.sw input').forEach(cb => cb.addEventListener('change', () => toggleKAktif(cb)));
+}
+async function toggleKAktif(cb){
+  const u = (S.kv.kgUnits || []).find(x => String(x.id) === cb.dataset.id); if(!u) return;
+  const on = cb.checked;
+  if(!confirm(on ? `Aktifkan lagi kanvas ${u.nama}?` : `Nonaktifkan kanvas ${u.nama}?\nTidak akan muncul lagi di list. Data lama tetap tersimpan.`)){ cb.checked = !on; return; }
+  loading(true, 'Menyimpan…');
+  try{
+    await rpc('save_kanvas_unit', { p_id: u.id, p_divisi: u.divisi, p_nama: u.nama, p_aktif: on, p_limit: null, p_grp: u.grp || '', p_lokasi: u.lokasi || '' });
+    loading(false); toast(on ? 'Kanvas diaktifkan' : 'Kanvas dinonaktifkan');
+    u.aktif = on; renderKG(); S.kv.dirty = true;
+  }catch(e){ loading(false); cb.checked = !on; alert(e.message); }
+}
+function closeKG(){
+  $('kgView').classList.add('hidden');
+  if(S.kv.dirty){ S.kv.dirty = false; openKDiv(false); }
+}
+$('btnKGear').addEventListener('click', openKG);
+$('kgClose').addEventListener('click', closeKG);
+$('kgView').addEventListener('click', e => { if(e.target === $('kgView')) closeKG(); });
 $('btnLogoutK').addEventListener('click', () => { if(confirm('Keluar?')) logout(); });
 $('kaSave').addEventListener('click', async () => {
   $('kaErr').textContent = '';
@@ -3425,7 +3581,7 @@ $('kaSave').addEventListener('click', async () => {
     await rpc('save_kanvas_unit', { p_id: null, p_divisi: div, p_nama: nama, p_aktif: true, p_limit: lim, p_grp: $('kaGrp').value, p_lokasi: $('kaLok').value });
     loading(false); toast('Kanvas ditambahkan');
     $('kaNama').value = ''; $('kaLimit').value = '';
-    openKDiv(false);
+    S.kv.dirty = true; await openKG();
   }catch(e){ loading(false); $('kaErr').textContent = e.message; }
 });
 
@@ -3434,7 +3590,8 @@ function openKCal(push = true){
   S.mode = 'kanvas';
   show('kcal', push);
   $('kcDiv').textContent = kvTxt();
-  $('btnKSet').classList.toggle('hidden', !isFullAccess());
+  $('btnKSet').classList.toggle('hidden', !canKHarga());
+  $('btnKSet').textContent = isSpvAdm() ? 'Ajukan perubahan harga kanvas' : 'Atur limit, harga & data kanvas';
   document.querySelectorAll('.kcPriv').forEach(e => e.classList.toggle('hidden', kvScoped()));
   document.querySelectorAll('.kcBlind').forEach(e => e.classList.toggle('hidden', !kvScoped()));
   if(!S.kv.y){ const t = jayapuraToday().split('-').map(Number); S.kv.y = t[0]; S.kv.m = t[1]; }
@@ -3577,7 +3734,7 @@ async function openKHit(push = true){
   $('khSub').textContent = kvTxt();
   $('khStat').innerHTML = '<div class="empty">Memuat…</div>';
   ['khStock','khKas','khCalc','khNoHarga','khAkDone'].forEach(id => $(id).innerHTML = '');
-  ['btnKDone','btnKReopen','khKasForm','khCalcWrap','khOld','khKasWrap','khAkDone','khRinc','btnKItems','btnKSet2','khSetWrap','khSetForm','btnKSetAdd'].forEach(id => $(id).classList.add('hidden'));
+  ['btnKDone','btnKReopen','khKasForm','khCalcWrap','khOld','khKasWrap','khAkDone','khRinc','btnKItems','btnKEdit','btnKSet2','khSetWrap','khSetForm','btnKSetAdd'].forEach(id => $(id).classList.add('hidden'));
   S.kv.setor = null;
   $('khRincTbl').classList.add('hidden'); $('btnKRinc').textContent = 'Lihat rincian item stock';
   if(isAdminKas()){ $('khTitle').textContent = S.kv.kname; $('khSub').textContent = fmtDay(S.kv.date); }
@@ -3657,10 +3814,10 @@ function renderKHit(){
       + `<tr><td><b>TOTAL</b></td><td></td><td class="r num"><b>${fmtRp(h.nilai)}</b></td></tr>`
       : '<tr><td colspan="3" class="c" style="color:var(--muted)">Belum ada stock</td></tr>';
     $('khRinc').classList.remove('hidden');
-    $('btnKItems').textContent = 'Input / ubah item stock ›';
-    $('btnKItems').classList.toggle('hidden', !isFullAccess() || !h.editable);
+    $('btnKItems').classList.add('hidden');
+    $('btnKEdit').classList.toggle('hidden', !isFullAccess() || !h.editable);
     $('btnKReopen').classList.toggle('hidden', !(h.done && isFullAccess() && h.editable));
-    $('btnKSet2').classList.toggle('hidden', !isFullAccess());
+    $('btnKSet2').classList.toggle('hidden', !canKHarga());
     renderKSet();
     return;
   }
@@ -3679,6 +3836,7 @@ $('btnKRinc').addEventListener('click', () => {
   $('btnKRinc').textContent = hid ? 'Lihat rincian item stock' : 'Sembunyikan rincian item stock';
 });
 $('btnKItems').addEventListener('click', () => openKProd(true, true));
+$('btnKEdit').addEventListener('click', () => openKProd(true, true));
 $('btnKSet2').addEventListener('click', () => openKSet(true));
 $('btnKDone').addEventListener('click', async () => {
   const n = Number(S.kv.hit && S.kv.hit.n_item) || 0;
@@ -3761,6 +3919,15 @@ function openKSet(push = true){
   $('kuDiv').innerHTML = S.kv.divs.map(d => `<option${d === S.kv.divisi ? ' selected' : ''}>${esc(d)}</option>`).join('');
   $('kuAktif').checked = u.aktif !== false;
   $('kuGrp').value = u.grp || ''; $('kuLok').value = u.lokasi || ''; $('kuErr').textContent = '';
+  S.kv.set.lok = undefined; // dipilih otomatis saat muat
+  const spv = isSpvAdm();
+  if(spv) setKTab('harga');
+  document.querySelectorAll('.ktab').forEach(x => x.classList.toggle('hidden', spv && x.dataset.t !== 'harga'));
+  $('ksAddBtn').classList.toggle('hidden', spv);
+  $('ksAjuInfo').classList.toggle('hidden', !spv);
+  $('ksPasteSave').textContent = spv ? 'Ajukan harga dari tempel' : 'Simpan harga dari tempel';
+  $('ksAjuNote').value = ''; S.kv.set.dirty = {};
+  renderAjuBar();
   loadKSet();
 }
 $('kuSave').addEventListener('click', async () => {
@@ -3790,9 +3957,29 @@ async function loadKSet(){
   $('ksHist').innerHTML = '<div class="empty">Memuat…</div>';
   $('ksList').innerHTML = '<div class="empty">Memuat…</div>';
   try{
-    const r = await rpc('get_kanvas_setting', { p_kanvas_id: S.kv.kid });
+    if(!kvLokDiv()) S.kv.set.lok = '';
+    let r = await rpc('get_kanvas_setting', { p_kanvas_id: S.kv.kid, p_lokasi: S.kv.set.lok || null });
+    if(S.kv.set.lok === undefined){
+      // INBISCO: hanya harga ABE / Sentani, default lokasi kanvas ini (kalau kosong ABE)
+      const ul = r.unit_lokasi || '';
+      S.kv.set.lok = kvLokDiv() ? (['ABE','STN'].includes(ul) ? ul : 'ABE') : '';
+      if(S.kv.set.lok) r = await rpc('get_kanvas_setting', { p_kanvas_id: S.kv.kid, p_lokasi: S.kv.set.lok });
+    }
+    S.kv.set.unitLok = r.unit_lokasi || '';
+    renderKLok();
     S.kv.set.modal = r.modal || []; S.kv.set.harga = r.products || [];
+    try{
+      const isi = await rpc('get_kanvas_isi');
+      const m = new Map((isi || []).map(i => [String(i.product_code), i]));
+      S.kv.set.harga.forEach(h => { const i = m.get(String(h.product_code)); h.isi_pak = i ? Number(i.isi_pak) || 0 : 0; h.isi_pcs = i ? Number(i.isi_pcs) || 0 : 0; });
+    }catch(e){ console.warn('get_kanvas_isi', e.message); }
+    try{
+      const xb = new Set(((await rpc('get_kanvas_barang', { p_kanvas_id: S.kv.kid })) || []).map(String));
+      S.kv.set.harga.forEach(h => { h.extra = xb.has(String(h.product_code)); });
+    }catch(e){ console.warn('get_kanvas_barang', e.message); }
+    S.kv.set.dirty = {}; renderAjuBar();
     renderKModal(); renderKHarga();
+    loadAjuCount();
   }catch(e){ $('ksHist').innerHTML = $('ksList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
 }
 function renderKModal(){
@@ -3821,6 +4008,24 @@ $('ksSave').addEventListener('click', async () => {
   catch(e){ loading(false); $('ksErr').textContent = e.message; }
 });
 
+const LOK_NAMA = { '': 'umum', ABE: 'ABE', STN: 'Sentani' };
+// harga per lokasi (umum / ABE / Sentani) hanya untuk divisi INBISCO; divisi lain 1 harga
+const kvLokDiv = () => String(S.kv.divisi || '').trim().toUpperCase() === 'INBISCO';
+function renderKLok(){
+  const multi = kvLokDiv();
+  $('ksLokChips').classList.toggle('hidden', !multi);
+  const l = S.kv.set.lok || '', ul = S.kv.set.unitLok || '';
+  const warn = multi && l && ul && ul !== l;  // cuma tampil kalau lokasi kanvas beda dengan tab yang dipilih
+  $('ksLokInfo').classList.toggle('hidden', !warn);
+  if(!multi) return;
+  document.querySelectorAll('.hlchip').forEach(c => c.classList.toggle('on', c.dataset.l === l));
+  $('ksLokInfo').innerHTML = warn ? `<b style="color:var(--danger)">Kanvas ${esc(S.kv.kname)} lokasinya ${ul}, bukan ${l}.</b>` : '';
+}
+document.querySelectorAll('.hlchip').forEach(c => c.addEventListener('click', () => {
+  if((S.kv.set.lok || '') === c.dataset.l) return;
+  if(Object.keys(S.kv.set.dirty || {}).length && !confirm('Ada perubahan yang belum diajukan. Buang perubahan?')) return;
+  S.kv.set.lok = c.dataset.l; renderKLok(); loadKSet();
+}));
 const hasHarga = x => Number(x.harga_krt) > 0 || Number(x.harga_pak) > 0 || Number(x.harga_pcs) > 0;
 function renderKHarga(){
   const H = S.kv.set.harga, q = S.kv.set.search.toLowerCase();
@@ -3830,28 +4035,127 @@ function renderKHarga(){
     && (!q || String(x.product_name).toLowerCase().includes(q) || String(x.product_code).toLowerCase().includes(q)));
   if(!rows.length){ $('ksList').innerHTML = '<div class="empty">Tidak ada barang.</div>'; return; }
   const LIM = 200, shown = rows.slice(0, LIM);
-  const inp = (x, u) => `<input class="num" type="text" inputmode="numeric" data-u="${u}" value="${Number(x['harga_' + u]) ? Math.round(x['harga_' + u]).toLocaleString('id-ID') : ''}" placeholder="0">`;
+  const spv = isSpvAdm();
+  // SPVADMIN: hanya harga Karton & isi Lsn/krt yang bisa diisi; harga Lusin & Pcs otomatis
+  const inp = (x, u) => { const d = (S.kv.set.dirty || {})[x.product_code], v = d ? d[u] : x['harga_' + u];
+    return `<input class="num${d && Number(d[u]) !== Number(x['harga_' + u]) ? ' dirty' : ''}" type="text" inputmode="numeric" data-u="${u}" value="${Number(v) ? Math.round(v).toLocaleString('id-ID') : ''}" placeholder="0"${spv && u !== 'krt' ? ' readonly tabindex="-1"' : ''}>`; };
+  const isiInp = (x, u) => { const d = (S.kv.set.dirty || {})[x.product_code], v = d && u === 'pak' && d.isi_pak != null ? d.isi_pak : x['isi_' + u];
+    return `<input class="num${d && u === 'pak' && d.isi_pak != null ? ' dirty' : ''}" type="text" inputmode="numeric" data-i="${u}" value="${Number(v) || ''}" placeholder="isi"${spv && u !== 'pak' ? ' readonly tabindex="-1"' : ''}>`; };
+  const ajuTxt = x => x.aju ? `<div class="ajwait">⏳ Menunggu approve: Krt ${fmtH(x.aju.krt)} · Lsn ${fmtH(x.aju.pak)} · Pcs ${fmtH(x.aju.pcs)}${x.aju.isi_pak != null ? ' · Isi ' + fmtH(x.aju.isi_pak) + ' lsn/krt' : ''}${x.aju.by ? ' · ' + esc(x.aju.by) : ''}${x.aju.at ? ' ' + fmtWIT(x.aju.at) : ''}</div>` : '';
   $('ksList').innerHTML = shown.map(x => `<div class="hrow${hasHarga(x) ? '' : ' nohrg'}" data-c="${esc(x.product_code)}">
-    <div class="name">${esc(x.product_name)}</div><div class="sub">${esc(x.product_code)}</div>
+    <div class="htop"><div><div class="name">${esc(x.product_name)}${x.extra ? '<span class="xtag">Tambahan</span>' : ''}</div><div class="sub">${esc(x.product_code)}${S.kv.set.lok ? (x.khusus ? ` · <b style="color:var(--ok)">harga ${LOK_NAMA[S.kv.set.lok]}</b>` : (hasHarga(x) ? ' · <i>umum</i>' : '')) : ''}</div></div>${x.extra ? `<button class="delbtn" data-del="${esc(x.product_code)}" aria-label="Hapus dari list">🗑</button>` : ''}</div>
     <div class="hq"><label><small>Karton</small>${inp(x, 'krt')}</label><label><small>Lusin/Pak/Rcg</small>${inp(x, 'pak')}</label><label><small>Pcs</small>${inp(x, 'pcs')}</label></div>
+    <div class="hq isi"><span class="ph">Isi 1 karton →</span><label><small>Lsn/krt</small>${isiInp(x, 'pak')}</label><label><small>Pcs/krt</small>${isiInp(x, 'pcs')}</label></div>
+    ${ajuTxt(x)}
   </div>`).join('') + (rows.length > LIM ? `<div class="empty">+${rows.length - LIM} barang lain. Pakai pencarian.</div>` : '');
+  $('ksList').querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => delKB(b.dataset.del)));
   $('ksList').querySelectorAll('.hrow').forEach(row => {
-    row.querySelectorAll('input').forEach(i => { moneyInput(i); i.addEventListener('change', () => saveHargaRow(row)); });
+    row.querySelectorAll('input[data-u]').forEach(i => { moneyInput(i); i.addEventListener('change', () => { if(i.dataset.u === 'krt') autoHarga(row); spv ? markAjuRow(row) : saveHargaRow(row); }); });
+    if(spv){
+      const ip = row.querySelector('input[data-i="pak"]');
+      ip.addEventListener('input', () => { ip.value = ip.value.replace(/[^\d]/g, ''); });
+      ip.addEventListener('change', () => { autoHarga(row); markAjuRow(row); });
+      return;
+    }
+    row.querySelectorAll('input[data-i]').forEach(i => {
+      i.addEventListener('input', () => { i.value = i.value.replace(/[^\d]/g, ''); });
+      i.addEventListener('change', async () => { await saveIsiRow(row); if(autoHarga(row)) saveHargaRow(row); });
+    });
   });
+}
+/* harga lsn/pcs = harga karton / isi per karton */
+function autoHarga(row){
+  const krt = parseRp(row.querySelector('[data-u="krt"]').value);
+  let changed = false;
+  ['pak','pcs'].forEach(u => {
+    const isi = Number(row.querySelector(`[data-i="${u}"]`).value) || 0;
+    const el = row.querySelector(`[data-u="${u}"]`);
+    if(krt > 0 && isi > 0){
+      const v = Math.round(krt / isi);
+      if(parseRp(el.value) !== v){ el.value = v.toLocaleString('id-ID'); changed = true; }
+      el.classList.add('auto');
+    }
+  });
+  return changed;
+}
+async function saveIsiRow(row){
+  const code = row.dataset.c, g = u => Number(row.querySelector(`[data-i="${u}"]`).value) || 0;
+  const v = { pak: g('pak'), pcs: g('pcs') };
+  try{
+    await rpc('save_kanvas_isi', { p_code: code, p_isi_pak: v.pak, p_isi_pcs: v.pcs });
+    const x = S.kv.set.harga.find(h => String(h.product_code) === code);
+    if(x){ x.isi_pak = v.pak; x.isi_pcs = v.pcs; }
+    row.querySelectorAll('input[data-i]').forEach(i => i.classList.add('saved'));
+  }catch(e){ toast(e.message, true); }
 }
 async function saveHargaRow(row){
   const code = row.dataset.c, g = u => parseRp(row.querySelector(`[data-u="${u}"]`).value);
   const v = { code, krt: g('krt'), pak: g('pak'), pcs: g('pcs') };
   try{
-    await rpc('save_kanvas_harga', { p_rows: [v] });
+    const lok = S.kv.set.lok || '';
+    await rpc('save_kanvas_harga', { p_rows: [v], p_lokasi: lok || null });
     const x = S.kv.set.harga.find(h => String(h.product_code) === code);
-    if(x){ x.harga_krt = v.krt; x.harga_pak = v.pak; x.harga_pcs = v.pcs; }
+    if(x){ x.harga_krt = v.krt; x.harga_pak = v.pak; x.harga_pcs = v.pcs; if(lok) x.khusus = !!(v.krt || v.pak || v.pcs); }
+    if(lok && !(v.krt || v.pak || v.pcs)){ toast(`Kembali ke harga umum`); loadKSet(); return; }
     row.classList.toggle('nohrg', !(v.krt || v.pak || v.pcs));
     row.querySelectorAll('input').forEach(i => i.classList.add('saved'));
     const none = S.kv.set.harga.filter(h => !hasHarga(h)).length; $('hcNone').textContent = none;
   }catch(e){ toast(e.message, true); }
 }
 $('ksSearch').addEventListener('input', e => { S.kv.set.search = e.target.value; renderKHarga(); });
+
+/* ----- tambah barang ke list kanvas divisi ----- */
+function openKB(){
+  $('kbDiv').textContent = `Divisi ${S.kv.divisi}, berlaku untuk semua kanvas divisi ini`;
+  $('kbQ').value = ''; $('kbCode').value = ''; $('kbName').value = ''; $('kbErr').textContent = '';
+  $('kbRes').innerHTML = '<div class="empty">Ketik minimal 2 huruf.</div>';
+  $('kbView').classList.remove('hidden');
+}
+const closeKB = () => $('kbView').classList.add('hidden');
+$('ksAddBtn').addEventListener('click', openKB);
+$('kbClose').addEventListener('click', closeKB);
+$('kbView').addEventListener('click', e => { if(e.target === $('kbView')) closeKB(); });
+let kbTimer = 0, kbSeq = 0;
+$('kbQ').addEventListener('input', () => { clearTimeout(kbTimer); kbTimer = setTimeout(kbSearch, 300); });
+async function kbSearch(){
+  const q = $('kbQ').value.trim(), seq = ++kbSeq;
+  if(q.length < 2){ $('kbRes').innerHTML = '<div class="empty">Ketik minimal 2 huruf.</div>'; return; }
+  $('kbRes').innerHTML = '<div class="empty">Mencari…</div>';
+  try{
+    const r = await rpc('search_kanvas_master', { p_kanvas_id: S.kv.kid, p_q: q }) || [];
+    if(seq !== kbSeq) return;
+    if(!r.length){ $('kbRes').innerHTML = '<div class="empty">Tidak ketemu di master. Isi manual di bawah.</div>'; return; }
+    $('kbRes').innerHTML = r.map(x => `<button class="row" data-c="${esc(x.product_code)}" data-n="${esc(x.product_name)}">
+      <div class="main"><div class="name">${esc(x.product_name)}</div><div class="sub">${esc(x.product_code)}${x.divisi ? ' · ' + esc(x.divisi) : ''}</div></div>
+      <span style="color:var(--ok);font-weight:800;font-size:20px">+</span></button>`).join('');
+    $('kbRes').querySelectorAll('.row').forEach(b => b.addEventListener('click', () => addKB(b.dataset.c, b.dataset.n)));
+  }catch(e){ if(seq === kbSeq) $('kbRes').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+async function addKB(code, name){
+  if(!confirm(`Tambah ke list kanvas divisi ${S.kv.divisi}?\n\n${name}${code ? ' (' + code + ')' : ''}`)) return false;
+  loading(true, 'Menyimpan…');
+  try{
+    const r = await rpc('add_kanvas_barang', { p_kanvas_id: S.kv.kid, p_code: code || '', p_name: name || '' });
+    loading(false); toast(`Ditambah: ${r && r.product_code ? r.product_code : name}`);
+    closeKB(); S.kv.products = [];
+    S.kv.set.search = (r && r.product_code) || ''; $('ksSearch').value = S.kv.set.search;
+    loadKSet();
+    return true;
+  }catch(e){ loading(false); $('kbErr').textContent = e.message; toast(e.message, true); return false; }
+}
+$('kbSave').addEventListener('click', () => {
+  $('kbErr').textContent = '';
+  const code = $('kbCode').value.trim(), name = $('kbName').value.trim();
+  if(!name){ $('kbErr').textContent = 'Isi nama barang.'; return; }
+  addKB(code, name);
+});
+async function delKB(code){
+  const x = S.kv.set.harga.find(h => String(h.product_code) === code) || {};
+  if(!confirm(`Hapus ${x.product_name || code} dari list kanvas divisi ${S.kv.divisi}?`)) return;
+  loading(true, 'Menghapus…');
+  try{ await rpc('delete_kanvas_barang', { p_kanvas_id: S.kv.kid, p_code: code }); loading(false); toast('Dihapus dari list'); S.kv.products = []; loadKSet(); }
+  catch(e){ loading(false); toast(e.message, true); }
+}
 document.querySelectorAll('.hchip').forEach(c => c.addEventListener('click', () => {
   document.querySelectorAll('.hchip').forEach(x => x.classList.toggle('on', x === c));
   S.kv.set.filter = c.dataset.f; renderKHarga();
@@ -3870,12 +4174,23 @@ $('ksPasteSave').addEventListener('click', async () => {
   });
   if(bad.length){ $('ksPasteErr').textContent = `Baris ${bad.slice(0, 10).join(', ')}${bad.length > 10 ? '…' : ''} tidak sesuai format (butuh 4 kolom).`; return; }
   if(!rows.length){ $('ksPasteErr').textContent = 'Tidak ada baris data.'; return; }
-  if(!confirm(`Simpan harga kanvas untuk ${rows.length} barang?`)) return;
+  const lok = S.kv.set.lok || '';
+  if(isSpvAdm()){
+    if(!confirm(`Ajukan HARGA ${LOK_NAMA[lok].toUpperCase()} kanvas untuk ${rows.length} barang?\nHarga berubah setelah disetujui Full Access.`)) return;
+    loading(true, 'Mengajukan…');
+    try{
+      const r = await rpc('ajukan_kanvas_harga', { p_kanvas_id: S.kv.kid, p_rows: rows, p_lokasi: lok || null, p_catatan: $('ksAjuNote').value.trim() || 'Tempel dari Excel' });
+      loading(false); toast(`${Number(r && r.diajukan) || 0} harga diajukan`);
+      $('ksPaste').value = ''; loadKSet();
+    }catch(e){ loading(false); $('ksPasteErr').textContent = e.message; }
+    return;
+  }
+  if(!confirm(`Simpan HARGA ${LOK_NAMA[lok].toUpperCase()} kanvas untuk ${rows.length} barang?`)) return;
   loading(true, 'Menyimpan harga…');
   try{
     let saved = 0, miss = [];
     for(let i = 0; i < rows.length; i += 500){
-      const r = await rpc('save_kanvas_harga', { p_rows: rows.slice(i, i + 500) });
+      const r = await rpc('save_kanvas_harga', { p_rows: rows.slice(i, i + 500), p_lokasi: lok || null });
       saved += Number(r && r.saved) || 0;
       miss = miss.concat((r && r.not_found) || []);
     }
@@ -3886,6 +4201,140 @@ $('ksPasteSave').addEventListener('click', async () => {
     loadKSet();
   }catch(e){ loading(false); $('ksPasteErr').textContent = e.message; }
 });
+
+/* ----- pengajuan harga kanvas (SPVADMIN ajukan, FULL ACCESS approve) ----- */
+function isSpvAdm(){ return LBL() === 'SPVADMIN'; }
+function canKHarga(){ return isFullAccess() || isSpvAdm(); }
+const fmtH = n => Number(n) ? Math.round(Number(n)).toLocaleString('id-ID') : '0';
+function fmtWIT(t){
+  const d = new Date(new Date(t).getTime() + 9 * 3600e3), p = n => String(n).padStart(2, '0');
+  return `${p(d.getUTCDate())}-${BULAN[d.getUTCMonth()].slice(0, 3)} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`;
+}
+function markAjuRow(row){
+  const code = row.dataset.c, g = u => parseRp(row.querySelector(`[data-u="${u}"]`).value);
+  const x = S.kv.set.harga.find(h => String(h.product_code) === code); if(!x) return;
+  const isi = Number(row.querySelector('[data-i="pak"]').value) || 0, oldIsi = Number(x.isi_pak) || 0;
+  const v = { krt: g('krt'), pak: g('pak'), pcs: g('pcs'),
+              isi_pak: isi !== oldIsi ? isi : null, old_isi_pak: oldIsi || null, isi_pcs: Number(x.isi_pcs) || null };
+  S.kv.set.dirty = S.kv.set.dirty || {};
+  const same = v.krt === Number(x.harga_krt) && v.pak === Number(x.harga_pak) && v.pcs === Number(x.harga_pcs) && v.isi_pak == null;
+  if(same) delete S.kv.set.dirty[code]; else S.kv.set.dirty[code] = v;
+  row.querySelectorAll('input[data-u]').forEach(i => i.classList.toggle('dirty', !same && parseRp(i.value) !== Number(x['harga_' + i.dataset.u])));
+  row.querySelector('[data-i="pak"]').classList.toggle('dirty', v.isi_pak != null);
+  renderAjuBar();
+}
+function renderAjuBar(){
+  const n = Object.keys(S.kv.set.dirty || {}).length;
+  $('ksAjuBar').classList.toggle('hidden', !isSpvAdm() || !n);
+  $('ksAjuSend').textContent = `Ajukan perubahan (${n} barang)`;
+}
+$('ksAjuSend').addEventListener('click', async () => {
+  const D = S.kv.set.dirty || {}, codes = Object.keys(D);
+  if(!codes.length) return;
+  const lok = S.kv.set.lok || '';
+  const list = codes.slice(0, 8).map(c => { const x = S.kv.set.harga.find(h => String(h.product_code) === c) || {}; return `• ${x.product_name || c}`; }).join('\n');
+  if(!confirm(`Ajukan perubahan HARGA ${LOK_NAMA[lok].toUpperCase()} untuk ${codes.length} barang?\n\n${list}${codes.length > 8 ? '\n…' : ''}\n\nHarga berubah setelah disetujui Full Access.`)) return;
+  loading(true, 'Mengajukan…');
+  try{
+    const rows = codes.map(c => ({ code: c, ...D[c] }));
+    const r = await rpc('ajukan_kanvas_harga', { p_kanvas_id: S.kv.kid, p_rows: rows, p_lokasi: lok || null, p_catatan: $('ksAjuNote').value.trim() || null });
+    loading(false); toast(`${Number(r && r.diajukan) || 0} harga diajukan, menunggu approve`);
+    $('ksAjuNote').value = ''; loadKSet();
+  }catch(e){ loading(false); toast(e.message, true); }
+});
+
+async function loadAjuCount(){
+  const on = canKHarga() && !kvScoped();
+  ['koAju', 'ksAjuOpen'].forEach(id => $(id).classList.toggle('hidden', !on));
+  if(!on) return;
+  try{
+    const r = await rpc('get_kanvas_harga_aju', { p_status: 'PENDING' });
+    const n = Number(r && r.pending_count) || 0;
+    const lbl = (isFullAccess() ? 'Approve harga kanvas' : 'Pengajuan harga kanvas') + (n ? `<span class="ajcnt">${n}</span>` : '');
+    $('koAju').innerHTML = lbl; $('ksAjuOpen').innerHTML = lbl;
+  }catch(e){ console.warn('get_kanvas_harga_aju', e.message); }
+}
+S.kv.aju = { tab: 'PENDING', rows: [] };
+function openKAju(){
+  $('kajView').classList.remove('hidden');
+  $('kajSub').textContent = isFullAccess() ? 'Setujui / tolak perubahan harga dari SPVADMIN' : 'Pengajuan harga, menunggu persetujuan Full Access';
+  setKAjuTab('PENDING');
+}
+function closeKAju(){
+  $('kajView').classList.add('hidden'); loadAjuCount();
+  if(S.screen === 'kset' && S.kv.aju.changed){ S.kv.aju.changed = false; loadKSet(); }
+}
+function setKAjuTab(t){
+  S.kv.aju.tab = t;
+  document.querySelectorAll('.kajtab').forEach(x => x.classList.toggle('on', x.dataset.t === t));
+  loadKAju();
+}
+document.querySelectorAll('.kajtab').forEach(b => b.addEventListener('click', () => setKAjuTab(b.dataset.t)));
+$('koAju').addEventListener('click', openKAju);
+$('ksAjuOpen').addEventListener('click', openKAju);
+$('kajClose').addEventListener('click', closeKAju);
+$('kajView').addEventListener('click', e => { if(e.target === $('kajView')) closeKAju(); });
+async function loadKAju(){
+  $('kajTop').innerHTML = ''; $('kajList').innerHTML = '<div class="empty">Memuat…</div>';
+  try{
+    const r = await rpc('get_kanvas_harga_aju', { p_status: S.kv.aju.tab });
+    S.kv.aju.rows = (r && r.rows) || [];
+    renderKAju();
+  }catch(e){ $('kajList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+function renderKAju(){
+  const R = S.kv.aju.rows, pend = S.kv.aju.tab === 'PENDING', fa = isFullAccess();
+  $('kajTop').innerHTML = pend && fa && R.length > 1 ? `<button class="btn" id="kajAll" style="margin:0 0 10px">Setujui semua (${R.length})</button>` : '';
+  if(!R.length){ $('kajList').innerHTML = `<div class="empty">${pend ? 'Tidak ada pengajuan yang menunggu.' : 'Belum ada riwayat.'}</div>`; return; }
+  const ST = { APPROVED: 'Disetujui', REJECTED: 'Ditolak', BATAL: 'Dibatalkan' };
+  const cell = (o, n) => { o = Number(o) || 0; n = Number(n) || 0; return `<td class="num">${fmtRp(o)}</td><td class="num ${n > o ? 'up' : n < o ? 'dn' : ''}">${fmtRp(n)}</td>`; };
+  const groups = [...new Set(R.map(x => x.divisi))];
+  $('kajList').innerHTML = groups.map(g => `<div class="sec">Divisi ${esc(g)}</div><div class="list">` + R.filter(x => x.divisi === g).map(x => {
+    const lok = x.lokasi ? `Harga ${LOK_NAMA[x.lokasi]}` : 'Harga umum';
+    const back = x.lokasi && !Number(x.new_krt) && !Number(x.new_pak) && !Number(x.new_pcs);
+    return `<div class="ajrow">
+      <div style="display:flex;gap:8px;align-items:flex-start"><div style="flex:1;min-width:0"><div class="name">${esc(x.product_name || x.product_code)}</div>
+      <div class="sub">${esc(x.product_code)} · <b>${lok}</b> · diajukan ${esc(x.diajukan_by || '')} ${fmtWIT(x.diajukan_at)}</div></div>
+      ${pend ? '' : `<span class="ajst ${esc(x.status)}">${ST[x.status] || esc(x.status)}</span>`}</div>
+      ${x.catatan ? `<div class="sub" style="margin-top:4px">📝 ${esc(x.catatan)}</div>` : ''}
+      ${back ? '<div class="ajwait">Harga khusus dihapus → kembali pakai harga umum</div>' : ''}
+      <table class="ajt"><tr><th>Satuan</th><th>Sebelum${x.old_umum ? ' (umum)' : ''}</th><th>Sesudah</th></tr>
+        <tr><td>Karton</td>${cell(x.old_krt, x.new_krt)}</tr>
+        <tr><td>Lusin/Pak</td>${cell(x.old_pak, x.new_pak)}</tr>
+        <tr><td>Pcs</td>${cell(x.old_pcs, x.new_pcs)}</tr>
+        ${x.new_isi_pak != null ? `<tr><td>Isi Lsn/krt</td><td class="num">${fmtH(x.old_isi_pak)}</td><td class="num" style="font-weight:800">${fmtH(x.new_isi_pak)}</td></tr>` : ''}</table>
+      ${!pend ? `<div class="sub" style="margin-top:6px">${ST[x.status] || esc(x.status)} oleh ${esc(x.diputus_by || '-')}${x.diputus_at ? ' ' + fmtWIT(x.diputus_at) : ''}${x.alasan_tolak ? ' · Alasan: ' + esc(x.alasan_tolak) : ''}</div>` : ''}
+      ${pend ? `<div class="ajbtn">${fa ? `<button class="btn" data-ok="${x.id}">✓ Setujui</button><button class="btn ghost" data-no="${x.id}" style="color:var(--danger)">✕ Tolak</button>` : `<button class="btn ghost" data-bt="${x.id}">Batalkan pengajuan</button>`}</div>` : ''}
+    </div>`;
+  }).join('') + '</div>').join('');
+  $('kajList').querySelectorAll('[data-ok]').forEach(b => b.addEventListener('click', () => putusAju([Number(b.dataset.ok)], 'APPROVE')));
+  $('kajList').querySelectorAll('[data-no]').forEach(b => b.addEventListener('click', () => putusAju([Number(b.dataset.no)], 'REJECT')));
+  $('kajList').querySelectorAll('[data-bt]').forEach(b => b.addEventListener('click', () => putusAju([Number(b.dataset.bt)], 'BATAL')));
+  if($('kajAll')) $('kajAll').addEventListener('click', () => putusAju(R.map(x => x.id), 'APPROVE'));
+}
+async function putusAju(ids, aksi){
+  const x = S.kv.aju.rows.find(r => r.id === ids[0]) || {};
+  const nm = ids.length > 1 ? `${ids.length} barang` : (x.product_name || x.product_code);
+  let alasan = null;
+  if(aksi === 'APPROVE' && !confirm(`Setujui perubahan harga ${nm}?\nHarga kanvas langsung berubah.`)) return;
+  if(aksi === 'REJECT'){ alasan = prompt(`Tolak pengajuan harga ${nm}?\nAlasan (boleh kosong):`, ''); if(alasan === null) return; }
+  if(aksi === 'BATAL' && !confirm(`Batalkan pengajuan harga ${nm}?`)) return;
+  loading(true, 'Menyimpan…');
+  try{
+    const r = await rpc('putus_kanvas_harga_aju', { p_ids: ids, p_aksi: aksi, p_alasan: alasan });
+    if(aksi === 'APPROVE'){
+      // isi 1 karton (Lsn/krt) yang ikut diajukan
+      const isiRows = S.kv.aju.rows.filter(a => ids.includes(a.id) && a.new_isi_pak != null);
+      for(const a of isiRows){
+        try{ await rpc('save_kanvas_isi', { p_code: a.product_code, p_isi_pak: Number(a.new_isi_pak) || 0, p_isi_pcs: Number(a.new_isi_pcs) || 0 }); }
+        catch(e){ toast(`Isi karton ${a.product_name || a.product_code} gagal disimpan: ${e.message}`, true); }
+      }
+    }
+    loading(false);
+    toast(`${Number(r && r.diproses) || 0} pengajuan ${aksi === 'APPROVE' ? 'disetujui' : aksi === 'REJECT' ? 'ditolak' : 'dibatalkan'}`);
+    S.kv.aju.changed = true; loadKAju(); loadAjuCount();
+  }catch(e){ loading(false); alert(e.message); }
+}
 
 /* ---------- start ---------- */
 (async function start(){
