@@ -35,6 +35,13 @@
   .branchPills { display: flex; gap: 6px; margin-bottom: 10px; }
   .pill { padding: 5px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-muted); font-size: 13px; cursor: pointer; }
   .pill.active { border-color: var(--paid); color: var(--paid); background: rgba(91,141,239,.12); }
+  /* tombol cabang Piutang, Rekap Tagih & Hasil Tagih: KSI oren, ABP biru, DAF hijau */
+  :is(#branchPills, #rkBranchPills, #hsBranchPills) .pill[data-b="KSI"] { color: #fdba74; border-color: rgba(251,146,60,.45); }
+  :is(#branchPills, #rkBranchPills, #hsBranchPills) .pill[data-b="ABP"] { color: #93c5fd; border-color: rgba(96,165,250,.45); }
+  :is(#branchPills, #rkBranchPills, #hsBranchPills) .pill[data-b="DAF"] { color: #86efac; border-color: rgba(74,222,128,.45); }
+  :is(#branchPills, #rkBranchPills, #hsBranchPills) .pill.active[data-b="KSI"] { background: #fb923c; border-color: #fb923c; color: #1a1a1a; font-weight: 600; }
+  :is(#branchPills, #rkBranchPills, #hsBranchPills) .pill.active[data-b="ABP"] { background: #3b82f6; border-color: #3b82f6; color: #fff; font-weight: 600; }
+  :is(#branchPills, #rkBranchPills, #hsBranchPills) .pill.active[data-b="DAF"] { background: #22c55e; border-color: #22c55e; color: #0b1a10; font-weight: 600; }
   .kolPills { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-end; margin-bottom: 10px; }
   .kolPills > .meta { margin-bottom: 11px; }
   /* tombol tanpa grup diberi jarak bawah = padding bawah + border kotak grup, supaya sejajar */
@@ -339,9 +346,9 @@
         <label>Tanggal tagih <input type="date" class="inp" id="rkDate"></label>
         <span class="meta" id="rkDay"></span>
         <div class="branchPills" id="rkBranchPills" style="margin-bottom:0;">
-          <button class="pill" data-b="DAF">DAF</button>
-          <button class="pill" data-b="ABP">ABP</button>
           <button class="pill" data-b="KSI">KSI</button>
+          <button class="pill" data-b="ABP">ABP</button>
+          <button class="pill" data-b="DAF">DAF</button>
         </div>
         <select class="inp hidden" id="rkKol"></select>
         <label><input type="checkbox" id="rkIgnoreHari"> Abaikan hari tagih toko</label>
@@ -477,6 +484,7 @@
           <button class="active" data-m="">Semua</button>
           <button data-m="TF">Transfer</button>
           <button data-m="GIRO">Giro</button>
+          <button data-m="CASH">Tunai</button>
         </div>
         <div class="seg" id="trfStSeg" style="height:36px;">
           <button class="active" data-s="">Semua</button>
@@ -487,10 +495,11 @@
         <input type="text" class="inp" id="trfQ" placeholder="Cari toko / invoice / giro..." style="min-width:220px;">
         <span class="meta" id="trfSum"></span>
         <div class="actions" style="margin-left:auto;">
+          <button class="btn red" id="trfUnpostBtn" disabled title="Hapus dulu baris-nya di transfer2, baru batal posting">Batal posting</button>
           <button class="btn blue" id="trfPostBtn" disabled>Pindahkan ke transfer2</button>
         </div>
       </div>
-      <div class="meta" style="margin:0 0 8px;">Hasil tagih yang sudah di-Submit. Belum posting = bisa dipilih &amp; dipindah ke transfer2 · Sudah posting = sudah masuk transfer2 (terkunci). Tgl transfer2: Transfer = tgl transfer · Giro = tgl JT giro (Toko = Bank NoGiro NamaCustomer). Tunai diposting lewat Laporan Harian.</div>
+      <div class="meta" style="margin:0 0 8px;">Hasil tagih yang sudah di-Submit. Belum posting = bisa dipilih &amp; dipindah ke transfer2 · Sudah posting = sudah masuk transfer2 (terkunci). Mau revisi: hapus dulu barisnya di transfer2 → centang di sini → Batal posting → edit hasil tagih → posting ulang. Tgl transfer2: Transfer = tgl transfer · Giro = tgl JT giro (Toko = Bank NoGiro NamaCustomer). Tunai diposting lewat Laporan Harian.</div>
       <div class="tableWrap tall">
         <table>
           <thead><tr><th class="chk"><input type="checkbox" id="trfAll" title="Pilih semua hasil filter"></th><th>Tgl transfer2</th><th>Jenis</th><th>Cabang</th><th>Toko (transfer2)</th><th>Customer</th><th>Invoice</th><th>Giro</th><th>Tgl Tagih</th><th class="num">Nilai</th><th>Status</th></tr></thead>
@@ -2509,8 +2518,10 @@
       // invoice di rekap tanggal lain yang belum selesai TETAP muncul sesuai jadwal; hanya yang sudah ada di rekap tanggal ini yang disembunyikan
       if (inToday.has(k)) return false;
       // sudah lunas di hasil tagih (LUNAS, atau CICIL yang nilainya sudah menutup sisa) tapi belum masuk pelunasan ERP → jangan ditagih lagi
+      // CICIL: kalau ERP sudah mencatat cicilan itu (Dibayar ≥ nilai cicil), sisa sekarang = sisa SETELAH cicil → tetap ditagih
+      const rb = +(r.recent && r.recent.bayar) || 0;
       if (r.recent && daysBetween(parseAnyDate(r.recent.tgl), t0) <= 7 &&
-        (r.recent.hasil === 'BAYAR' || (+r.recent.bayar || 0) >= (+r.sisa || 0) - TOL)) return false; // menunggu ERP
+        (r.recent.hasil === 'BAYAR' || (rb >= (+r.sisa || 0) - TOL && (+r.paid || 0) < rb - TOL))) return false; // menunggu ERP
       if (q && !r._q.includes(q)) return false;
       return true;
     });
@@ -3882,9 +3893,9 @@
     let done = []; trfPostedErr = '';
     try { done = ((await rpc('get_tagih_trf_posted', { p_from: trfFromEl.value || null })) || []).map(r => ({ ...r, posted: true })); }
     catch (e) { trfPostedErr = 'Daftar yang sudah posting belum bisa tampil — run tagih_trf_posted.sql di Supabase SQL Editor.'; }
-    // Tunai tidak diposting di sini (lewat Laporan Harian Kolektor) → hanya Transfer & Giro
-    trfRows = pend.concat(done).filter(r => r.metode !== 'CASH');
-    const ada = new Set(pend.map(trfKey));
+    // Tunai tidak diposting di sini (lewat Laporan Harian Kolektor); tunai yang sudah posting tetap tampil untuk Batal posting
+    trfRows = pend.concat(done).filter(r => r.posted || r.metode !== 'CASH');
+    const ada = new Set(trfRows.map(trfKey));
     [...trfSel].forEach(k => { if (!ada.has(k)) trfSel.delete(k); });
     renderTrf();
   }
@@ -3897,7 +3908,7 @@
   function renderTrf() {
     const list = trfFiltered();
     document.getElementById('trfBody').innerHTML = list.map(r => { const k = trfKey(r); return `
-      <tr class="br-${esc(r.branch)}"${r.posted ? ' style="opacity:.6"' : ''}><td class="chk">${r.posted ? '' : `<input type="checkbox" class="trfChk" data-k="${esc(k)}" ${trfSel.has(k) ? 'checked' : ''}>`}</td>
+      <tr class="br-${esc(r.branch)}"${r.posted ? ' style="opacity:.6"' : ''}><td class="chk"><input type="checkbox" class="trfChk" data-k="${esc(k)}" ${trfSel.has(k) ? 'checked' : ''}${r.posted ? ' title="Pilih untuk Batal posting"' : ''}></td>
         <td>${dMon(r.tgl)}</td><td><span class="badge">${TRF_LBL[r.metode] || esc(r.metode)}</span></td>
         <td><span class="brTag ${esc(r.branch)}">${esc(r.branch)}</span></td><td class="wrapTxt">${esc(r.toko)}</td>
         <td class="wrapTxt small">${esc(r.customer)}</td><td class="wrapTxt small invNo">${esc(r.invoice_nos)}</td>
@@ -3911,8 +3922,12 @@
       ` · sudah posting <b style="color:var(--ok)">${done.length}</b> = <b>${fmt(sumBy(done, r => +r.nilai))}</b>` +
       (sel.length ? ` · dipilih <b>${sel.length}</b> = <b>${fmt(sumBy(sel, r => +r.nilai))}</b>` : '') +
       (trfPostedErr ? `<div style="color:var(--urgent)">${esc(trfPostedErr)}</div>` : '');
+    const selDone = trfRows.filter(r => r.posted && trfSel.has(trfKey(r)));
+    if (selDone.length) document.getElementById('trfSum').innerHTML += ` · batal posting <b style="color:var(--urgent)">${selDone.length}</b> = <b>${fmt(sumBy(selDone, r => +r.nilai))}</b>`;
     const pb = document.getElementById('trfPostBtn');
     pb.disabled = !sel.length; pb.textContent = `Pindahkan ke transfer2${sel.length ? ` (${sel.length})` : ''}`;
+    const ub = document.getElementById('trfUnpostBtn');
+    ub.disabled = !selDone.length; ub.textContent = `Batal posting${selDone.length ? ` (${selDone.length})` : ''}`;
   }
   document.getElementById('trfBody').addEventListener('change', e => {
     const c = e.target.closest('.trfChk'); if (!c) return;
@@ -3943,6 +3958,23 @@
       trfSel.clear();
       toast(`${res && res.n || sel.length} baris masuk transfer2`);
     } catch (e) { alert('Gagal pindah ke transfer2: ' + (e.message || e)); }
+    await loadTrf();
+  });
+  // Batal posting: baris transfer2 harus sudah dihapus manual dulu (dicek di server)
+  document.getElementById('trfUnpostBtn').addEventListener('click', async () => {
+    const sel = trfRows.filter(r => r.posted && trfSel.has(trfKey(r)));
+    if (!sel.length) return;
+    const list = sel.map(r => `${r.branch}  ${dMon(r.tgl)}  ${r.toko || ''}  ${fmt(r.nilai)}`).join('\n');
+    if (!confirm(`Batal posting ${sel.length} baris?\n\n${list}\n\nPastikan baris ini SUDAH DIHAPUS di transfer2.\nSetelah batal, hasil tagih bisa diedit lalu diposting ulang.`)) return;
+    const ub = document.getElementById('trfUnpostBtn'); ub.disabled = true; ub.textContent = 'Membatalkan...';
+    try {
+      const res = await rpc('unpost_tagih_trf', { p_ids: sel.flatMap(r => r.ids) });
+      sel.forEach(r => trfSel.delete(trfKey(r)));
+      toast(`${res && res.n || 0} pembayaran batal posting, sekarang bisa diedit`);
+    } catch (e) {
+      const m = e.message || String(e);
+      alert(/unpost_tagih_trf/.test(m) && /not find|does not exist/i.test(m) ? 'Run tagih_batal_posting.sql di Supabase SQL Editor dulu.' : 'Gagal batal posting: ' + m);
+    }
     await loadTrf();
   });
 
