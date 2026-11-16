@@ -2159,6 +2159,17 @@
     if (isNaN(d)) return '';
     return new Date(d.getTime() + 9 * 3600000).toISOString().slice(0, 10);
   }
+  // "11-Nov 16:24 · Batch 2" (jam WIT)
+  function exportLabel(ts, batchNo){
+    if (!ts) return '-';
+    const d = new Date(new Date(ts).getTime() + 9 * 3600000);
+    if (isNaN(d)) return '-';
+    const bln = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()];
+    const txt = String(d.getUTCDate()).padStart(2,'0') + '-' + bln + ' ' +
+      String(d.getUTCHours()).padStart(2,'0') + ':' + String(d.getUTCMinutes()).padStart(2,'0');
+    const n = batchNo.get(ts);
+    return escapeHtml(txt) + (n ? ` <b>&middot; Batch ${n}</b>` : '');
+  }
   function isBackdate(r){
     if (!r.exported_at) return false;
     const antar = trackTglAntar(r);
@@ -2215,6 +2226,18 @@
     const plHdr = new Map();
     plItems.forEach(p => { if (!plHdr.has(p.no_pl)) plHdr.set(p.no_pl, p); });
 
+    // Nomor batch export per hari (WIT): jam export sama = 1 batch
+    const batchNo = new Map();
+    const perDay = new Map();
+    [...new Set(trackItems.map(r => r.exported_at).filter(Boolean))]
+      .sort((a, b) => new Date(a) - new Date(b))
+      .forEach(ts => {
+        const day = exportDateWit(ts);
+        const n = (perDay.get(day) || 0) + 1;
+        perDay.set(day, n);
+        batchNo.set(ts, n);
+      });
+
     const tbody = document.getElementById('trackTbody');
     const html = [];
     plKeys.forEach(noPl => {
@@ -2242,7 +2265,7 @@
           `<td>${escapeHtml(r.branch)}</td>` +
           `<td>${escapeHtml(r.status)}</td>` +
           `<td>${r.exported ? '\u2714' : '-'}</td>` +
-          `<td style="white-space:nowrap">${r.exported_at ? fmtDateShort(r.exported_at) : '-'}</td></tr>`);
+          `<td style="white-space:nowrap">${exportLabel(r.exported_at, batchNo)}</td></tr>`);
       });
     });
     tbody.innerHTML = html.join('');
