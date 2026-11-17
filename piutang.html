@@ -96,6 +96,7 @@
 
   .tableWrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: auto; }
   .tableWrap.tall { max-height: calc(100vh - 340px); min-height: 240px; }
+  .tableWrap.lhTall { max-height: calc(100vh - 390px); min-height: 240px; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   thead th { position: sticky; top: 0; background: var(--surface); z-index: 1; text-align: left; padding: 11px 12px; font-size: 11.5px; letter-spacing: .04em; color: var(--text-muted); border-bottom: 1px solid var(--border); white-space: nowrap; user-select: none; }
   thead.sortable th { cursor: pointer; }
@@ -307,6 +308,7 @@
       <button class="tabBtn" data-tab="wh">Riwayat Warning</button>
       <button class="tabBtn" data-tab="master">Master Kolektor</button>
       <button class="tabBtn" data-tab="cust">Database Customer</button>
+      <button class="tabBtn" data-tab="terima">Terima Faktur <span class="badge URGENT hidden" id="stOpenCnt">0</span></button>
     </div>
 
     <!-- ============ PIUTANG ============ -->
@@ -338,6 +340,16 @@
         </table>
         <div class="empty hidden" id="empty">Tidak ada piutang yang cocok.</div>
       </div>
+    </section>
+
+    <!-- ============ TERIMA FAKTUR (serah terima dari admin tracking) ============ -->
+    <section id="tab-terima" class="hidden">
+      <div class="infoNote">Terima faktur <b>satu per satu</b>: pegang kertasnya, ketik nomor fakturnya (cukup 4–6 angka terakhir), lalu Enter.
+        Faktur yang kertasnya tidak ada <b>jangan diketik</b>. Saat <b>Tutup Batch</b>, faktur yang belum diketik otomatis dikembalikan ke admin tracking.</div>
+      <div id="stErr"></div>
+      <div class="branchPills" id="stBatchPills" style="flex-wrap:wrap;"></div>
+      <div id="stBody"></div>
+      <div id="stHist"></div>
     </section>
 
     <!-- ============ REKAP TAGIH ============ -->
@@ -844,7 +856,9 @@
   let kol2Map = new Map(), kol2Ok = false;
   let tkNoTopOn = false; // filter Master Kolektor: hanya toko TOP kosong
   let topMap = new Map(), topOk = false; // hari TOP per toko (tabel toko_top)
-  const topOf = (br, cust) => { const v = topMap.get(tokoKey(br, cust)); return v === undefined ? null : v; };
+  // kunci TOP longgar: abaikan beda huruf besar/kecil & spasi (termasuk spasi tak terlihat)
+  const topKey = (b, c) => String(b || '').replace(/\s+/g, '').toUpperCase() + '|' + String(c || '').replace(/[\s ​]+/g, ' ').trim().toUpperCase();
+  const topOf = (br, cust) => { const v = topMap.get(topKey(br, cust)); return v === undefined ? null : v; };
   // umur > TOP → kuning; umur > TOP + 30 → merah. Toko tanpa TOP: > 14 kuning, > 30 merah (aturan lama)
   const umurCls = (days, top) => { if (days === null || days === undefined) return ''; const t = top === null ? 14 : top, r = top === null ? 30 : top + 30; return days > r ? 'umurR' : days > t ? 'umurY' : ''; };
   const isMayora = r => r.branch === 'DAF' && /MAYORA/i.test(r.salesman || '');
@@ -916,25 +930,31 @@
     if (!roleOf(data.label)) return { ok: false, msg: 'PIN ini tidak punya akses ke Piutang' };
     return { ok: true, label: data.label };
   }
-  /* ---- peran: 'full' | 'adminkol' | '' (ditolak).
-     Ini hanya untuk tampilan; pengaman sebenarnya ada di server (assert_piutang_access). ---- */
-  const ADMINKOL_TABS = ['piutang', 'retur', 'rekap', 'hasil', 'master', 'cust'];
+  /* ---- peran: 'full' | 'adminkol' | 'adminpiu' | '' (ditolak).
+     Ini hanya untuk tampilan; pengaman sebenarnya ada di server (assert_piutang_access, st_role). ---- */
+  const ROLE_TABS = {
+    adminkol: ['piutang', 'retur', 'rekap', 'hasil', 'master', 'cust'],
+    adminpiu: ['piutang', 'rekap', 'hasil', 'retur', 'cash', 'terima']
+  };
   let role = '';
   function roleOf(label) {
     const l = String(label || '').trim().toUpperCase();
     if (/FULL/.test(l)) return 'full';
     if (l === 'ADMIN KOLEKTOR') return 'adminkol';
+    if (l === 'ADMIN PIUTANG') return 'adminpiu';
     return '';
   }
-  const isAdminKol = () => role === 'adminkol';
+  // semua yang bukan Full Access ikut batasan admin (tombol edit / approve disembunyikan)
+  const isAdminKol = () => role !== 'full';
+  const tabAllowed = t => role === 'full' || (ROLE_TABS[role] || []).includes(t);
   function applyRole() {
     document.querySelectorAll('#tabBar .tabBtn').forEach(b => {
-      b.style.display = (isAdminKol() && !ADMINKOL_TABS.includes(b.dataset.tab)) ? 'none' : '';
+      b.style.display = tabAllowed(b.dataset.tab) ? '' : 'none';
     });
     document.getElementById('hsPostBtn').style.display = 'none'; // diganti tab Posting Transfer
     document.getElementById('lamaBtn').style.display = isAdminKol() ? 'none' : '';
-    document.getElementById('roleTag').textContent = isAdminKol() ? 'Admin Kolektor' : 'Full Access';
-    if (isAdminKol() && !ADMINKOL_TABS.includes(currentTab)) document.querySelector('#tabBar .tabBtn[data-tab="piutang"]').click();
+    document.getElementById('roleTag').textContent = role === 'adminkol' ? 'Admin Kolektor' : role === 'adminpiu' ? 'Admin Piutang' : 'Full Access';
+    if (!tabAllowed(currentTab)) document.querySelector('#tabBar .tabBtn[data-tab="piutang"]').click();
   }
   async function submitPin() {
     const p = document.getElementById('pinIn').value.trim();
@@ -1003,12 +1023,41 @@
     try {
       const { data, error } = await sb().rpc('get_toko_top', { p_pin: pin });
       if (error) throw error;
-      topOk = true; topMap = new Map((data || []).map(t => [tokoKey(t.branch, t.customer), +t.hari_top]));
+      topOk = true; topMap = new Map((data || []).map(t => [topKey(t.branch, t.customer), +t.hari_top]));
     } catch (e) { topOk = false; topMap = new Map(); }
     activeMap = new Map((ctx.active || []).map(a => [invKey(a.branch, a.invoice_no), a]));
     recentMap = new Map();
     (ctx.recent || []).forEach(x => recentMap.set(invKey(x.branch, x.invoice_no), x)); // sorted asc -> keeps latest
+    await loadRecentSisaAwal();
     enrich();
+  }
+  // CICIL terakhir: ambil sisa saat rekap dibuat (dari rekap tanggal itu) supaya bisa tahu
+  // apakah cicilan itu sudah tercatat di ERP atau belum (lihat recentLunas)
+  async function loadRecentSisaAwal() {
+    const t0 = todayD();
+    const list = [...recentMap.values()].filter(x => x.hasil === 'SEBAGIAN' && x.tgl && daysBetween(parseAnyDate(x.tgl), t0) <= 7);
+    const tgls = [...new Set(list.filter(x => x.sisa_awal == null).map(x => String(x.tgl).slice(0, 10)))];
+    await Promise.all(tgls.map(async tgl => {
+      try {
+        const d = (await rpc('get_tagih_batches', { p_tgl: tgl })) || {};
+        (d.batches || []).forEach(b => (b.items || []).forEach(i => {
+          const x = recentMap.get(invKey(String(i.branch || '').toUpperCase(), i.invoice_no));
+          if (x && String(x.tgl).slice(0, 10) === tgl) x.sisa_awal = +i.sisa || 0;
+        }));
+      } catch (e) { /* gagal ambil → pakai cara lama */ }
+    }));
+  }
+  // hasil tagih terakhir sudah menutup sisa tapi belum masuk pelunasan ERP → anggap lunas, jangan ditagih lagi
+  function recentLunas(r) {
+    const x = r.recent;
+    if (!x || daysBetween(parseAnyDate(x.tgl), todayD()) > 7) return false;
+    if (x.hasil === 'BAYAR') return true;
+    if (x.hasil !== 'SEBAGIAN') return false;
+    const rb = +x.bayar || 0, sisa = +r.sisa || 0;
+    if (rb < sisa - TOL) return false;
+    // ERP sudah catat cicilan ini kalau sisa sekarang ≈ sisa awal − cicilan
+    if (x.sisa_awal != null) return sisa > x.sisa_awal - rb + TOL;
+    return (+r.paid || 0) < rb - TOL;
   }
   async function loadKasus() {
     const arr = (await rpc('get_piutang_kasus')) || [];
@@ -1098,18 +1147,163 @@
       r.usul = usulMap.has(k);
       r.retur = !!rt && !r.kasus; r.returAlasan = rt ? (rt.alasan || '') : ''; r.returTgl = rt ? parseAnyDate(rt.created_at) : null;
       r.isCash = isCashCust(r.customer);
+      // serah terima: faktur tracking >= tgl mulai wajib DITERIMA admin piutang dulu
+      r.st = (stOk && !r.lama && r.trackDate && stMulai && r.trackDate >= stMulai) ? (stMap.get(k) || 'BELUM') : '';
+      r.stBlock = !!r.st && r.st !== 'DITERIMA';
     });
   }
+  /* ================= SERAH TERIMA FAKTUR (SQL serah_terima_faktur.sql) ================= */
+  let stOk = false, stMulai = null, stMap = new Map();
+  async function loadSt() {
+    try {
+      const d = (await rpc('st_status_piutang')) || {};
+      stMulai = parseAnyDate(d.mulai); stMap = new Map((d.items || []).map(x => [invKey(x.branch, x.invoice_no), x.status])); stOk = !!stMulai;
+    } catch (e) { stOk = false; stMap = new Map(); }   // SQL belum di-run → fitur nonaktif
+  }
+  const stBadge = r => !r.stBlock ? '' : r.st === 'DISERAHKAN'
+    ? ' <span class="badge PENDING" title="Sudah diserahkan admin tracking, belum diketik/diterima di tab Terima Faktur">DALAM SERAH TERIMA</span>'
+    : ' <span class="badge URGENT" title="Kertas faktur belum diserahkan admin tracking">BELUM DITERIMA</span>';
+
+  /* ---- tab Terima Faktur: "blind receiving" — nomor faktur yang belum diterima TIDAK ditampilkan,
+     admin piutang harus mengetik dari kertas yang dipegang. ---- */
+  const ST_BLN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  const ST_HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+  let stBatches = [], stCur = null, stBusy = false;
+  const stCanUse = () => role === 'full' || role === 'adminpiu';
+  const stDm = v => { const d = parseAnyDate(v); return d ? String(d.getDate()).padStart(2, '0') + '-' + ST_BLN[d.getMonth()] : '—'; };
+  const stHari = v => { const d = parseAnyDate(v); return d ? ST_HARI[d.getDay()] + ' ' + stDm(v) : '—'; };
+  const stTime = ts => { const d = new Date(ts); if (isNaN(d)) return '—'; const w = new Date(d.getTime() + 9 * 3600000);
+    return String(w.getUTCDate()).padStart(2, '0') + '-' + ST_BLN[w.getUTCMonth()] + ' ' + String(w.getUTCHours()).padStart(2, '0') + ':' + String(w.getUTCMinutes()).padStart(2, '0'); };
+  const stNorm = s => String(s || '').toUpperCase().replace(/\s+/g, '');
+  async function stLoadTerima() {
+    if (!stCanUse()) return;
+    const err = document.getElementById('stErr');
+    try { stBatches = (await rpc('st_get_batches', { p_days: 30 })) || []; err.innerHTML = ''; }
+    catch (e) { err.innerHTML = `<div class="errNote">Gagal memuat serah terima: ${esc(e.message || e)} (SQL serah_terima_faktur.sql sudah di-run?)</div>`; stBatches = []; }
+    const open = stBatches.filter(b => b.status === 'OPEN');
+    const c = document.getElementById('stOpenCnt'); c.textContent = open.length; c.classList.toggle('hidden', !open.length);
+    if (!open.some(b => b.id === stCur)) stCur = open.length ? open[0].id : null;
+    if (currentTab === 'terima') stRender();
+  }
+  function stRender() {
+    const open = stBatches.filter(b => b.status === 'OPEN');
+    document.getElementById('stBatchPills').innerHTML = open.length ? open.map(b => {
+      const it = b.items || [];
+      return `<button class="pill ${b.id === stCur ? 'active' : ''}" data-stb="${b.id}">${esc(b.kode)} · ${it.length} faktur · ${stHari(b.jadwal)}</button>`;
+    }).join('') : '<div class="meta" style="margin-bottom:12px;">Tidak ada batch yang menunggu diterima.</div>';
+    const b = open.find(x => x.id === stCur);
+    const body = document.getElementById('stBody');
+    if (!b) body.innerHTML = '';
+    else {
+      const it = b.items || [], got = it.filter(i => i.status === 'DITERIMA'), left = it.filter(i => i.status === 'DISERAHKAN');
+      got.sort((x, y) => String(y.diterima_at).localeCompare(String(x.diterima_at)));
+      const sum = a => a.reduce((s, i) => s + (+i.amount || 0), 0);
+      body.innerHTML = `<div class="card"><div class="hd"><div><h3>${esc(b.kode)}</h3>
+          <div class="tot"><span>Dibuat ${stTime(b.dibuat_at)} oleh <b>${esc(b.dibuat_oleh || '')}</b></span><span>Jadwal <b>${stHari(b.jadwal)}</b></span>
+          <span>Diterima <b>${got.length}</b> / ${it.length} lembar</span><span>Nilai diterima <b>${fmt(sum(got))}</b> / ${fmt(sum(it))}</span>
+          <span>Belum <b style="color:var(--urgent)">${left.length}</b></span></div></div>
+          <button class="btn sm red" id="stCloseBtn" ${stBusy ? 'disabled' : ''}>Tutup Batch</button></div>
+        <div style="padding:12px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <input class="inp" id="stInput" placeholder="Ketik no faktur (min 4 karakter) lalu Enter..." autocomplete="off" style="min-width:320px;">
+          <span id="stInMsg" class="small"></span></div>
+        <div id="stPick" style="padding:0 14px 10px;"></div>
+        <div class="tableWrap" style="max-height:50vh;border:0;border-top:1px solid var(--border);border-radius:0;"><table>
+          <thead><tr><th>#</th><th>Branch</th><th>No Faktur</th><th>Customer</th><th>Tracking</th><th class="num">Nilai</th><th>Diterima</th><th></th></tr></thead>
+          <tbody>${got.map((i, n) => `<tr><td>${got.length - n}</td><td><span class="brTag ${esc(i.branch)}">${esc(i.branch)}</span></td><td class="invNo">${esc(i.invoice_no)}</td>
+            <td class="wrapTxt">${esc(i.customer)}</td><td>${stDm(i.tracking_date)}</td><td class="num">${fmt(i.amount)}</td>
+            <td class="small">${stTime(i.diterima_at)} · ${esc(i.diterima_oleh || '')}</td><td><button class="btn sm" data-stun="${i.id}">Batal</button></td></tr>`).join('')
+            || '<tr><td colspan="8" class="muted" style="text-align:center;padding:20px;">Belum ada faktur diterima. Mulai ketik nomor faktur di atas.</td></tr>'}</tbody></table></div></div>`;
+      const inp = document.getElementById('stInput');
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); stType(inp.value); } });
+      inp.focus();
+      document.getElementById('stCloseBtn').addEventListener('click', () => stClose(b));
+    }
+    stRenderHist();
+  }
+  function stInMsg(t, ok) { const m = document.getElementById('stInMsg'); if (m) { m.textContent = t; m.style.color = ok ? 'var(--ok)' : 'var(--urgent)'; } }
+  function stType(raw) {
+    const b = stBatches.find(x => x.id === stCur); if (!b || stBusy) return;
+    const q = stNorm(raw);
+    document.getElementById('stPick').innerHTML = '';
+    if (q.length < 4) { stInMsg('Ketik minimal 4 karakter.'); return; }
+    const it = b.items || [];
+    const cand = it.filter(i => i.status === 'DISERAHKAN' && stNorm(i.invoice_no).endsWith(q));
+    if (cand.length === 1) return stReceive(cand[0]);
+    if (cand.length > 1) {
+      stInMsg(`${cand.length} faktur cocok — pilih yang sesuai kertas:`);
+      document.getElementById('stPick').innerHTML = cand.map(i => `<button class="btn sm" data-stpick="${i.id}" style="margin:0 6px 6px 0;">${esc(i.branch)} · ${esc(i.invoice_no)} · ${esc(i.customer)}</button>`).join('');
+      return;
+    }
+    const done = it.find(i => i.status === 'DITERIMA' && stNorm(i.invoice_no).endsWith(q));
+    stInMsg(done ? `${done.invoice_no} sudah diterima tadi (${stTime(done.diterima_at)}).`
+      : `"${raw.trim()}" TIDAK ADA di batch ini. Jangan diterima — kembalikan kertasnya ke admin tracking.`);
+  }
+  async function stReceive(i) {
+    stBusy = true;
+    try {
+      await rpc('st_terima', { p_item_id: i.id });
+      i.status = 'DITERIMA'; i.diterima_at = new Date().toISOString(); i.diterima_oleh = role === 'adminpiu' ? 'ADMIN PIUTANG' : 'FULL ACCESS';
+      stMap.set(invKey(i.branch, i.invoice_no), 'DITERIMA');
+      stBusy = false; stRender();
+      stInMsg(`✓ ${i.branch} ${i.invoice_no} diterima.`, true);
+    } catch (e) { stBusy = false; stInMsg('Gagal: ' + (e.message || e)); }
+  }
+  async function stClose(b) {
+    const left = (b.items || []).filter(i => i.status === 'DISERAHKAN').length;
+    const got = (b.items || []).filter(i => i.status === 'DITERIMA').length;
+    if (!confirm(`Tutup batch ${b.kode}?\n\nDiterima: ${got} lembar\nTidak ada fisik → DIKEMBALIKAN ke admin tracking: ${left} lembar\n\nBatch yang sudah ditutup tidak bisa diubah lagi.`)) return;
+    stBusy = true; stRender();
+    try {
+      const r = await rpc('st_tutup', { p_batch_id: b.id });
+      toast(`${b.kode} ditutup · diterima ${r.diterima} · dikembalikan ${r.dikembalikan}`);
+    } catch (e) { alert('Gagal tutup batch: ' + (e.message || e)); }
+    stBusy = false;
+    await stLoadTerima(); await loadSt(); enrich();
+  }
+  function stRenderHist() {
+    const closed = stBatches.filter(b => b.status === 'CLOSED');
+    const el = document.getElementById('stHist');
+    if (!closed.length) { el.innerHTML = ''; return; }
+    el.innerHTML = `<div class="card"><div class="hd"><h3>Riwayat batch ditutup (30 hari)</h3></div><div class="tableWrap" style="border:0;border-radius:0;"><table>
+      <thead><tr><th>Kode</th><th>Dibuat</th><th>Ditutup</th><th class="num">Faktur</th><th class="num">Diterima</th><th>Dikembalikan (tidak ada fisik)</th><th></th></tr></thead><tbody>
+      ${closed.map(b => { const it = b.items || [], kb = it.filter(i => i.status === 'DIKEMBALIKAN');
+        return `<tr><td><b>${esc(b.kode)}</b></td><td class="small">${stTime(b.dibuat_at)} · ${esc(b.dibuat_oleh || '')}</td><td class="small">${stTime(b.ditutup_at)} · ${esc(b.ditutup_oleh || '')}</td>
+          <td class="num">${it.length}</td><td class="num">${it.filter(i => i.status === 'DITERIMA').length}</td>
+          <td class="wrapTxt small">${kb.length ? `<b style="color:var(--urgent)">${kb.length}</b>: ` + kb.map(i => esc(i.branch + ' ' + i.invoice_no)).join(', ') : '<span class="muted">—</span>'}</td>
+          <td>${role === 'full' ? `<button class="btn sm" data-streopen="${b.id}">Buka Lagi</button>` : ''}</td></tr>`; }).join('')}</tbody></table></div></div>`;
+  }
+  document.getElementById('tab-terima').addEventListener('click', async e => {
+    const pill = e.target.closest('[data-stb]');
+    if (pill) { stCur = +pill.dataset.stb; stRender(); return; }
+    const pick = e.target.closest('[data-stpick]');
+    if (pick) { const b = stBatches.find(x => x.id === stCur); const i = b && b.items.find(x => String(x.id) === pick.dataset.stpick); if (i) stReceive(i); return; }
+    const un = e.target.closest('[data-stun]');
+    if (un) {
+      const b = stBatches.find(x => x.id === stCur); const i = b && b.items.find(x => String(x.id) === un.dataset.stun);
+      if (!i || !confirm(`Batalkan penerimaan ${i.invoice_no}?`)) return;
+      try { await rpc('st_batal_terima', { p_item_id: i.id }); i.status = 'DISERAHKAN'; i.diterima_at = null; stMap.set(invKey(i.branch, i.invoice_no), 'DISERAHKAN'); stRender(); }
+      catch (err) { alert('Gagal: ' + (err.message || err)); }
+      return;
+    }
+    const ro = e.target.closest('[data-streopen]');
+    if (ro) {
+      const b = stBatches.find(x => String(x.id) === ro.dataset.streopen);
+      if (!b || !confirm(`Buka lagi batch ${b.kode}?\nFaktur yang dikembalikan (dan belum masuk batch lain) kembali menunggu diterima.`)) return;
+      try { await rpc('st_buka_lagi', { p_batch_id: b.id }); stCur = b.id; await stLoadTerima(); await loadSt(); enrich(); }
+      catch (err) { alert('Gagal: ' + (err.message || err)); }
+    }
+  });
   async function loadAll() {
     const upd = document.getElementById('updated'), rb = document.getElementById('refreshBtn');
     upd.textContent = 'Loading...'; rb.disabled = true; showErr('');
     try {
       kkMap = null; kkErr = '';
-      await Promise.all([loadPiutang(), loadCtx(), loadKasus(), loadRetur()]);
+      await Promise.all([loadPiutang(), loadCtx(), loadKasus(), loadRetur(), loadSt()]);
       enrich();
       upd.textContent = 'Updated ' + new Date().toLocaleTimeString();
       fillKolSelects();
       await renderCurrent();
+      if (stCanUse() && currentTab !== 'terima') stLoadTerima();   // badge jumlah batch menunggu
       postIssues();
       openWarn();
       if (wantReport) openReportTab();
@@ -1181,12 +1375,12 @@
     document.getElementById('lhSub').classList.toggle('hidden', top !== 'lh');
     document.querySelectorAll('#lhSub button').forEach(x => x.classList.toggle('active', x.dataset.sub === t));
     const sec = ['kasus', 'retur', 'cash'].includes(currentTab) ? 'piutang' : currentTab;
-    ['piutang', 'rekap', 'hasil', 'lh', 'trf', 'lunas', 'giro', 'report', 'wh', 'master', 'cust'].forEach(s => document.getElementById('tab-' + s).classList.toggle('hidden', s !== sec));
+    ['piutang', 'rekap', 'hasil', 'lh', 'trf', 'lunas', 'giro', 'report', 'wh', 'master', 'cust', 'terima'].forEach(s => document.getElementById('tab-' + s).classList.toggle('hidden', s !== sec));
     if (currentTab === 'rekap') { rkWarnOk = false; openWarn(); }
     renderCurrent();
   }
   document.querySelectorAll('#tabBar .tabBtn').forEach(b => b.addEventListener('click', () => {
-    if (isAdminKol() && !ADMINKOL_TABS.includes(b.dataset.tab)) return;
+    if (!tabAllowed(b.dataset.tab)) return;
     showTab(b.dataset.tab === 'lh' ? lhSubLast : b.dataset.tab);
   }));
   document.querySelectorAll('#lhSub button').forEach(b => b.addEventListener('click', () => {
@@ -1477,6 +1671,7 @@
         if (sc !== pScope) { pScope = sc; pSel.clear(); page = 0; }
         renderPiutang();
       }
+      else if (currentTab === 'terima') await stLoadTerima();
       else if (currentTab === 'rekap') await loadRekap();
       else if (currentTab === 'hasil') await loadHasil();
       else if (currentTab === 'lh') await loadLH();
@@ -1753,7 +1948,8 @@
   }
   function tagihBadge(r) {
     if (r.active) return `<span class="badge DITAGIH">DITAGIH ${dmy(r.active.tgl).slice(0, 5)}</span>`;
-    if (r.recent) return `<span class="badge ${r.recent.hasil}" title="${esc(r.recent.alasan || '')}">${hasilLbl(r.recent.hasil)} ${dmy(r.recent.tgl).slice(0, 5)}${r.recent.bayar ? ' · ' + fmt(r.recent.bayar) : ''}</span>`;
+    if (r.recent) { const h = r.recent.hasil === 'SEBAGIAN' && recentLunas(r) ? 'BAYAR' : r.recent.hasil;
+      return `<span class="badge ${h}" title="${esc(r.recent.alasan || '')}${h !== r.recent.hasil ? ' — sudah menutup sisa, menunggu pelunasan ERP' : ''}">${hasilLbl(h)} ${dmy(r.recent.tgl).slice(0, 5)}${r.recent.bayar ? ' · ' + fmt(r.recent.bayar) : ''}</span>`; }
     return '<span class="muted">—</span>';
   }
   function renderPiutang() {
@@ -1789,7 +1985,7 @@
       tb.innerHTML = pageRows.map((r, i) => `
         <tr class="${r.payCount ? 'clickable' : ''}" data-i="${s + i}">
           <td class="chk dragChk" data-dk="${esc(invKey(r.branch, r.invoiceNo))}"><input type="checkbox" ${pSel.has(invKey(r.branch, r.invoiceNo)) ? 'checked' : ''}></td>
-          <td>${esc(r.branch)}</td><td class="invNo noClick">${esc(r.invoiceNo)}${r.lama ? (isAdminKol() ? ' <span class="badge LAMA" title="Faktur lama, diinput manual">LAMA</span>' : ` <span class="badge LAMA" data-lama-edit="${esc(r.branch)}|${esc(r.invoiceNo)}" style="cursor:pointer" title="Faktur lama, diinput manual — klik untuk ubah">LAMA ✎</span>`) : ''}${r.usul && !r.retur ? ' <span class="badge WARNING" title="Diusulkan pindah ke Masalah Retur, menunggu persetujuan Full Access">USUL RETUR</span>' : ''}</td><td class="wrapTxt noClick">${esc(r.customer)}</td>
+          <td>${esc(r.branch)}</td><td class="invNo noClick">${esc(r.invoiceNo)}${r.lama ? (isAdminKol() ? ' <span class="badge LAMA" title="Faktur lama, diinput manual">LAMA</span>' : ` <span class="badge LAMA" data-lama-edit="${esc(r.branch)}|${esc(r.invoiceNo)}" style="cursor:pointer" title="Faktur lama, diinput manual — klik untuk ubah">LAMA ✎</span>`) : ''}${r.usul && !r.retur ? ' <span class="badge WARNING" title="Diusulkan pindah ke Masalah Retur, menunggu persetujuan Full Access">USUL RETUR</span>' : ''}${stBadge(r)}</td><td class="wrapTxt noClick">${esc(r.customer)}</td>
           <td>${r.trackDate ? dmy(r.trackDate) : '—'}</td><td>${esc(r.salesman)}</td>
           <td>${r.kolNama ? esc(r.kolNama) : '<span class="muted">—</span>'}</td>
           <td class="num">${fmt(r.amount)}</td><td class="num ${r.paid ? '' : 'muted'}">${r.paid ? fmt(r.paid) : '—'}</td>
@@ -2510,6 +2706,7 @@
     const t0 = todayD();
     return rows.filter(r => {
       if (r.kasus || r.retur) return false;
+      if (r.stBlock) return false;   // kertas faktur belum diterima admin piutang → belum bisa ditagih
       if (!r.kolId || !kolById.get(r.kolId) || !kolById.get(r.kolId).aktif) return false;
       if (kol && r.kolId !== kol) return false;
       if (rkBranch && r.branch !== rkBranch) return false;
@@ -2519,9 +2716,7 @@
       if (inToday.has(k)) return false;
       // sudah lunas di hasil tagih (LUNAS, atau CICIL yang nilainya sudah menutup sisa) tapi belum masuk pelunasan ERP → jangan ditagih lagi
       // CICIL: kalau ERP sudah mencatat cicilan itu (Dibayar ≥ nilai cicil), sisa sekarang = sisa SETELAH cicil → tetap ditagih
-      const rb = +(r.recent && r.recent.bayar) || 0;
-      if (r.recent && daysBetween(parseAnyDate(r.recent.tgl), t0) <= 7 &&
-        (r.recent.hasil === 'BAYAR' || (rb >= (+r.sisa || 0) - TOL && (+r.paid || 0) < rb - TOL))) return false; // menunggu ERP
+      if (recentLunas(r)) return false; // menunggu ERP
       if (q && !r._q.includes(q)) return false;
       return true;
     });
@@ -2533,7 +2728,9 @@
     const tgl = document.getElementById('rkDate').value;
     const posted = rkData.hari && rkData.hari.posted_at;
     document.getElementById('rkNote').innerHTML = posted ? `<div class="infoNote">Tanggal ini sudah diposting — tidak bisa tambah rekap.</div>` :
-      (parseAnyDate(tgl) && parseAnyDate(tgl).getDay() === 0 ? `<div class="infoNote">Hari Minggu — toko tutup.</div>` : '');
+      (parseAnyDate(tgl) && parseAnyDate(tgl).getDay() === 0 ? `<div class="infoNote">Hari Minggu — toko tutup.</div>` : '')
+      + (() => { const n = rows.filter(r => r.stBlock && !r.kasus && !r.retur && (!rkBranch || r.branch === rkBranch)).length;
+          return n ? `<div class="infoNote">${n} faktur belum diterima dari admin tracking (serah terima) — tidak ikut usulan tagihan sampai diterima di tab Terima Faktur.</div>` : ''; })();
     renderRekapDone();
     const el = document.getElementById('rkProposal');
     const kid = document.getElementById('rkKol').value, br = rkBranch;
@@ -2749,7 +2946,20 @@
     document.getElementById('hsDay').textContent = d ? HARI[d.getDay()] : '';
     hsData = (await rpc('get_tagih_batches', { p_tgl: tgl })) || { batches: [] };
     hsData.batches = hsData.batches || [];
+    syncHasilSisa();
     renderHasil(); renderSelBar();
+  }
+  // Sisa di rekap = snapshot saat rekap dibuat. Kalau sesudahnya ada pelunasan lain masuk (BPP),
+  // pakai sisa terbaru dari tab Piutang supaya tidak muncul "kurang" palsu. Hanya sebelum diposting.
+  function syncHasilSisa() {
+    if (hsData.hari && hsData.hari.posted_at) return;
+    const live = new Map((rows || []).map(r => [r.branch + '|' + r.invoiceNo, r.sisa]));
+    hsData.batches.forEach(b => (b.items || []).forEach(i => {
+      const s = live.get(String(i.branch || '').toUpperCase() + '|' + i.invoice_no);
+      if (s == null || s >= (+i.sisa || 0) - TOL) return;
+      i.sisa_awal = i.sisa; i.sisa = s;
+      if (i.hasil === 'SEBAGIAN' && itemTotals(i).total >= s - TOL) i.hasil = 'BAYAR';
+    }));
   }
   function itemTotals(i) {
     const t = { CASH: 0, TF: 0, GIRO: 0, CN_RETUR: 0 };
@@ -2879,7 +3089,7 @@
           const chk = pk => open ? `<td class="chk"><input type="checkbox" tabindex="-1" ${pk ? 'checked' : ''}></td>` : '';
           const oneRow = (i, extra, sub, gt) => {
             const x = itemTotals(i), pk = pkOf([i]);
-            return `<tr class="br-${esc(i.branch)}${pk ? ' picked' : ''}${extra || ''}" data-row="${i.id}" data-bid="${selGrp(b)}">${chk(pk)}<td class="wrapTxt">${sub ? '<span class="muted" style="margin-left:14px;">└ </span>' : `<span class="brTag ${esc(i.branch)}">${esc(i.branch)}</span>${esc(tokoName(i.customer))} · `}<span class="invNo">${esc(i.invoice_no)}</span></td><td>${dmy(i.tracking_date)}</td><td class="num">${fmt(i.sisa)}</td>
+            return `<tr class="br-${esc(i.branch)}${pk ? ' picked' : ''}${extra || ''}" data-row="${i.id}" data-bid="${selGrp(b)}">${chk(pk)}<td class="wrapTxt">${sub ? '<span class="muted" style="margin-left:14px;">└ </span>' : `<span class="brTag ${esc(i.branch)}">${esc(i.branch)}</span>${esc(tokoName(i.customer))} · `}<span class="invNo">${esc(i.invoice_no)}</span></td><td>${dmy(i.tracking_date)}</td><td class="num">${fmt(i.sisa)}${i.sisa_awal != null ? `<div class="small muted" title="Sisa saat rekap dibuat; sesudahnya ada pelunasan lain masuk">awal ${fmt(i.sisa_awal)}</div>` : ''}</td>
               <td>${i.hasil ? `<span class="badge ${i.hasil}">${hasilLbl(i.hasil)}</span>` : '<span class="badge NONE">BELUM DIISI</span>'}</td>
               <td class="wrapTxt small">${i.hasil === 'GAGAL' ? esc(i.alasan) : bayarDetail(i) + (i.alasan ? ` <span class="muted">— ${esc(i.alasan)}</span>` : '')}</td>
               <td class="num">${x.total ? fmt(x.total) + selTag(x.total, i.sisa) : '—'}</td>
@@ -3424,7 +3634,11 @@
       const pendKB = (j, br) => pendK[j] && x.batches.some(b => b.kolektor === kols[j] && b.status !== 'DICEK' && b.items.some(i => i.branch === br));
       const pendKAny = j => BRG.some(br => pendKB(j, br));
       const pcell = (v, j, br) => {
-        if (!pendKB(j, br)) return cell(v);
+        if (!pendKB(j, br)) {
+          // ada tagihan kolektor ini di cabang ini tapi nilainya 0 → tampilkan 0 (bukan kosong)
+          if (!v && x.batches.some(b => b.kolektor === kols[j] && b.items.some(i => i.branch === br))) return '<td class="num">0</td>';
+          return cell(v);
+        }
         return `<td class="num${v ? '' : ' small'}" style="${LH_PEND_CSS}" title="${esc(kols[j])} ${br}: belum Submit Hasil">${v ? fmt(v) : 'belum submit'}</td>`;
       };
       // baris tanggal: hanya kalau rekap belum submit tapi tidak ada faktur di cabang mana pun
@@ -3435,7 +3649,7 @@
     const allT = kols.map((_, j) => sumBy(BRG, br => brT[br][j]));
     const foot = BRG.map(br => `<tr class="br-${br}"><td style="padding-left:22px;"><span class="brTag ${br}">${br}</span></td>${brT[br].map(cell).join('')}${cell(sumBy(brT[br], v => v))}${tcTd}</tr>`).join('');
     const title = lhView === 'tunai' ? 'Laporan Tunai Kolektor' : 'Total Kolektor Harian <span class="muted small">(tunai + giro + TF + CN)</span>';
-    return `<div class="card"><div class="hd"><b>${title}</b> <span class="small" style="margin-left:12px;padding:2px 8px;border-radius:4px;${LH_PEND_CSS}">belum Submit Hasil</span></div><div class="tableWrap"><table>
+    return `<div class="card"><div class="hd"><b>${title}</b> <span class="small" style="margin-left:12px;padding:2px 8px;border-radius:4px;${LH_PEND_CSS}">belum Submit Hasil</span></div><div class="tableWrap lhTall"><table>
       <thead><tr><th>TGL</th>${kols.map(k => `<th class="num">${esc(k)}</th>`).join('')}<th class="num">TOTAL</th>${tcTh}</tr></thead>
       <tbody>${rows || `<tr><td colspan="${kols.length + 3}" class="muted">Belum ada data bulan ini.</td></tr>`}
       <tr class="tt"><td>TOTAL</td>${allT.map(cell).join('')}${cell(sumBy(allT, v => v))}${tcTd}</tr>${foot}</tbody></table></div></div>`;
@@ -3571,7 +3785,7 @@
         <td>${esc(t.branch)}</td><td class="wrapTxt">${esc(t.customer)}</td>
         <td>${t.kolId && kolById.get(t.kolId) ? esc(kolById.get(t.kolId).nama) : '<span class="muted">—</span>'}</td>
         <td>${t.kol2Id && kolById.get(t.kol2Id) ? esc(kolById.get(t.kol2Id).nama) : '<span class="muted">—</span>'}</td>
-        <td class="small">${t.kolId ? hariLabel(t.hari) : ''}</td><td class="num">${topOf(t.branch, t.customer) ?? '<span class="muted">—</span>'}</td><td class="num">${t.n || '—'}</td><td class="num">${t.sisa ? fmt(t.sisa) : '—'}</td></tr>`).join('')
+        <td class="small">${t.kolId ? hariLabel(t.hari) : ''}</td><td class="num tkTop" data-k="${esc(t.key)}" title="Klik untuk isi / ubah TOP" style="cursor:pointer;text-decoration:underline dotted;">${topOf(t.branch, t.customer) ?? '<span class="muted">isi</span>'}</td><td class="num">${t.n || '—'}</td><td class="num">${t.sisa ? fmt(t.sisa) : '—'}</td></tr>`).join('')
       || '<tr><td colspan="9" class="muted">Tidak ada toko.</td></tr>';
     // tombol "Belum ada kolektor (N)" — N ikut filter branch
     const bNow = document.getElementById('tkBranch').value, nb = document.getElementById('tkNoKol');
@@ -3607,6 +3821,21 @@
   });
   document.addEventListener('mouseup', () => { tkDrag = null; });
   document.getElementById('tkBody').addEventListener('click', e => { if (e.target.closest('.tkChk')) e.preventDefault(); });
+  // isi TOP manual: klik sel TOP
+  document.getElementById('tkBody').addEventListener('click', async e => {
+    const td = e.target.closest('.tkTop'); if (!td) return;
+    if (!topOk) { alert('Tabel TOP belum ada. Jalankan toko_top.sql di Supabase SQL Editor dulu.'); return; }
+    const t = tokoList().find(x => x.key === td.dataset.k); if (!t) return;
+    const old = topOf(t.branch, t.customer);
+    const v = prompt(`TOP (hari) untuk ${t.branch} · ${t.customer}`, old ?? '');
+    if (v === null) return;
+    const n = parseInt(String(v).replace(/[^0-9]/g, ''), 10);
+    if (isNaN(n) || n < 0) { alert('Isi angka hari, contoh: 14'); return; }
+    try {
+      await rpc('save_toko_top', { p_rows: [{ branch: t.branch, customer: t.customer, hari_top: n }] });
+      topMap.set(topKey(t.branch, t.customer), n); enrich(); renderToko(); toast(`TOP ${t.customer} = ${n} hari`);
+    } catch (err) { alert(err.message || err); }
+  });
   function tkSetOne(k, on, chk) { on ? tkSel.add(k) : tkSel.delete(k); if (chk) chk.checked = on; document.getElementById('tkSelCount').textContent = tkSel.size; }
   document.getElementById('tkAll').addEventListener('change', e => { tkFiltered().forEach(t => e.target.checked ? tkSel.add(t.key) : tkSel.delete(t.key)); renderToko(); });
   ['tkBranch', 'tkAssign'].forEach(id => document.getElementById(id).addEventListener('change', () => { tkPage = 0; renderToko(); }));
