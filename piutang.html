@@ -143,6 +143,9 @@
   #hsSearch::placeholder { color: #888; }
   #tab-hasil td.chk { cursor: pointer; user-select: none; }
   #tab-hasil tr.picked td { background: rgba(91,141,239,.14); }
+  #stBelumBody { user-select: none; }
+  #stBelumBody tr[data-stk] { cursor: pointer; }
+  #stBelumBody tr.picked td { background: rgba(91,141,239,.18); }
   #tab-hasil tr.grpRow td { border-top: 1px solid var(--border); }
   #tab-hasil tr.grpDet td { font-size: 12px; color: var(--text-muted); padding-top: 5px; padding-bottom: 5px; }
   #hsSelBar { position: sticky; bottom: 0; z-index: 5; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 10px 14px; margin-top: 8px;
@@ -342,14 +345,10 @@
       </div>
     </section>
 
-    <!-- ============ TERIMA FAKTUR (serah terima dari admin tracking) ============ -->
+    <!-- ============ TERIMA FAKTUR (semua faktur tracking langsung muncul) ============ -->
     <section id="tab-terima" class="hidden">
-      <div class="infoNote">Terima faktur <b>satu per satu</b>: pegang kertasnya, ketik nomor fakturnya (cukup 4–6 angka terakhir), lalu Enter.
-        Faktur yang kertasnya tidak ada <b>jangan diketik</b>. Saat <b>Tutup Batch</b>, faktur yang belum diketik otomatis dikembalikan ke admin tracking.</div>
       <div id="stErr"></div>
-      <div class="branchPills" id="stBatchPills" style="flex-wrap:wrap;"></div>
       <div id="stBody"></div>
-      <div id="stHist"></div>
     </section>
 
     <!-- ============ REKAP TAGIH ============ -->
@@ -396,6 +395,7 @@
       </div>
       <div class="kolPills" id="hsKol"></div>
       <div id="hsDayInfo"></div>
+      <div id="hsHist"></div>
       <div id="hsCards"></div>
       <div id="hsSelBar" class="hidden"></div>
     </section>
@@ -633,6 +633,25 @@
 </div>
 
 <!-- Modal: kelola kolektor (lihat / edit / tambah / hapus) -->
+<!-- Modal: konfirmasi terima faktur (Terima Faktur, pilih banyak) -->
+<div id="stCfmModal" class="modalBg hidden">
+  <div class="modal" style="width:640px;">
+    <div class="hd"><div><h3 id="stCfmTitle">Terima faktur</h3><div class="meta">Periksa lagi setiap lembar sebelum menerima</div></div><button class="x" data-close="stCfmModal">×</button></div>
+    <div class="bd">
+      <div class="tableWrap" style="max-height:34vh;margin-bottom:14px;"><table>
+        <thead><tr><th>#</th><th>Branch</th><th>No Faktur</th><th>Customer</th><th>Tracking</th></tr></thead>
+        <tbody id="stCfmBody"></tbody></table></div>
+      <label style="display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border:1px solid var(--border);border-radius:10px;cursor:pointer;line-height:1.55;">
+        <input type="checkbox" id="stCfmChk" style="margin-top:4px;flex:none;width:16px;height:16px;">
+        <span class="small" id="stCfmText"></span>
+      </label>
+    </div>
+    <div class="ft"><span class="small muted">Tercatat atas nama PIN Anda, tanggal &amp; jam WIT.</span>
+      <div style="display:flex;gap:8px;"><button class="btn" data-close="stCfmModal">Batal</button>
+      <button class="btn primary" id="stCfmOk" disabled>Terima</button></div></div>
+  </div>
+</div>
+
 <div id="kolModal" class="modalBg hidden">
   <div class="modal">
     <div class="hd"><div><h3>Kelola Kolektor</h3><div class="meta">Hapus hanya bisa kalau kolektor belum punya toko & belum pernah dipakai di rekap tagih</div></div><button class="x" data-close="kolModal">×</button></div>
@@ -934,7 +953,7 @@
      Ini hanya untuk tampilan; pengaman sebenarnya ada di server (assert_piutang_access, st_role). ---- */
   const ROLE_TABS = {
     adminkol: ['piutang', 'retur', 'rekap', 'hasil', 'master', 'cust'],
-    adminpiu: ['piutang', 'rekap', 'hasil', 'retur', 'cash', 'terima']
+    adminpiu: ['piutang', 'rekap', 'hasil', 'kasus', 'retur', 'cash', 'terima']
   };
   let role = '';
   function roleOf(label) {
@@ -1160,136 +1179,194 @@
       stMulai = parseAnyDate(d.mulai); stMap = new Map((d.items || []).map(x => [invKey(x.branch, x.invoice_no), x.status])); stOk = !!stMulai;
     } catch (e) { stOk = false; stMap = new Map(); }   // SQL belum di-run → fitur nonaktif
   }
-  const stBadge = r => !r.stBlock ? '' : r.st === 'DISERAHKAN'
-    ? ' <span class="badge PENDING" title="Sudah diserahkan admin tracking, belum diketik/diterima di tab Terima Faktur">DALAM SERAH TERIMA</span>'
-    : ' <span class="badge URGENT" title="Kertas faktur belum diserahkan admin tracking">BELUM DITERIMA</span>';
+  const stBadge = r => !r.stBlock ? ''
+    : ' <span class="badge URGENT" title="Kertas faktur belum diketik/diterima di tab Terima Faktur">BELUM DITERIMA</span>';
 
-  /* ---- tab Terima Faktur: "blind receiving" — nomor faktur yang belum diterima TIDAK ditampilkan,
-     admin piutang harus mengetik dari kertas yang dipegang. ---- */
+  /* ---- tab Terima Faktur: semua faktur tracking FULL/PAID (>= tgl mulai) langsung muncul.
+     Terima hanya dengan MENGETIK nomor dari kertas yang dipegang (tidak ada tombol terima). ---- */
   const ST_BLN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
   const ST_HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-  let stBatches = [], stCur = null, stBusy = false;
+  let stData = { today: null, belum: [], sudah: [] }, stBusy = false, stSel = new Set(), stDrag = null;
+  const stKey = i => i.branch + '|' + i.invoice_no;
   const stCanUse = () => role === 'full' || role === 'adminpiu';
   const stDm = v => { const d = parseAnyDate(v); return d ? String(d.getDate()).padStart(2, '0') + '-' + ST_BLN[d.getMonth()] : '—'; };
   const stHari = v => { const d = parseAnyDate(v); return d ? ST_HARI[d.getDay()] + ' ' + stDm(v) : '—'; };
-  const stTime = ts => { const d = new Date(ts); if (isNaN(d)) return '—'; const w = new Date(d.getTime() + 9 * 3600000);
+  const stWit = ts => new Date(new Date(ts).getTime() + 9 * 3600000);
+  const stTime = ts => { const w = stWit(ts); if (isNaN(w)) return '—';
     return String(w.getUTCDate()).padStart(2, '0') + '-' + ST_BLN[w.getUTCMonth()] + ' ' + String(w.getUTCHours()).padStart(2, '0') + ':' + String(w.getUTCMinutes()).padStart(2, '0'); };
+  const stIsToday = ts => { const w = stWit(ts); return !isNaN(w) && w.toISOString().slice(0, 10) === String(stData.today || ''); };
   const stNorm = s => String(s || '').toUpperCase().replace(/\s+/g, '');
+  const stLewat = i => i.jadwal && stData.today && String(i.jadwal) < String(stData.today);
   async function stLoadTerima() {
     if (!stCanUse()) return;
     const err = document.getElementById('stErr');
-    try { stBatches = (await rpc('st_get_batches', { p_days: 30 })) || []; err.innerHTML = ''; }
-    catch (e) { err.innerHTML = `<div class="errNote">Gagal memuat serah terima: ${esc(e.message || e)} (SQL serah_terima_faktur.sql sudah di-run?)</div>`; stBatches = []; }
-    const open = stBatches.filter(b => b.status === 'OPEN');
-    const c = document.getElementById('stOpenCnt'); c.textContent = open.length; c.classList.toggle('hidden', !open.length);
-    if (!open.some(b => b.id === stCur)) stCur = open.length ? open[0].id : null;
+    try { stData = (await rpc('st_get_terima', { p_days: 30 })) || { belum: [], sudah: [] }; err.innerHTML = ''; }
+    catch (e) { err.innerHTML = `<div class="errNote">Gagal memuat Terima Faktur: ${esc(e.message || e)} (SQL serah_terima_faktur.sql sudah di-run?)</div>`; stData = { today: null, belum: [], sudah: [] }; }
+    stBadgeCnt();
     if (currentTab === 'terima') stRender();
   }
+  function stBadgeCnt() {
+    const n = (stData.belum || []).filter(stLewat).length;
+    const c = document.getElementById('stOpenCnt'); c.textContent = n; c.classList.toggle('hidden', !n);
+    c.title = n ? `${n} faktur lewat jadwal belum diterima` : '';
+  }
   function stRender() {
-    const open = stBatches.filter(b => b.status === 'OPEN');
-    document.getElementById('stBatchPills').innerHTML = open.length ? open.map(b => {
-      const it = b.items || [];
-      return `<button class="pill ${b.id === stCur ? 'active' : ''}" data-stb="${b.id}">${esc(b.kode)} · ${it.length} faktur · ${stHari(b.jadwal)}</button>`;
-    }).join('') : '<div class="meta" style="margin-bottom:12px;">Tidak ada batch yang menunggu diterima.</div>';
-    const b = open.find(x => x.id === stCur);
-    const body = document.getElementById('stBody');
-    if (!b) body.innerHTML = '';
-    else {
-      const it = b.items || [], got = it.filter(i => i.status === 'DITERIMA'), left = it.filter(i => i.status === 'DISERAHKAN');
-      got.sort((x, y) => String(y.diterima_at).localeCompare(String(x.diterima_at)));
-      const sum = a => a.reduce((s, i) => s + (+i.amount || 0), 0);
-      body.innerHTML = `<div class="card"><div class="hd"><div><h3>${esc(b.kode)}</h3>
-          <div class="tot"><span>Dibuat ${stTime(b.dibuat_at)} oleh <b>${esc(b.dibuat_oleh || '')}</b></span><span>Jadwal <b>${stHari(b.jadwal)}</b></span>
-          <span>Diterima <b>${got.length}</b> / ${it.length} lembar</span><span>Nilai diterima <b>${fmt(sum(got))}</b> / ${fmt(sum(it))}</span>
-          <span>Belum <b style="color:var(--urgent)">${left.length}</b></span></div></div>
-          <button class="btn sm red" id="stCloseBtn" ${stBusy ? 'disabled' : ''}>Tutup Batch</button></div>
-        <div style="padding:12px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-          <input class="inp" id="stInput" placeholder="Ketik no faktur (min 4 karakter) lalu Enter..." autocomplete="off" style="min-width:320px;">
-          <span id="stInMsg" class="small"></span></div>
-        <div id="stPick" style="padding:0 14px 10px;"></div>
-        <div class="tableWrap" style="max-height:50vh;border:0;border-top:1px solid var(--border);border-radius:0;"><table>
-          <thead><tr><th>#</th><th>Branch</th><th>No Faktur</th><th>Customer</th><th>Tracking</th><th class="num">Nilai</th><th>Diterima</th><th></th></tr></thead>
-          <tbody>${got.map((i, n) => `<tr><td>${got.length - n}</td><td><span class="brTag ${esc(i.branch)}">${esc(i.branch)}</span></td><td class="invNo">${esc(i.invoice_no)}</td>
+    const belum = stData.belum || [], sudah = stData.sudah || [];
+    const hariIni = sudah.filter(i => stIsToday(i.diterima_at)).length;
+    const keep = document.getElementById('stInput');
+    const keepVal = keep ? keep.value : '';
+    document.getElementById('stBody').innerHTML = `
+      <div class="card"><div style="padding:12px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <input class="inp" id="stInput" placeholder="Ketik no faktur (min 4 karakter) lalu Enter..." autocomplete="off" style="min-width:320px;" ${stBusy ? 'disabled' : ''}>
+          <span id="stInMsg" class="small"></span>
+          <span class="meta" style="margin-left:auto;">Diterima hari ini <b>${hariIni}</b></span></div>
+        <div id="stPick" style="padding:0 14px 10px;"></div></div>
+      <div class="card"><div class="hd"><div><h3>Belum diterima</h3>
+          <div class="tot"><span><b>${belum.length}</b> lembar</span></div></div>
+          <div style="display:flex;gap:8px;align-items:center;"><span class="small" id="stSelInfo"></span>
+            <button class="btn sm" id="stSelClear">Kosongkan</button>
+            <button class="btn sm primary" id="stBulkBtn" disabled>Terima (0)</button></div></div>
+        <div class="tableWrap" style="max-height:38vh;border:0;border-top:1px solid var(--border);border-radius:0;"><table>
+          <thead><tr><th><input type="checkbox" id="stAll" title="Pilih semua"></th><th>Branch</th><th>No Faktur</th><th>Customer</th><th>Sales</th><th>Tracking</th><th>Jadwal terima</th><th class="num">Nilai</th></tr></thead>
+          <tbody id="stBelumBody">${belum.map((i, n) => `<tr data-stk="${n}" class="${stSel.has(stKey(i)) ? 'picked' : ''}"><td><input type="checkbox" tabindex="-1" style="pointer-events:none;" ${stSel.has(stKey(i)) ? 'checked' : ''}></td><td><span class="brTag ${esc(i.branch)}">${esc(i.branch)}</span></td><td class="invNo">${esc(i.invoice_no)}</td>
+            <td class="wrapTxt">${esc(i.customer)}</td><td>${esc(i.salesman || '')}</td><td>${stDm(i.tracking_date)}</td>
+            <td>${stLewat(i) ? `<b style="color:var(--urgent)">${stHari(i.jadwal)} · LEWAT</b>` : stHari(i.jadwal)}</td><td class="num">${fmt(i.amount)}</td></tr>`).join('')
+            || '<tr><td colspan="8" class="muted" style="text-align:center;padding:20px;">Semua faktur tracking sudah diterima.</td></tr>'}</tbody></table></div></div>
+      <div class="card"><div class="hd"><div><h3>Sudah diterima (30 hari)</h3>
+          <div class="tot"><span><b>${sudah.length}</b> lembar</span></div></div></div>
+        <div class="tableWrap" style="max-height:38vh;border:0;border-top:1px solid var(--border);border-radius:0;"><table>
+          <thead><tr><th>Branch</th><th>No Faktur</th><th>Customer</th><th>Tracking</th><th class="num">Nilai</th><th>Diterima</th><th></th></tr></thead>
+          <tbody>${sudah.map(i => `<tr><td><span class="brTag ${esc(i.branch)}">${esc(i.branch)}</span></td><td class="invNo">${esc(i.invoice_no)}</td>
             <td class="wrapTxt">${esc(i.customer)}</td><td>${stDm(i.tracking_date)}</td><td class="num">${fmt(i.amount)}</td>
-            <td class="small">${stTime(i.diterima_at)} · ${esc(i.diterima_oleh || '')}</td><td><button class="btn sm" data-stun="${i.id}">Batal</button></td></tr>`).join('')
-            || '<tr><td colspan="8" class="muted" style="text-align:center;padding:20px;">Belum ada faktur diterima. Mulai ketik nomor faktur di atas.</td></tr>'}</tbody></table></div></div>`;
-      const inp = document.getElementById('stInput');
-      inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); stType(inp.value); } });
-      inp.focus();
-      document.getElementById('stCloseBtn').addEventListener('click', () => stClose(b));
-    }
-    stRenderHist();
+            <td class="small">${stTime(i.diterima_at)} · ${esc(i.diterima_oleh || '')}</td>
+            <td>${role === 'full' ? `<button class="btn sm" data-stun="${i.id}">Batal</button>` : ''}</td></tr>`).join('')
+            || '<tr><td colspan="7" class="muted" style="text-align:center;padding:20px;">Belum ada faktur diterima.</td></tr>'}</tbody></table></div></div>`;
+    const inp = document.getElementById('stInput');
+    inp.value = keepVal;
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); stType(inp.value); } });
+    inp.focus();
+    stBindSelect();
+  }
+  /* ---- pilih banyak: klik baris, atau tahan & seret di atas baris ---- */
+  function stSelUpdate() {
+    const belum = stData.belum || [];
+    const sel = belum.filter(i => stSel.has(stKey(i)));
+    document.querySelectorAll('#stBelumBody tr[data-stk]').forEach(tr => {
+      const on = stSel.has(stKey(belum[+tr.dataset.stk]));
+      tr.classList.toggle('picked', on); tr.querySelector('input').checked = on;
+    });
+    const btn = document.getElementById('stBulkBtn');
+    btn.textContent = `Terima (${sel.length})`; btn.disabled = !sel.length || stBusy;
+    document.getElementById('stSelInfo').innerHTML = sel.length ? `Dipilih <b>${sel.length}</b>` : '';
+    const all = document.getElementById('stAll');
+    all.checked = belum.length > 0 && sel.length === belum.length;
+    all.indeterminate = sel.length > 0 && sel.length < belum.length;
+  }
+  function stBindSelect() {
+    const belum = stData.belum || [];
+    const keys = new Set(belum.map(stKey));
+    [...stSel].forEach(k => { if (!keys.has(k)) stSel.delete(k); });
+    const body = document.getElementById('stBelumBody');
+    const apply = to => {
+      stSel = new Set(stDrag.base);
+      const [a, b] = stDrag.from <= to ? [stDrag.from, to] : [to, stDrag.from];
+      for (let n = a; n <= b; n++) { const k = stKey(belum[n]); stDrag.on ? stSel.add(k) : stSel.delete(k); }
+      stSelUpdate();
+    };
+    body.addEventListener('mousedown', e => {
+      const tr = e.target.closest('tr[data-stk]'); if (!tr || e.button !== 0 || stBusy) return;
+      e.preventDefault();
+      const n = +tr.dataset.stk;
+      stDrag = { from: n, on: !stSel.has(stKey(belum[n])), base: new Set(stSel) };
+      apply(n);
+    });
+    body.addEventListener('mouseover', e => {
+      if (!stDrag) return;
+      const tr = e.target.closest('tr[data-stk]'); if (tr) apply(+tr.dataset.stk);
+    });
+    document.getElementById('stAll').addEventListener('change', e => {
+      stSel = e.target.checked ? new Set(keys) : new Set(); stSelUpdate();
+    });
+    document.getElementById('stSelClear').addEventListener('click', () => { stSel.clear(); stSelUpdate(); });
+    document.getElementById('stBulkBtn').addEventListener('click', stBulk);
+    stSelUpdate();
+  }
+  document.addEventListener('mouseup', () => { stDrag = null; });
+  /* ---- pop-up konfirmasi terima: wajib centang pernyataan ---- */
+  function stConfirm(sel) {
+    const m = document.getElementById('stCfmModal'), chk = document.getElementById('stCfmChk'), ok = document.getElementById('stCfmOk');
+    const nama = role === 'adminpiu' ? 'Admin Piutang' : 'Full Access';
+    document.getElementById('stCfmTitle').textContent = `Terima ${sel.length} lembar faktur`;
+    document.getElementById('stCfmBody').innerHTML = sel.map((i, n) => `<tr><td>${n + 1}</td><td><span class="brTag ${esc(i.branch)}">${esc(i.branch)}</span></td>
+      <td class="invNo">${esc(i.invoice_no)}</td><td class="wrapTxt">${esc(i.customer)}</td><td>${stDm(i.tracking_date)}</td></tr>`).join('');
+    document.getElementById('stCfmText').innerHTML = `Saya, selaku <b>${esc(nama)}</b>, menyatakan dengan sebenar-benarnya bahwa saya telah
+      <b>menerima secara fisik ${sel.length} lembar faktur ASLI</b> sebagaimana tercantum di atas, dan telah memeriksa sendiri setiap lembar —
+      nomor faktur dan nama customer sesuai, bukan fotokopi, foto, maupun salinan. Sejak penerimaan ini, faktur tersebut menjadi
+      <b>tanggung jawab saya</b>. Apabila di kemudian hari ada faktur yang tidak dapat saya tunjukkan, saya bersedia mempertanggungjawabkannya
+      sesuai ketentuan perusahaan.`;
+    chk.checked = false; ok.disabled = true;
+    m.classList.remove('hidden');
+    return new Promise(resolve => {
+      const done = v => {
+        m.classList.add('hidden');
+        chk.onchange = ok.onclick = null; m.querySelectorAll('[data-close]').forEach(b => b.removeEventListener('click', cancel));
+        resolve(v);
+      };
+      const cancel = () => done(false);
+      chk.onchange = () => { ok.disabled = !chk.checked; };
+      ok.onclick = () => { if (chk.checked) done(true); };
+      m.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', cancel));
+    });
+  }
+  async function stBulk() {
+    const sel = (stData.belum || []).filter(i => stSel.has(stKey(i)));
+    if (!sel.length || stBusy) return;
+    if (!(await stConfirm(sel))) return;
+    stBusy = true; stSelUpdate();
+    try {
+      const r = await rpc('st_terima_bulk', { p_items: sel.map(i => ({ branch: i.branch, invoice_no: i.invoice_no })) });
+      stSel.clear(); stBusy = false;
+      await stLoadTerima(); await loadSt(); enrich();
+      stInMsg(`✓ ${r.n} faktur diterima.` + (r.skipped ? ` (${r.skipped} dilewati — sudah diterima / tidak ada di tracking)` : ''), true);
+    } catch (e) { stBusy = false; stSelUpdate(); stInMsg('Gagal: ' + (e.message || e)); }
   }
   function stInMsg(t, ok) { const m = document.getElementById('stInMsg'); if (m) { m.textContent = t; m.style.color = ok ? 'var(--ok)' : 'var(--urgent)'; } }
   function stType(raw) {
-    const b = stBatches.find(x => x.id === stCur); if (!b || stBusy) return;
+    if (stBusy) return;
     const q = stNorm(raw);
     document.getElementById('stPick').innerHTML = '';
     if (q.length < 4) { stInMsg('Ketik minimal 4 karakter.'); return; }
-    const it = b.items || [];
-    const cand = it.filter(i => i.status === 'DISERAHKAN' && stNorm(i.invoice_no).endsWith(q));
+    const cand = (stData.belum || []).filter(i => stNorm(i.invoice_no).endsWith(q));
     if (cand.length === 1) return stReceive(cand[0]);
     if (cand.length > 1) {
       stInMsg(`${cand.length} faktur cocok — pilih yang sesuai kertas:`);
-      document.getElementById('stPick').innerHTML = cand.map(i => `<button class="btn sm" data-stpick="${i.id}" style="margin:0 6px 6px 0;">${esc(i.branch)} · ${esc(i.invoice_no)} · ${esc(i.customer)}</button>`).join('');
+      document.getElementById('stPick').innerHTML = cand.map((i, n) => `<button class="btn sm" data-stpick="${n}" style="margin:0 6px 6px 0;">${esc(i.branch)} · ${esc(i.invoice_no)} · ${esc(i.customer)}</button>`).join('');
+      stData._pick = cand;
       return;
     }
-    const done = it.find(i => i.status === 'DITERIMA' && stNorm(i.invoice_no).endsWith(q));
-    stInMsg(done ? `${done.invoice_no} sudah diterima tadi (${stTime(done.diterima_at)}).`
-      : `"${raw.trim()}" TIDAK ADA di batch ini. Jangan diterima — kembalikan kertasnya ke admin tracking.`);
+    const done = (stData.sudah || []).find(i => stNorm(i.invoice_no).endsWith(q));
+    stInMsg(done ? `${done.invoice_no} sudah diterima (${stTime(done.diterima_at)}).`
+      : `"${raw.trim()}" tidak ada di daftar belum diterima (bukan FULL/PAID di tracking, atau salah ketik).`);
   }
   async function stReceive(i) {
     stBusy = true;
     try {
-      await rpc('st_terima', { p_item_id: i.id });
-      i.status = 'DITERIMA'; i.diterima_at = new Date().toISOString(); i.diterima_oleh = role === 'adminpiu' ? 'ADMIN PIUTANG' : 'FULL ACCESS';
+      const r = await rpc('st_terima', { p_branch: i.branch, p_invoice_no: i.invoice_no });
+      stData.belum = stData.belum.filter(x => x !== i);
+      stData.sudah.unshift(Object.assign({}, i, { id: r && r.id, diterima_at: new Date().toISOString(), diterima_oleh: role === 'adminpiu' ? 'ADMIN PIUTANG' : 'FULL ACCESS' }));
       stMap.set(invKey(i.branch, i.invoice_no), 'DITERIMA');
-      stBusy = false; stRender();
+      stBusy = false; document.getElementById('stInput').value = ''; stRender(); stBadgeCnt(); enrich();
       stInMsg(`✓ ${i.branch} ${i.invoice_no} diterima.`, true);
-    } catch (e) { stBusy = false; stInMsg('Gagal: ' + (e.message || e)); }
-  }
-  async function stClose(b) {
-    const left = (b.items || []).filter(i => i.status === 'DISERAHKAN').length;
-    const got = (b.items || []).filter(i => i.status === 'DITERIMA').length;
-    if (!confirm(`Tutup batch ${b.kode}?\n\nDiterima: ${got} lembar\nTidak ada fisik → DIKEMBALIKAN ke admin tracking: ${left} lembar\n\nBatch yang sudah ditutup tidak bisa diubah lagi.`)) return;
-    stBusy = true; stRender();
-    try {
-      const r = await rpc('st_tutup', { p_batch_id: b.id });
-      toast(`${b.kode} ditutup · diterima ${r.diterima} · dikembalikan ${r.dikembalikan}`);
-    } catch (e) { alert('Gagal tutup batch: ' + (e.message || e)); }
-    stBusy = false;
-    await stLoadTerima(); await loadSt(); enrich();
-  }
-  function stRenderHist() {
-    const closed = stBatches.filter(b => b.status === 'CLOSED');
-    const el = document.getElementById('stHist');
-    if (!closed.length) { el.innerHTML = ''; return; }
-    el.innerHTML = `<div class="card"><div class="hd"><h3>Riwayat batch ditutup (30 hari)</h3></div><div class="tableWrap" style="border:0;border-radius:0;"><table>
-      <thead><tr><th>Kode</th><th>Dibuat</th><th>Ditutup</th><th class="num">Faktur</th><th class="num">Diterima</th><th>Dikembalikan (tidak ada fisik)</th><th></th></tr></thead><tbody>
-      ${closed.map(b => { const it = b.items || [], kb = it.filter(i => i.status === 'DIKEMBALIKAN');
-        return `<tr><td><b>${esc(b.kode)}</b></td><td class="small">${stTime(b.dibuat_at)} · ${esc(b.dibuat_oleh || '')}</td><td class="small">${stTime(b.ditutup_at)} · ${esc(b.ditutup_oleh || '')}</td>
-          <td class="num">${it.length}</td><td class="num">${it.filter(i => i.status === 'DITERIMA').length}</td>
-          <td class="wrapTxt small">${kb.length ? `<b style="color:var(--urgent)">${kb.length}</b>: ` + kb.map(i => esc(i.branch + ' ' + i.invoice_no)).join(', ') : '<span class="muted">—</span>'}</td>
-          <td>${role === 'full' ? `<button class="btn sm" data-streopen="${b.id}">Buka Lagi</button>` : ''}</td></tr>`; }).join('')}</tbody></table></div></div>`;
+    } catch (e) { stBusy = false; stRender(); stInMsg('Gagal: ' + (e.message || e)); }
   }
   document.getElementById('tab-terima').addEventListener('click', async e => {
-    const pill = e.target.closest('[data-stb]');
-    if (pill) { stCur = +pill.dataset.stb; stRender(); return; }
     const pick = e.target.closest('[data-stpick]');
-    if (pick) { const b = stBatches.find(x => x.id === stCur); const i = b && b.items.find(x => String(x.id) === pick.dataset.stpick); if (i) stReceive(i); return; }
+    if (pick) { const i = (stData._pick || [])[+pick.dataset.stpick]; if (i) stReceive(i); return; }
     const un = e.target.closest('[data-stun]');
     if (un) {
-      const b = stBatches.find(x => x.id === stCur); const i = b && b.items.find(x => String(x.id) === un.dataset.stun);
+      const i = (stData.sudah || []).find(x => String(x.id) === un.dataset.stun);
       if (!i || !confirm(`Batalkan penerimaan ${i.invoice_no}?`)) return;
-      try { await rpc('st_batal_terima', { p_item_id: i.id }); i.status = 'DISERAHKAN'; i.diterima_at = null; stMap.set(invKey(i.branch, i.invoice_no), 'DISERAHKAN'); stRender(); }
-      catch (err) { alert('Gagal: ' + (err.message || err)); }
-      return;
-    }
-    const ro = e.target.closest('[data-streopen]');
-    if (ro) {
-      const b = stBatches.find(x => String(x.id) === ro.dataset.streopen);
-      if (!b || !confirm(`Buka lagi batch ${b.kode}?\nFaktur yang dikembalikan (dan belum masuk batch lain) kembali menunggu diterima.`)) return;
-      try { await rpc('st_buka_lagi', { p_batch_id: b.id }); stCur = b.id; await stLoadTerima(); await loadSt(); enrich(); }
+      try { await rpc('st_batal_terima', { p_id: i.id }); stMap.delete(invKey(i.branch, i.invoice_no)); await stLoadTerima(); enrich(); }
       catch (err) { alert('Gagal: ' + (err.message || err)); }
     }
   });
@@ -1303,7 +1380,7 @@
       upd.textContent = 'Updated ' + new Date().toLocaleTimeString();
       fillKolSelects();
       await renderCurrent();
-      if (stCanUse() && currentTab !== 'terima') stLoadTerima();   // badge jumlah batch menunggu
+      if (stCanUse() && currentTab !== 'terima') stLoadTerima();   // badge jumlah faktur lewat jadwal belum diterima
       postIssues();
       openWarn();
       if (wantReport) openReportTab();
@@ -2730,7 +2807,7 @@
     document.getElementById('rkNote').innerHTML = posted ? `<div class="infoNote">Tanggal ini sudah diposting — tidak bisa tambah rekap.</div>` :
       (parseAnyDate(tgl) && parseAnyDate(tgl).getDay() === 0 ? `<div class="infoNote">Hari Minggu — toko tutup.</div>` : '')
       + (() => { const n = rows.filter(r => r.stBlock && !r.kasus && !r.retur && (!rkBranch || r.branch === rkBranch)).length;
-          return n ? `<div class="infoNote">${n} faktur belum diterima dari admin tracking (serah terima) — tidak ikut usulan tagihan sampai diterima di tab Terima Faktur.</div>` : ''; })();
+          return n ? `<div class="infoNote">${n} faktur belum diterima admin piutang — tidak ikut usulan tagihan sampai diterima di tab Terima Faktur.</div>` : ''; })();
     renderRekapDone();
     const el = document.getElementById('rkProposal');
     const kid = document.getElementById('rkKol').value, br = rkBranch;
@@ -3022,8 +3099,43 @@
   // cari: nama toko / no invoice / nilai faktur
   const hsSearchEl = document.getElementById('hsSearch');
   let hsSearchT = null;
-  hsSearchEl.addEventListener('input', () => { clearTimeout(hsSearchT); hsSearchT = setTimeout(renderHasil, 150); });
-  hsSearchEl.addEventListener('keydown', e => { if (e.key === 'Escape') { hsSearchEl.value = ''; renderHasil(); } });
+  hsSearchEl.addEventListener('input', () => { clearTimeout(hsSearchT); hsSearchT = setTimeout(() => { renderHasil(); loadHsHist(); }, 150); });
+  hsSearchEl.addEventListener('keydown', e => { if (e.key === 'Escape') { hsSearchEl.value = ''; renderHasil(); loadHsHist(); } });
+  // Riwayat tagih per faktur: ketik no faktur (huruf + angka, min 5 karakter) → semua tanggal tagih faktur itu
+  let hsHistSeq = 0;
+  async function loadHsHist() {
+    const box = document.getElementById('hsHist');
+    const q = hsSearchEl.value.trim();
+    const seq = ++hsHistSeq;
+    if (q.length < 5 || /\s/.test(q) || !/\d/.test(q) || !/[a-z]/i.test(q)) { box.innerHTML = ''; return; }
+    let list;
+    try { list = (await rpc('get_tagih_history', { p_q: q })) || []; }
+    catch (e) {
+      if (seq !== hsHistSeq) return;
+      box.innerHTML = `<div class="errNote">Riwayat tagih belum bisa dibuka: ${esc(e.message)}${/get_tagih_history/i.test(e.message) ? ' — run tagih_history_faktur.sql dulu di SQL Editor' : ''}</div>`;
+      return;
+    }
+    if (seq !== hsHistSeq) return;
+    if (!list.length) { box.innerHTML = `<div class="card"><div class="hd"><b>Riwayat tagih "${esc(q)}"</b></div><div class="meta" style="padding:10px;">Faktur ini belum pernah masuk rekap tagih.</div></div>`; return; }
+    const caraBayar = i => i.hasil === 'GAGAL' ? '<span class="muted">' + esc(i.alasan || '') + '</span>'
+      : (i.bayar || []).map(p => {
+        let s = METODE_LBL[p.metode] || p.metode;
+        if (p.metode === 'TF') s += ` (${dmy(p.tgl_trf)})`;
+        if (p.metode === 'GIRO') s += ` (${esc(p.giro_bank || '')} ${esc(p.giro_no || '')} JT ${dmy(p.giro_jt)})`;
+        return s + ' ' + fmt(+p.nilai);
+      }).join(' · ');
+    box.innerHTML = `<div class="card"><div class="hd"><b>Riwayat tagih "${esc(q)}"</b> <span class="meta">${list.length} kali ditagih</span></div><div class="tableWrap"><table>
+      <thead><tr><th>Tgl Tagih</th><th>Invoice</th><th>Toko</th><th>Kolektor</th><th>Hasil</th><th>Cara Bayar</th><th class="num">Nilai Bayar</th></tr></thead><tbody>
+      ${list.map(i => { const k = kolById.get(String(i.kolektor_id)); const tot = (i.bayar || []).reduce((s, p) => s + (+p.nilai || 0), 0); return `<tr>
+        <td>${dayName(String(i.tgl_tagih).slice(0, 10))}</td>
+        <td><span class="brTag ${esc(i.branch)}">${esc(i.branch)}</span> ${esc(i.invoice_no)}</td>
+        <td>${esc(i.customer || '')}</td>
+        <td>${esc(k ? k.nama : (i.kolektor_id || ''))}</td>
+        <td>${i.hasil ? `<span class="badge ${i.hasil}">${hasilLbl(i.hasil)}</span>` : '<span class="badge NONE">BELUM DIISI</span>'}</td>
+        <td class="wrapTxt small">${caraBayar(i)}</td>
+        <td class="num">${tot ? fmt(tot) : ''}</td></tr>`; }).join('')}
+      </tbody></table></div></div>`;
+  }
   document.addEventListener('keydown', e => {
     if (e.key !== 'F1') return;
     // F1 = fokus ke kotak cari di tab yang sedang terbuka (Hasil Tagih / Rekap Tagih)
