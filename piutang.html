@@ -36,12 +36,13 @@
   .pill { padding: 5px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-muted); font-size: 13px; cursor: pointer; }
   .pill.active { border-color: var(--paid); color: var(--paid); background: rgba(91,141,239,.12); }
   /* tombol cabang Piutang, Rekap Tagih & Hasil Tagih: KSI oren, ABP biru, DAF hijau */
-  :is(#branchPills, #rkBranchPills, #hsBranchPills) .pill[data-b="KSI"] { color: #fdba74; border-color: rgba(251,146,60,.45); }
-  :is(#branchPills, #rkBranchPills, #hsBranchPills) .pill[data-b="ABP"] { color: #93c5fd; border-color: rgba(96,165,250,.45); }
-  :is(#branchPills, #rkBranchPills, #hsBranchPills) .pill[data-b="DAF"] { color: #86efac; border-color: rgba(74,222,128,.45); }
-  :is(#branchPills, #rkBranchPills, #hsBranchPills) .pill.active[data-b="KSI"] { background: #fb923c; border-color: #fb923c; color: #1a1a1a; font-weight: 600; }
-  :is(#branchPills, #rkBranchPills, #hsBranchPills) .pill.active[data-b="ABP"] { background: #3b82f6; border-color: #3b82f6; color: #fff; font-weight: 600; }
-  :is(#branchPills, #rkBranchPills, #hsBranchPills) .pill.active[data-b="DAF"] { background: #22c55e; border-color: #22c55e; color: #0b1a10; font-weight: 600; }
+  #stBranchPills { display: flex; gap: 6px; }
+  :is(#branchPills, #rkBranchPills, #hsBranchPills, #stBranchPills) .pill[data-b="KSI"] { color: #fdba74; border-color: rgba(251,146,60,.45); }
+  :is(#branchPills, #rkBranchPills, #hsBranchPills, #stBranchPills) .pill[data-b="ABP"] { color: #93c5fd; border-color: rgba(96,165,250,.45); }
+  :is(#branchPills, #rkBranchPills, #hsBranchPills, #stBranchPills) .pill[data-b="DAF"] { color: #86efac; border-color: rgba(74,222,128,.45); }
+  :is(#branchPills, #rkBranchPills, #hsBranchPills, #stBranchPills) .pill.active[data-b="KSI"] { background: #fb923c; border-color: #fb923c; color: #1a1a1a; font-weight: 600; }
+  :is(#branchPills, #rkBranchPills, #hsBranchPills, #stBranchPills) .pill.active[data-b="ABP"] { background: #3b82f6; border-color: #3b82f6; color: #fff; font-weight: 600; }
+  :is(#branchPills, #rkBranchPills, #hsBranchPills, #stBranchPills) .pill.active[data-b="DAF"] { background: #22c55e; border-color: #22c55e; color: #0b1a10; font-weight: 600; }
   .kolPills { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-end; margin-bottom: 10px; }
   .kolPills > .meta { margin-bottom: 11px; }
   /* tombol tanpa grup diberi jarak bawah = padding bawah + border kotak grup, supaya sejajar */
@@ -1194,8 +1195,6 @@
   const stWit = ts => new Date(new Date(ts).getTime() + 9 * 3600000);
   const stTime = ts => { const w = stWit(ts); if (isNaN(w)) return '—';
     return String(w.getUTCDate()).padStart(2, '0') + '-' + ST_BLN[w.getUTCMonth()] + ' ' + String(w.getUTCHours()).padStart(2, '0') + ':' + String(w.getUTCMinutes()).padStart(2, '0'); };
-  const stIsToday = ts => { const w = stWit(ts); return !isNaN(w) && w.toISOString().slice(0, 10) === String(stData.today || ''); };
-  const stNorm = s => String(s || '').toUpperCase().replace(/\s+/g, '');
   const stLewat = i => i.jadwal && stData.today && String(i.jadwal) < String(stData.today);
   async function stLoadTerima() {
     if (!stCanUse()) return;
@@ -1210,46 +1209,52 @@
     const c = document.getElementById('stOpenCnt'); c.textContent = n; c.classList.toggle('hidden', !n);
     c.title = n ? `${n} faktur lewat jadwal belum diterima` : '';
   }
+  /* jadwal terima: Senin–Jumat → Sabtu; Sabtu → Senin. Yang belum sampai jadwal tidak ditampilkan dulu. */
+  let stView = 'belum', stBr = '';
+  const ST_BR_ORD = { KSI: 0, ABP: 1, DAF: 2 };
+  const stSort = arr => arr.slice().sort((a, b) =>
+    String(a.customer || '').localeCompare(String(b.customer || ''), 'id', { sensitivity: 'base' })
+    || (ST_BR_ORD[a.branch] ?? 9) - (ST_BR_ORD[b.branch] ?? 9)
+    || String(a.invoice_no).localeCompare(String(b.invoice_no)));
+  const stSiap = i => !i.jadwal || !stData.today || String(i.jadwal) <= String(stData.today);
+  const stBelumSiap = () => (stData.belum || []).filter(stSiap);
+  const stBelumList = () => stSort(stBelumSiap().filter(i => !stBr || i.branch === stBr));
+  const stSudahList = () => stSort((stData.sudah || []).filter(i => !stBr || i.branch === stBr));
   function stRender() {
-    const belum = stData.belum || [], sudah = stData.sudah || [];
-    const hariIni = sudah.filter(i => stIsToday(i.diterima_at)).length;
-    const keep = document.getElementById('stInput');
-    const keepVal = keep ? keep.value : '';
-    document.getElementById('stBody').innerHTML = `
-      <div class="card"><div style="padding:12px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-          <input class="inp" id="stInput" placeholder="Ketik no faktur (min 4 karakter) lalu Enter..." autocomplete="off" style="min-width:320px;" ${stBusy ? 'disabled' : ''}>
-          <span id="stInMsg" class="small"></span>
-          <span class="meta" style="margin-left:auto;">Diterima hari ini <b>${hariIni}</b></span></div>
-        <div id="stPick" style="padding:0 14px 10px;"></div></div>
-      <div class="card"><div class="hd"><div><h3>Belum diterima</h3>
-          <div class="tot"><span><b>${belum.length}</b> lembar</span></div></div>
-          <div style="display:flex;gap:8px;align-items:center;"><span class="small" id="stSelInfo"></span>
-            <button class="btn sm" id="stSelClear">Kosongkan</button>
-            <button class="btn sm primary" id="stBulkBtn" disabled>Terima (0)</button></div></div>
-        <div class="tableWrap" style="max-height:38vh;border:0;border-top:1px solid var(--border);border-radius:0;"><table>
-          <thead><tr><th><input type="checkbox" id="stAll" title="Pilih semua"></th><th>Branch</th><th>No Faktur</th><th>Customer</th><th>Sales</th><th>Tracking</th><th>Jadwal terima</th><th class="num">Nilai</th></tr></thead>
+    const belum = stBelumList(), sudah = stSudahList();
+    const nanti = (stData.belum || []).length - stBelumSiap().length;
+    const isB = stView === 'belum';
+    const table = isB
+      ? `<thead><tr><th><input type="checkbox" id="stAll" title="Pilih semua"></th><th>Branch</th><th>No Faktur</th><th>Customer</th><th>Sales</th><th>Tracking</th><th>Jadwal terima</th><th class="num">Nilai</th></tr></thead>
           <tbody id="stBelumBody">${belum.map((i, n) => `<tr data-stk="${n}" class="${stSel.has(stKey(i)) ? 'picked' : ''}"><td><input type="checkbox" tabindex="-1" style="pointer-events:none;" ${stSel.has(stKey(i)) ? 'checked' : ''}></td><td><span class="brTag ${esc(i.branch)}">${esc(i.branch)}</span></td><td class="invNo">${esc(i.invoice_no)}</td>
             <td class="wrapTxt">${esc(i.customer)}</td><td>${esc(i.salesman || '')}</td><td>${stDm(i.tracking_date)}</td>
             <td>${stLewat(i) ? `<b style="color:var(--urgent)">${stHari(i.jadwal)} · LEWAT</b>` : stHari(i.jadwal)}</td><td class="num">${fmt(i.amount)}</td></tr>`).join('')
-            || '<tr><td colspan="8" class="muted" style="text-align:center;padding:20px;">Semua faktur tracking sudah diterima.</td></tr>'}</tbody></table></div></div>
-      <div class="card"><div class="hd"><div><h3>Sudah diterima (30 hari)</h3>
-          <div class="tot"><span><b>${sudah.length}</b> lembar</span></div></div></div>
-        <div class="tableWrap" style="max-height:38vh;border:0;border-top:1px solid var(--border);border-radius:0;"><table>
-          <thead><tr><th>Branch</th><th>No Faktur</th><th>Customer</th><th>Tracking</th><th class="num">Nilai</th><th>Diterima</th><th></th></tr></thead>
+            || '<tr><td colspan="8" class="muted" style="text-align:center;padding:20px;">Tidak ada faktur yang perlu diterima.</td></tr>'}</tbody>`
+      : `<thead><tr><th>Branch</th><th>No Faktur</th><th>Customer</th><th>Tracking</th><th class="num">Nilai</th><th>Diterima</th><th></th></tr></thead>
           <tbody>${sudah.map(i => `<tr><td><span class="brTag ${esc(i.branch)}">${esc(i.branch)}</span></td><td class="invNo">${esc(i.invoice_no)}</td>
             <td class="wrapTxt">${esc(i.customer)}</td><td>${stDm(i.tracking_date)}</td><td class="num">${fmt(i.amount)}</td>
             <td class="small">${stTime(i.diterima_at)} · ${esc(i.diterima_oleh || '')}</td>
             <td>${role === 'full' ? `<button class="btn sm" data-stun="${i.id}">Batal</button>` : ''}</td></tr>`).join('')
-            || '<tr><td colspan="7" class="muted" style="text-align:center;padding:20px;">Belum ada faktur diterima.</td></tr>'}</tbody></table></div></div>`;
-    const inp = document.getElementById('stInput');
-    inp.value = keepVal;
-    inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); stType(inp.value); } });
-    inp.focus();
-    stBindSelect();
+            || '<tr><td colspan="7" class="muted" style="text-align:center;padding:20px;">Belum ada faktur diterima.</td></tr>'}</tbody>`;
+    document.getElementById('stBody').innerHTML = `
+      <div class="card"><div class="hd" style="flex-wrap:wrap;gap:10px;">
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <div class="seg" id="stViewSeg" style="height:34px;">
+              <button data-stv="belum" class="${isB ? 'active' : ''}">Belum diterima (${belum.length})</button>
+              <button data-stv="sudah" class="${isB ? '' : 'active'}">Sudah diterima 30 hari (${sudah.length})</button></div>
+            <div id="stBranchPills">${['', 'KSI', 'ABP', 'DAF'].map(b => `<button class="pill ${stBr === b ? 'active' : ''}" data-b="${b}">${b || 'Semua'}</button>`).join('')}</div>
+            ${isB && nanti ? `<span class="small muted" title="Belum sampai jadwal terima — muncul saat jadwalnya tiba">${nanti} faktur belum jadwal (disembunyikan)</span>` : ''}</div>
+          ${isB ? `<div style="display:flex;gap:8px;align-items:center;"><span id="stInMsg" class="small"></span><span class="small" id="stSelInfo"></span>
+            <button class="btn sm" id="stSelClear">Kosongkan</button>
+            <button class="btn sm primary" id="stBulkBtn" disabled>Terima (0)</button></div>` : ''}</div>
+        <div class="tableWrap" style="max-height:62vh;border:0;border-top:1px solid var(--border);border-radius:0;"><table>${table}</table></div></div>`;
+    document.querySelectorAll('#stViewSeg [data-stv]').forEach(b => b.addEventListener('click', () => { stView = b.dataset.stv; stRender(); }));
+    document.querySelectorAll('#stBranchPills .pill').forEach(b => b.addEventListener('click', () => { stBr = b.dataset.b; stRender(); }));
+    if (isB) stBindSelect();
   }
   /* ---- pilih banyak: klik baris, atau tahan & seret di atas baris ---- */
   function stSelUpdate() {
-    const belum = stData.belum || [];
+    const belum = stBelumList();
     const sel = belum.filter(i => stSel.has(stKey(i)));
     document.querySelectorAll('#stBelumBody tr[data-stk]').forEach(tr => {
       const on = stSel.has(stKey(belum[+tr.dataset.stk]));
@@ -1263,7 +1268,7 @@
     all.indeterminate = sel.length > 0 && sel.length < belum.length;
   }
   function stBindSelect() {
-    const belum = stData.belum || [];
+    const belum = stBelumList();
     const keys = new Set(belum.map(stKey));
     [...stSel].forEach(k => { if (!keys.has(k)) stSel.delete(k); });
     const body = document.getElementById('stBelumBody');
@@ -1319,7 +1324,7 @@
     });
   }
   async function stBulk() {
-    const sel = (stData.belum || []).filter(i => stSel.has(stKey(i)));
+    const sel = stBelumList().filter(i => stSel.has(stKey(i)));
     if (!sel.length || stBusy) return;
     if (!(await stConfirm(sel))) return;
     stBusy = true; stSelUpdate();
@@ -1331,37 +1336,7 @@
     } catch (e) { stBusy = false; stSelUpdate(); stInMsg('Gagal: ' + (e.message || e)); }
   }
   function stInMsg(t, ok) { const m = document.getElementById('stInMsg'); if (m) { m.textContent = t; m.style.color = ok ? 'var(--ok)' : 'var(--urgent)'; } }
-  function stType(raw) {
-    if (stBusy) return;
-    const q = stNorm(raw);
-    document.getElementById('stPick').innerHTML = '';
-    if (q.length < 4) { stInMsg('Ketik minimal 4 karakter.'); return; }
-    const cand = (stData.belum || []).filter(i => stNorm(i.invoice_no).endsWith(q));
-    if (cand.length === 1) return stReceive(cand[0]);
-    if (cand.length > 1) {
-      stInMsg(`${cand.length} faktur cocok — pilih yang sesuai kertas:`);
-      document.getElementById('stPick').innerHTML = cand.map((i, n) => `<button class="btn sm" data-stpick="${n}" style="margin:0 6px 6px 0;">${esc(i.branch)} · ${esc(i.invoice_no)} · ${esc(i.customer)}</button>`).join('');
-      stData._pick = cand;
-      return;
-    }
-    const done = (stData.sudah || []).find(i => stNorm(i.invoice_no).endsWith(q));
-    stInMsg(done ? `${done.invoice_no} sudah diterima (${stTime(done.diterima_at)}).`
-      : `"${raw.trim()}" tidak ada di daftar belum diterima (bukan FULL/PAID di tracking, atau salah ketik).`);
-  }
-  async function stReceive(i) {
-    stBusy = true;
-    try {
-      const r = await rpc('st_terima', { p_branch: i.branch, p_invoice_no: i.invoice_no });
-      stData.belum = stData.belum.filter(x => x !== i);
-      stData.sudah.unshift(Object.assign({}, i, { id: r && r.id, diterima_at: new Date().toISOString(), diterima_oleh: role === 'adminpiu' ? 'ADMIN PIUTANG' : 'FULL ACCESS' }));
-      stMap.set(invKey(i.branch, i.invoice_no), 'DITERIMA');
-      stBusy = false; document.getElementById('stInput').value = ''; stRender(); stBadgeCnt(); enrich();
-      stInMsg(`✓ ${i.branch} ${i.invoice_no} diterima.`, true);
-    } catch (e) { stBusy = false; stRender(); stInMsg('Gagal: ' + (e.message || e)); }
-  }
   document.getElementById('tab-terima').addEventListener('click', async e => {
-    const pick = e.target.closest('[data-stpick]');
-    if (pick) { const i = (stData._pick || [])[+pick.dataset.stpick]; if (i) stReceive(i); return; }
     const un = e.target.closest('[data-stun]');
     if (un) {
       const i = (stData.sudah || []).find(x => String(x.id) === un.dataset.stun);
