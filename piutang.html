@@ -1199,7 +1199,7 @@
   async function stLoadTerima() {
     if (!stCanUse()) return;
     const err = document.getElementById('stErr');
-    try { stData = (await rpc('st_get_terima', { p_days: 30 })) || { belum: [], sudah: [] }; err.innerHTML = ''; }
+    try { stData = (await rpc('st_get_terima', { p_days: stDays })) || { belum: [], sudah: [] }; err.innerHTML = ''; }
     catch (e) { err.innerHTML = `<div class="errNote">Gagal memuat Terima Faktur: ${esc(e.message || e)} (SQL serah_terima_faktur.sql sudah di-run?)</div>`; stData = { today: null, belum: [], sudah: [] }; }
     stBadgeCnt();
     if (currentTab === 'terima') stRender();
@@ -1210,7 +1210,12 @@
     c.title = n ? `${n} faktur lewat jadwal belum diterima` : '';
   }
   /* jadwal terima: Senin–Jumat → Sabtu; Sabtu → Senin. Yang belum sampai jadwal tidak ditampilkan dulu. */
-  let stView = 'belum', stBr = '';
+  let stView = 'belum', stBr = '', stDays = 30, stKolNow = '', stQ = '', stQRaw = '', stQTimer;
+  // kolektor faktur = kolektor toko (sama seperti Rekap Tagih; DAF + sales Mayora → Kolektor 2)
+  const stKol = i => { const k = tokoKey(i.branch, i.customer), t = tokoMap.get(k), k2 = kol2Map.get(k);
+    return k2 && isMayora(i) ? String(k2) : t ? String(t.kolektor_id) : ''; };
+  const stFilt = i => (!stBr || i.branch === stBr) && (!stKolNow || stKol(i) === stKolNow)
+    && (!stQ || [i.customer, i.invoice_no, i.salesman, i.amount, fmt(i.amount)].join(' ').toLowerCase().includes(stQ));
   const ST_BR_ORD = { KSI: 0, ABP: 1, DAF: 2 };
   const stSort = arr => arr.slice().sort((a, b) =>
     String(a.customer || '').localeCompare(String(b.customer || ''), 'id', { sensitivity: 'base' })
@@ -1218,8 +1223,8 @@
     || String(a.invoice_no).localeCompare(String(b.invoice_no)));
   const stSiap = i => !i.jadwal || !stData.today || String(i.jadwal) <= String(stData.today);
   const stBelumSiap = () => (stData.belum || []).filter(stSiap);
-  const stBelumList = () => stSort(stBelumSiap().filter(i => !stBr || i.branch === stBr));
-  const stSudahList = () => stSort((stData.sudah || []).filter(i => !stBr || i.branch === stBr));
+  const stBelumList = () => stSort(stBelumSiap().filter(stFilt));
+  const stSudahList = () => stSort((stData.sudah || []).filter(stFilt));
   function stRender() {
     const belum = stBelumList(), sudah = stSudahList();
     const nanti = (stData.belum || []).length - stBelumSiap().length;
@@ -1241,14 +1246,28 @@
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
             <div class="seg" id="stViewSeg" style="height:34px;">
               <button data-stv="belum" class="${isB ? 'active' : ''}">Belum diterima (${belum.length})</button>
-              <button data-stv="sudah" class="${isB ? '' : 'active'}">Sudah diterima 30 hari (${sudah.length})</button></div>
+              <button data-stv="sudah" class="${isB ? '' : 'active'}">Sudah diterima (${sudah.length})</button></div>
+            ${isB ? '' : `<select class="inp" id="stDaysSel" style="height:34px;width:auto;">${[[30, '30 hari terakhir'], [90, '90 hari terakhir'], [365, '1 tahun terakhir'], [36500, 'Semua']].map(([v, t]) => `<option value="${v}" ${stDays === v ? 'selected' : ''}>${t}</option>`).join('')}</select>`}
             <div id="stBranchPills">${['', 'KSI', 'ABP', 'DAF'].map(b => `<button class="pill ${stBr === b ? 'active' : ''}" data-b="${b}">${b || 'Semua'}</button>`).join('')}</div>
+            <input type="text" class="inp" id="stQ" placeholder="Cari toko / no invoice / nilai..." autocomplete="off" style="min-width:240px;height:34px;">
             ${isB && nanti ? `<span class="small muted" title="Belum sampai jadwal terima — muncul saat jadwalnya tiba">${nanti} faktur belum jadwal (disembunyikan)</span>` : ''}</div>
           ${isB ? `<div style="display:flex;gap:8px;align-items:center;"><span id="stInMsg" class="small"></span><span class="small" id="stSelInfo"></span>
             <button class="btn sm" id="stSelClear">Kosongkan</button>
             <button class="btn sm primary" id="stBulkBtn" disabled>Terima (0)</button></div>` : ''}</div>
-        <div class="tableWrap" style="max-height:62vh;border:0;border-top:1px solid var(--border);border-radius:0;"><table>${table}</table></div></div>`;
+        <div class="kolPills" id="stKolPills" style="padding:0 14px;"></div>
+        <div class="tableWrap" style="max-height:58vh;border:0;border-top:1px solid var(--border);border-radius:0;"><table>${table}</table></div></div>`;
+    const kols = (ctx.kolektor || []).filter(k => k.aktif && String(k.nama || '').trim().toUpperCase() !== 'X').map(k => ({ v: String(k.id), nama: k.nama }));
+    if (stKolNow && !kols.some(k => k.v === stKolNow)) stKolNow = '';
+    const kp = document.getElementById('stKolPills');
+    kp.innerHTML = kolPillsHtml(kols, stKolNow, true);
+    kp.addEventListener('click', e => { const p = e.target.closest('.pill'); if (!p) return; stKolNow = p.dataset.k; stRender(); });
+    const qi = document.getElementById('stQ');
+    qi.value = stQRaw;
+    qi.addEventListener('input', () => { stQRaw = qi.value; clearTimeout(stQTimer);
+      stQTimer = setTimeout(() => { stQ = stQRaw.trim().toLowerCase(); stRender(); const n = document.getElementById('stQ'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }, 250); });
     document.querySelectorAll('#stViewSeg [data-stv]').forEach(b => b.addEventListener('click', () => { stView = b.dataset.stv; stRender(); }));
+    const ds = document.getElementById('stDaysSel');
+    if (ds) ds.addEventListener('change', () => { stDays = +ds.value; stLoadTerima(); });
     document.querySelectorAll('#stBranchPills .pill').forEach(b => b.addEventListener('click', () => { stBr = b.dataset.b; stRender(); }));
     if (isB) stBindSelect();
   }
