@@ -104,7 +104,6 @@
 <div id="app">
   <div class="top">
     <h1>List Item Baru</h1>
-    <span class="muted">Isi harga termasuk PPN. Bot memasukkan ke NexDist (harga sebelum PPN).</span>
     <span class="sp"></span>
     <span id="who" class="muted"></span>
     <button id="katBtn" class="btn hidden">Master Divisi</button>
@@ -114,8 +113,7 @@
 
   <div class="form">
     <h3><span id="formTitle">Ajukan item baru</span>
-      <label class="pengaju">Nama pengaju <input id="fBy" class="inp" maxlength="40" autocomplete="off"></label>
-      <span class="muted" style="font-weight:400">Baris yang kosong semua tidak ikut disubmit.</span></h3>
+      <label class="pengaju">Nama Admin <input id="fBy" class="inp" maxlength="40" autocomplete="off"></label></h3>
     <div class="rowsWrap"><table class="ftbl">
       <thead><tr>
         <th>#</th><th>Divisi</th><th title="Otomatis dari divisi">Cabang</th><th>Grup</th><th>Nama barang</th><th>Harga beli (+PPN)</th><th>Harga jual (+PPN)</th>
@@ -396,7 +394,7 @@
       if (dobel) throw new Error('Baris ' + dobel.baris + ': nama barang sama dengan baris lain');
     } catch (e) { msg('formMsg', e.message, 'bad'); return; }
     const by = $('fBy').value.trim();
-    if (!EDIT && by.length < 2) { $('fBy').classList.add('bad'); $('fBy').focus(); msg('formMsg', 'Isi nama pengaju dulu', 'bad'); return; }
+    if (!EDIT && by.length < 2) { $('fBy').classList.add('bad'); $('fBy').focus(); msg('formMsg', 'Isi nama admin dulu', 'bad'); return; }
     try { localStorage.setItem('item_baru_pengaju', by); } catch (e) {}
     const perBr = ['DAF', 'ABP', 'KSI'].map(b => [b, rows.filter(r => r.branch === b).length]).filter(x => x[1]).map(x => x[0] + ' ' + x[1]).join(', ');
     if (!EDIT && !confirm(`Submit ${rows.length} item (${perBr})?`)) return;
