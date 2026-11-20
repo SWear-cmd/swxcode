@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>List Item Baru</title>
+<style>
+  :root{
+    --bg:#111317; --panel:#1a1d23; --panel2:#22262e; --line:#2e333d; --text:#e8e6e1; --muted:#9aa0aa;
+    --red:#e15554; --yellow:#e8c43d; --green:#4caf7d; --blue:#5b8def; --orange:#f2b36b;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 'Segoe UI',system-ui,sans-serif;}
+  button,input,select,textarea{font:inherit;}
+  button{cursor:pointer;}
+  .hidden{display:none !important;}
+
+  #gate{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.65);z-index:50;}
+  .gateBox .btnBatal{background:var(--panel2);color:var(--text);border:1px solid var(--line);}
+  .pengaju{display:inline-flex;align-items:center;gap:6px;font-weight:400;font-size:13px;color:var(--muted);}
+  .pengaju .inp{background:#fff;color:#111;border-color:#c9ccd2;width:180px;color-scheme:light;}
+  .gateBox{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:24px;width:min(340px,92vw);}
+  .gateBox h2{margin:0 0 4px;font-size:20px;}
+  .gateBox p{margin:0 0 14px;color:var(--muted);font-size:13px;}
+  .gateBox input{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font-size:16px;letter-spacing:3px;}
+  .gateBox button{width:100%;margin-top:10px;padding:10px;border-radius:8px;border:0;background:var(--blue);color:#fff;font-weight:600;}
+  .err{color:var(--red);font-size:13px;min-height:18px;margin-top:8px;}
+
+  /* layar penuh, hanya tabel yang scroll */
+  #app{height:100vh;display:flex;flex-direction:column;overflow:hidden;padding:12px 16px;}
+  #app > *{flex-shrink:0;}
+  #app > .tblWrap{flex:1 1 0;min-height:120px;overflow:auto;border:1px solid var(--line);border-radius:8px;}
+
+  .top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+  .top h1{margin:0 8px 0 0;font-size:20px;}
+  .sp{flex:1;}
+  .btn{padding:7px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--text);}
+  .btn:hover{border-color:#4a505c;}
+  .btn.pri{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600;}
+  .btn.sm{padding:3px 9px;font-size:12px;}
+  .btn:disabled{opacity:.5;cursor:default;}
+  .inp{padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--text);color-scheme:dark;}
+  .bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+  .chip{padding:4px 11px;border-radius:20px;border:1px solid var(--line);background:var(--panel);color:var(--text);font-size:12px;font-weight:600;}
+  .chip.on{background:var(--panel2);border-color:var(--blue);}
+  .msg{font-size:12px;color:var(--muted);margin-bottom:8px;min-height:16px;}
+  .msg.bad{color:var(--red);} .msg.ok{color:var(--green);}
+  .muted{color:var(--muted);font-size:12px;}
+
+  .form{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;}
+  .form h3{margin:0 0 10px;font-size:14px;display:flex;align-items:center;gap:8px;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px 10px;}
+  .grid label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);}
+  .grid label.wide{grid-column:span 2;}
+  .grid .inp{width:100%;}
+  .brSel{display:inline-flex;gap:4px;}
+  .brChip{padding:6px 14px;border-radius:20px;border:1px solid var(--line);background:var(--panel2);font-weight:700;font-size:13px;}
+  .brChip.on{color:#111;}
+  .brTag{display:inline-block;padding:1px 9px;border-radius:10px;font-weight:700;color:#111;font-size:12px;}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap;}
+  th{position:sticky;top:0;background:var(--panel2);text-align:left;font-size:12px;color:var(--muted);z-index:1;}
+  th.r,td.r{text-align:right;font-variant-numeric:tabular-nums;}
+  tbody tr:hover{background:rgba(255,255,255,.03);}
+  td.name{white-space:normal;min-width:220px;}
+  td.pesan{white-space:normal;max-width:300px;font-size:12px;color:var(--muted);}
+  .st{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:700;}
+  .st.BARU{background:#3a2a45;color:#c79bf0;}
+  .st.PENDING{background:#3a3420;color:var(--yellow);}
+  .st.PROSES{background:#1f2d45;color:var(--blue);}
+  .st.OK{background:#1e3529;color:var(--green);}
+  .st.GAGAL{background:#3d2222;color:var(--red);}
+  .st.BATAL{background:var(--panel2);color:var(--muted);}
+  .dim{display:flex;align-items:center;gap:4px;}
+  .dim .inp{width:46px;text-align:center;padding:6px 4px;}
+  .prev{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:8px;}
+  .prev b{color:var(--text);font-variant-numeric:tabular-nums;}
+  .neg{color:var(--red);font-weight:700;}
+  th.grp{text-align:center;border-left:1px solid var(--line);}
+  td.bl,th.bl{border-left:1px solid var(--line);}
+  .rowsWrap{max-height:38vh;overflow:auto;border:1px solid var(--line);border-radius:8px;}
+  .ftbl td{padding:4px 5px;}
+  .ftbl .inp{padding:5px 7px;background:#fff;color:#111;border-color:#c9ccd2;color-scheme:light;}
+  .ftbl .inp:focus{outline:2px solid var(--blue);outline-offset:0;}
+  .ftbl tbody tr:hover{background:none;}
+  .inp.bad{border-color:var(--red);box-shadow:0 0 0 1px var(--red);}
+  tr.editing{outline:2px solid var(--blue);outline-offset:-2px;}
+</style>
+</head>
+<body>
+
+<div id="gate" class="hidden">
+  <div class="gateBox">
+    <h2>Lihat list item</h2>
+    <p>Masukkan PIN untuk melihat daftar item yang sudah diajukan.</p>
+    <input id="pin" type="password" inputmode="numeric" autocomplete="off">
+    <button id="pinBtn">Masuk</button>
+    <button id="pinBatal" class="btnBatal">Batal</button>
+    <div id="pinErr" class="err"></div>
+  </div>
+</div>
+
+<div id="app">
+  <div class="top">
+    <h1>List Item Baru</h1>
+    <span class="muted">Isi harga termasuk PPN. Bot memasukkan ke NexDist (harga sebelum PPN).</span>
+    <span class="sp"></span>
+    <span id="who" class="muted"></span>
+    <button id="listBtn" class="btn">Lihat list</button>
+    <button id="outBtn" class="btn hidden">Keluar</button>
+  </div>
+
+  <div class="form">
+    <h3><span id="formTitle">Ajukan item baru</span>
+      <span class="brSel" id="brSel"></span>
+      <label class="pengaju">Nama pengaju <input id="fBy" class="inp" maxlength="40" autocomplete="off"></label>
+      <span class="muted" style="font-weight:400">Baris yang kosong semua tidak ikut disubmit.</span></h3>
+    <div class="rowsWrap"><table class="ftbl">
+      <thead><tr>
+        <th>#</th><th>Divisi</th><th>Nama barang</th><th>Harga beli (+PPN)</th><th>Harga jual (+PPN)</th>
+        <th>Satuan besar</th><th>Satuan kecil</th><th>Isi</th><th>Karton P × L × T (cm)</th>
+        <th class="r">Beli sblm PPN</th><th class="r">Jual sblm PPN</th><th class="r">Case width</th><th></th>
+      </tr></thead>
+      <tbody id="fBody"></tbody>
+    </table></div>
+    <div class="bar" style="margin:10px 0 0">
+      <button id="addRow" class="btn">+ Tambah baris</button>
+      <button id="saveBtn" class="btn pri">Submit</button>
+      <button id="cancelEdit" class="btn hidden">Batal ubah</button>
+      <span id="formMsg" class="msg" style="margin:0"></span>
+    </div>
+  </div>
+  <datalist id="dlDiv"></datalist>
+
+  <div class="bar listSec hidden">
+    <input id="q" class="inp" placeholder="Search..." style="width:240px">
+    <span id="stChips"></span>
+    <span class="sp"></span>
+    <span id="info" class="muted"></span>
+    <button id="reloadBtn" class="btn">Muat ulang</button>
+  </div>
+  <div id="msg" class="msg listSec hidden"></div>
+  <div class="tblWrap listSec hidden"><table>
+    <thead>
+      <tr>
+        <th rowspan="2">Tgl</th><th rowspan="2">Cabang</th><th rowspan="2">Divisi</th><th rowspan="2">Nama Barang</th>
+        <th class="grp" colspan="2">Termasuk PPN</th><th class="grp" colspan="2">Sebelum PPN (ke NexDist)</th>
+        <th class="r bl colWho" rowspan="2" title="(Jual ÷ Beli − 1) × 100">Margin</th>
+        <th class="bl" rowspan="2">Satuan</th><th rowspan="2">Karton (cm)</th><th class="r" rowspan="2" title="P × L × T ÷ 1.000.000">Case Width</th>
+        <th class="bl" rowspan="2">Status</th><th rowspan="2">Kode NexDist</th><th rowspan="2">Keterangan</th><th rowspan="2" class="colWho">Oleh</th><th rowspan="2"></th>
+      </tr>
+      <tr><th class="r bl" style="top:27px">Beli</th><th class="r" style="top:27px">Jual</th><th class="r bl" style="top:27px">Beli</th><th class="r" style="top:27px">Jual</th></tr>
+    </thead>
+    <tbody id="body"></tbody>
+  </table></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+  const SUPABASE_URL = 'https://swxgkuaoctrcfbgncwaz.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_0e8sOfljWkkin-hwhNweEw_CWqt1Az-';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const BRANCHES = ['KSI', 'ABP', 'DAF'];
+  const BR_COLOR = { DAF:'#4caf7d', ABP:'#5b8def', KSI:'#f2b36b' };
+  const STATUS = ['SEMUA', 'BARU', 'PENDING', 'PROSES', 'GAGAL', 'OK', 'BATAL'];
+  let PIN = '', FULL = false, ITEMS = [], DIVS = [], BR = 'DAF', EDIT = null, stFilter = 'SEMUA';
+  try { const s = localStorage.getItem('item_baru_branch'); if (BRANCHES.includes(s)) BR = s; } catch (e) {}
+
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  const pad = n => String(n).padStart(2, '0');
+  const BLN = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  const parseJson = d => (typeof d === 'string' && /^[\[{]/.test(d)) ? JSON.parse(d) : d;
+  const fmt = n => (n == null || n === '' || isNaN(n)) ? '—' : Number(n).toLocaleString('id-ID', { maximumFractionDigits: 4 });
+  function dm(v){ // dd-mmm jam (WIT)
+    if (!v) return '';
+    const d = new Date(new Date(v).getTime() + 9 * 3600000);
+    return pad(d.getUTCDate()) + '-' + BLN[d.getUTCMonth()] + ' ' + pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes());
+  }
+  async function rpc(name, args){
+    const { data, error } = await sb.rpc(name, Object.assign({ p_pin: PIN }, args || {}));
+    if (error) throw new Error(error.message);
+    return parseJson(data);
+  }
+  function msg(id, t, cls){ $(id).textContent = t || ''; $(id).className = 'msg' + (cls ? ' ' + cls : ''); }
+
+  /* ================= cabang ================= */
+  function drawBr(){
+    $('brSel').innerHTML = BRANCHES.map(b => `<button class="brChip${b === BR ? ' on' : ''}" data-br="${b}" style="${b === BR ? 'background:' + BR_COLOR[b] + ';border-color:' + BR_COLOR[b] : 'color:' + BR_COLOR[b]}">${b}</button>`).join('');
+    $('dlDiv').innerHTML = [...new Set(DIVS.filter(d => d.branch === BR).map(d => d.divisi))].map(d => `<option>${esc(d)}</option>`).join('');
+  }
+  $('brSel').addEventListener('click', e => {
+    const b = e.target.closest('[data-br]'); if (!b) return;
+    BR = b.dataset.br; try { localStorage.setItem('item_baru_branch', BR); } catch (e) {}
+    drawBr();
+  });
+  const brTag = b => `<span class="brTag" style="background:${BR_COLOR[b] || '#999'}">${b}</span>`;
+
+  /* ================= data ================= */
+  async function loadDivisi(){
+    try {
+      const { data, error } = await sb.rpc('item_baru_divisi');
+      if (!error) { DIVS = parseJson(data) || []; drawBr(); }
+    } catch (e) {}
+  }
+  async function load(){
+    if (!FULL) return;
+    msg('msg', 'Memuat...');
+    try {
+      const d = await rpc('item_baru_list');
+      ITEMS = d.items || [];
+      $('who').textContent = '';
+      drawBr(); draw(); msg('msg', '');
+    } catch (e) { msg('msg', 'Gagal memuat: ' + e.message, 'bad'); }
+  }
+
+  const PPN = 1.11;
+  const margin = (beli, jual) => (beli > 0 && jual > 0) ? (jual / beli - 1) * 100 : null;
+  const fmtPct = n => n == null || !isFinite(n) ? '—' : n.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+  const fmtCw = n => (n == null || n === '' || isNaN(n)) ? '—' : Number(n).toLocaleString('id-ID', { maximumFractionDigits: 3 });
+  const cw = (p, l, t) => (p && l && t) ? +(p * l * t / 1000000).toFixed(3) : null;
+
+  function draw(){
+    const cnt = {}; ITEMS.forEach(i => cnt[i.status] = (cnt[i.status] || 0) + 1);
+    $('stChips').innerHTML = STATUS.map(s => `<button class="chip${s === stFilter ? ' on' : ''}" data-st="${s}">${s}${s === 'SEMUA' ? '' : ' ' + (cnt[s] || 0)}</button>`).join(' ');
+    document.querySelectorAll('.colWho').forEach(x => x.classList.toggle('hidden', !FULL));
+    const q = $('q').value.trim().toUpperCase();
+    const rows = ITEMS.filter(i => (stFilter === 'SEMUA' || i.status === stFilter)
+      && (!q || [i.nama, i.divisi, i.branch, i.kode_nexdist, i.diajukan_by].join(' ').toUpperCase().includes(q)));
+    $('info').textContent = rows.length + ' item';
+    $('body').innerHTML = rows.map(i => {
+      const bisaUbah = i.status === 'BARU' || i.status === 'PENDING' || i.status === 'GAGAL';
+      const aksi = [
+        bisaUbah ? `<button class="btn sm" data-act="ubah" data-id="${i.id}">Ubah</button>` : '',
+        i.status === 'GAGAL' || (i.status === 'PROSES' && FULL) ? `<button class="btn sm" data-act="ulang" data-id="${i.id}">Ulangi</button>` : '',
+        bisaUbah ? `<button class="btn sm" data-act="batal" data-id="${i.id}" style="color:var(--red)">Batal</button>` : ''
+      ].join(' ');
+      const mg = margin(+i.harga_beli, +i.harga_jual);
+      const karton = i.karton_p ? `${i.karton_p} × ${i.karton_l} × ${i.karton_t}` : '—';
+      return `<tr class="${EDIT === i.id ? 'editing' : ''}">
+        <td>${dm(i.diajukan_at)}</td><td>${brTag(i.branch)}</td><td>${esc(i.divisi)}</td>
+        <td class="name">${esc(i.nama)}</td>
+        <td class="r bl">${fmt(i.harga_beli_ppn)}</td><td class="r">${fmt(i.harga_jual_ppn)}</td>
+        <td class="r bl">${fmt(i.harga_beli)}</td><td class="r">${fmt(i.harga_jual)}</td>
+        <td class="r bl${mg != null && mg < 0 ? ' neg' : ''}${FULL ? '' : ' hidden'}">${fmtPct(mg)}</td>
+        <td class="bl">1 ${esc(i.uom1)} = ${fmt(i.konversi)} ${esc(i.uom2)}</td><td>${karton}</td><td class="r">${fmtCw(i.case_width)}</td>
+        <td class="bl"><span class="st ${i.status}">${i.status}</span></td>
+        <td>${esc(i.kode_nexdist || '')}</td>
+        <td class="pesan">${esc(i.pesan || '')}${i.diproses_at ? `<div>${dm(i.diproses_at)}</div>` : ''}</td>
+        <td class="muted${FULL ? '' : ' hidden'}">${/full/i.test(i.diajukan_by || '') ? '—' : esc(i.diajukan_by || '')}</td><td>${aksi}</td></tr>`;
+    }).join('') || '<tr><td colspan="17" class="muted" style="text-align:center;padding:20px">Belum ada item.</td></tr>';
+  }
+  $('stChips').addEventListener('click', e => { const b = e.target.closest('[data-st]'); if (b) { stFilter = b.dataset.st; draw(); } });
+  $('q').addEventListener('input', draw);
+  $('reloadBtn').addEventListener('click', load);
+
+  /* ================= form (banyak baris) ================= */
+  const ROW_AWAL = 5;
+  const U1 = ['KRT','LSN','PCS'], U2 = ['PAK','LSN','PCS'];
+  const opt = (list, v) => '<option value="">- pilih -</option>' + list.map(x => `<option${x === v ? ' selected' : ''}>${x}</option>`).join('');
+  function rowHtml(d){
+    d = d || {};
+    return `<tr>
+      <td class="no muted"></td>
+      <td><input class="inp f-div" list="dlDiv" autocomplete="off" value="${esc(d.divisi || '')}" style="width:120px"></td>
+      <td><input class="inp f-nama" autocomplete="off" value="${esc(d.nama || '')}" style="width:300px"></td>
+      <td><input class="inp f-hb" type="number" step="any" min="0" value="${d.harga_beli_ppn ?? ''}" style="width:115px"></td>
+      <td><input class="inp f-hj" type="number" step="any" min="0" value="${d.harga_jual_ppn ?? ''}" style="width:115px"></td>
+      <td><select class="inp f-u1">${opt(U1, d.uom1 || 'KRT')}</select></td>
+      <td><select class="inp f-u2">${opt(U2, d.uom2 || 'PAK')}</select></td>
+      <td><input class="inp f-konv dig" data-max="3" inputmode="numeric" autocomplete="off" value="${d.konversi ?? ''}" style="width:56px;text-align:center"></td>
+      <td><span class="dim">
+        <input class="inp f-p dig" data-max="2" inputmode="numeric" autocomplete="off" value="${d.karton_p ?? ''}"> ×
+        <input class="inp f-l dig" data-max="2" inputmode="numeric" autocomplete="off" value="${d.karton_l ?? ''}"> ×
+        <input class="inp f-t dig" data-max="2" inputmode="numeric" autocomplete="off" value="${d.karton_t ?? ''}"></span></td>
+      <td class="r pv-hb muted"></td><td class="r pv-hj muted"></td><td class="r pv-cw muted"></td>
+      <td><button class="btn sm f-del" title="Hapus baris">✕</button></td></tr>`;
+  }
+  function addRows(n, d){
+    const tb = $('fBody');
+    for (let i = 0; i < n; i++) tb.insertAdjacentHTML('beforeend', rowHtml(d));
+    renum();
+  }
+  function renum(){
+    [...$('fBody').rows].forEach((tr, i) => { tr.querySelector('.no').textContent = i + 1; prevRow(tr); });
+    const satu = $('fBody').rows.length <= 1;
+    $('fBody').querySelectorAll('.f-del').forEach(b => b.disabled = satu);
+  }
+  const v = (tr, c) => tr.querySelector('.' + c).value.trim();
+  function prevRow(tr){
+    const hb = +v(tr, 'f-hb') || 0, hj = +v(tr, 'f-hj') || 0;
+    tr.querySelector('.pv-hb').textContent = hb ? fmt(hb / PPN) : '—';
+    tr.querySelector('.pv-hj').textContent = hj ? fmt(hj / PPN) : '—';
+    tr.querySelector('.pv-cw').textContent = fmtCw(cw(+v(tr, 'f-p'), +v(tr, 'f-l'), +v(tr, 'f-t')));
+  }
+  $('fBody').addEventListener('input', e => {
+    const el = e.target;
+    if (el.classList.contains('dig')) {  // angka saja (isi max 3 digit, karton max 2 digit)
+      const x = el.value.replace(/\D/g, '').slice(0, +el.dataset.max);
+      if (x !== el.value) el.value = x;
+    }
+    el.classList.remove('bad');
+    prevRow(el.closest('tr'));
+  });
+  $('fBody').addEventListener('click', e => {
+    const b = e.target.closest('.f-del'); if (!b) return;
+    b.closest('tr').remove(); renum();
+  });
+  $('addRow').addEventListener('click', () => { addRows(1); $('fBody').lastElementChild.querySelector('.f-div').focus(); });
+
+  // baca & cek 1 baris -> objek, null kalau kosong semua
+  function bacaRow(tr, no){
+    const isi = ['f-div','f-nama','f-hb','f-hj','f-konv','f-p','f-l','f-t'].map(c => v(tr, c));  // satuan tidak dihitung (sudah terisi bawaan KRT/PAK)
+    if (isi.every(x => x === '')) return null;
+    const salah = (c, t) => { tr.querySelector('.' + c).classList.add('bad'); tr.querySelector('.' + c).focus(); throw new Error('Baris ' + no + ': ' + t); };
+    if (!v(tr, 'f-div')) salah('f-div', 'Divisi wajib diisi');
+    if (!v(tr, 'f-nama')) salah('f-nama', 'Nama barang wajib diisi');
+    ['f-hb','f-hj'].forEach((c, i) => {
+      const el = tr.querySelector('.' + c), s = el.value.trim(), nm = i ? 'Harga jual' : 'Harga beli';
+      if (s === '') salah(c, nm + ' wajib diisi');
+      if (!el.checkValidity() || isNaN(+s) || +s <= 0) salah(c, nm + ' bukan angka yang jelas, tulis ulang');
+    });
+    if (!v(tr, 'f-u1')) salah('f-u1', 'Pilih satuan besar');
+    if (!v(tr, 'f-u2')) salah('f-u2', 'Pilih satuan kecil');
+    if (!/^\d{1,3}$/.test(v(tr, 'f-konv')) || +v(tr, 'f-konv') < 1) salah('f-konv', 'Isi harus angka 1 - 999');
+    ['f-p','f-l','f-t'].forEach(c => { if (!/^\d{1,2}$/.test(v(tr, c)) || +v(tr, c) < 1) salah(c, 'Ukuran karton harus angka 1 - 99'); });
+    return { baris: no, divisi: v(tr, 'f-div'), nama: v(tr, 'f-nama'), harga_beli: +v(tr, 'f-hb'), harga_jual: +v(tr, 'f-hj'),
+             uom1: v(tr, 'f-u1'), uom2: v(tr, 'f-u2'), konversi: +v(tr, 'f-konv'),
+             p: +v(tr, 'f-p'), l: +v(tr, 'f-l'), t: +v(tr, 'f-t') };
+  }
+  function resetForm(){
+    EDIT = null;
+    $('fBody').innerHTML = ''; addRows(ROW_AWAL);
+    $('formTitle').textContent = 'Ajukan item baru'; $('saveBtn').textContent = 'Submit';
+    $('addRow').classList.remove('hidden'); $('cancelEdit').classList.add('hidden');
+    draw();
+  }
+  async function save(){
+    msg('formMsg', '');
+    let rows = [];
+    try {
+      [...$('fBody').rows].forEach((tr, i) => { const r = bacaRow(tr, i + 1); if (r) rows.push(r); });
+      if (!rows.length) throw new Error('Belum ada baris yang diisi');
+      const dobel = rows.find((r, i) => rows.findIndex(x => x.nama.toUpperCase().replace(/\s+/g, ' ') === r.nama.toUpperCase().replace(/\s+/g, ' ')) !== i);
+      if (dobel) throw new Error('Baris ' + dobel.baris + ': nama barang sama dengan baris lain');
+    } catch (e) { msg('formMsg', e.message, 'bad'); return; }
+    const by = $('fBy').value.trim();
+    if (!EDIT && by.length < 2) { $('fBy').classList.add('bad'); $('fBy').focus(); msg('formMsg', 'Isi nama pengaju dulu', 'bad'); return; }
+    try { localStorage.setItem('item_baru_pengaju', by); } catch (e) {}
+    if (!EDIT && !confirm(`Submit ${rows.length} item ke cabang ${BR}?`)) return;
+    $('saveBtn').disabled = true;
+    try {
+      if (EDIT) {
+        const r = rows[0];
+        await rpc('item_baru_simpan', { p_id: EDIT, p_branch: BR, p_divisi: r.divisi, p_nama: r.nama,
+          p_harga_beli: r.harga_beli, p_harga_jual: r.harga_jual, p_uom1: r.uom1, p_uom2: r.uom2,
+          p_konversi: r.konversi, p_karton_p: r.p, p_karton_l: r.l, p_karton_t: r.t });
+        resetForm(); msg('formMsg', 'Perubahan disimpan, menunggu bot.', 'ok');
+      } else {
+        const { data, error } = await sb.rpc('item_baru_kirim', { p_pengaju: by, p_branch: BR, p_rows: rows });
+        if (error) throw new Error(error.message);
+        const d = parseJson(data);
+        resetForm(); msg('formMsg', (d && d.jumlah || rows.length) + ' item disubmit, menunggu approve.', 'ok');
+      }
+      await load();
+    } catch (e) { msg('formMsg', e.message, 'bad'); }
+    finally { $('saveBtn').disabled = false; }
+  }
+  $('saveBtn').addEventListener('click', save);
+  $('cancelEdit').addEventListener('click', () => { resetForm(); msg('formMsg', ''); });
+
+  $('body').addEventListener('click', async e => {
+    const b = e.target.closest('[data-act]'); if (!b) return;
+    const it = ITEMS.find(i => String(i.id) === b.dataset.id); if (!it) return;
+    if (b.dataset.act === 'ubah') {
+      EDIT = it.id; BR = it.branch; drawBr();
+      $('fBody').innerHTML = ''; addRows(1, it);
+      $('formTitle').textContent = 'Ubah item #' + it.id; $('saveBtn').textContent = 'Simpan perubahan';
+      $('addRow').classList.add('hidden'); $('cancelEdit').classList.remove('hidden'); msg('formMsg', '');
+      draw(); $('fBody').querySelector('.f-nama').focus();
+      return;
+    }
+    if (b.dataset.act === 'batal' && !confirm('Batalkan pengajuan "' + it.nama + '"?')) return;
+    if (b.dataset.act === 'ulang' && it.status === 'PROSES'
+        && !confirm('Item ini tercatat sedang diproses bot. Pastikan dulu di NexDist barang ini BELUM tersimpan, supaya tidak dobel. Ulangi?')) return;
+    b.disabled = true;
+    try {
+      await rpc(b.dataset.act === 'batal' ? 'item_baru_batal' : 'item_baru_ulang', { p_id: it.id });
+      if (EDIT === it.id) resetForm();
+      await load();
+    } catch (err) { msg('msg', err.message, 'bad'); b.disabled = false; }
+  });
+
+  /* ================= login ================= */
+  let devId;
+  try { devId = localStorage.getItem('issue_device_id'); if (!devId) { devId = crypto.randomUUID(); localStorage.setItem('issue_device_id', devId); } }
+  catch (e) { devId = String(Date.now()); }
+  async function login(pin){
+    const { data, error } = await sb.rpc('verify_access_pin', { p_pin: pin, p_device_id: devId });
+    if (error) throw new Error('Gagal cek PIN: ' + error.message);
+    if (!data || !data.success) throw new Error(data && data.error === 'locked' ? 'Terkunci, coba lagi nanti' : 'PIN salah');
+    return data.label;
+  }
+  async function submit(){
+    const pin = $('pin').value.trim(); if (!pin) return;
+    $('pinBtn').disabled = true; $('pinErr').textContent = '';
+    try {
+      const label = await login(pin);
+      if (!/full/i.test(label || '')) throw new Error('PIN ini tidak punya akses ke list');
+      PIN = pin; FULL = true; $('pin').value = '';
+      $('gate').classList.add('hidden');
+      document.querySelectorAll('.listSec').forEach(x => x.classList.remove('hidden'));
+      $('listBtn').classList.add('hidden'); $('outBtn').classList.remove('hidden');
+      load();
+    }
+    catch (e) { $('pinErr').textContent = e.message; }
+    finally { $('pinBtn').disabled = false; }
+  }
+  $('pinBtn').addEventListener('click', submit);
+  $('pin').addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+  $('listBtn').addEventListener('click', () => { $('pinErr').textContent = ''; $('gate').classList.remove('hidden'); $('pin').focus(); });
+  $('pinBatal').addEventListener('click', () => $('gate').classList.add('hidden'));
+  $('outBtn').addEventListener('click', () => location.reload());
+  $('fBy').addEventListener('input', () => $('fBy').classList.remove('bad'));
+
+  // form langsung tampil, tanpa PIN
+  try { $('fBy').value = localStorage.getItem('item_baru_pengaju') || ''; } catch (e) {}
+  drawBr(); resetForm(); loadDivisi();
+})();
+</script>
+</body>
+</html>
