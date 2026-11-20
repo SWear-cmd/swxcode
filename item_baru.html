@@ -107,18 +107,18 @@
     <span class="muted">Isi harga termasuk PPN. Bot memasukkan ke NexDist (harga sebelum PPN).</span>
     <span class="sp"></span>
     <span id="who" class="muted"></span>
+    <button id="katBtn" class="btn hidden">Master Divisi</button>
     <button id="listBtn" class="btn">Lihat list</button>
     <button id="outBtn" class="btn hidden">Keluar</button>
   </div>
 
   <div class="form">
     <h3><span id="formTitle">Ajukan item baru</span>
-      <span class="brSel" id="brSel"></span>
       <label class="pengaju">Nama pengaju <input id="fBy" class="inp" maxlength="40" autocomplete="off"></label>
       <span class="muted" style="font-weight:400">Baris yang kosong semua tidak ikut disubmit.</span></h3>
     <div class="rowsWrap"><table class="ftbl">
       <thead><tr>
-        <th>#</th><th>Divisi</th><th>Nama barang</th><th>Harga beli (+PPN)</th><th>Harga jual (+PPN)</th>
+        <th>#</th><th>Divisi</th><th title="Otomatis dari divisi">Cabang</th><th>Grup</th><th>Nama barang</th><th>Harga beli (+PPN)</th><th>Harga jual (+PPN)</th>
         <th>Satuan besar</th><th>Satuan kecil</th><th>Isi</th><th>Karton P × L × T (cm)</th>
         <th class="r">Beli sblm PPN</th><th class="r">Jual sblm PPN</th><th class="r">Case width</th><th></th>
       </tr></thead>
@@ -131,7 +131,19 @@
       <span id="formMsg" class="msg" style="margin:0"></span>
     </div>
   </div>
-  <datalist id="dlDiv"></datalist>
+  <div id="katBox" class="form hidden">
+    <h3>Master Divisi
+      <span class="muted" style="font-weight:400">Tulis persis seperti di NexDist. Cabang otomatis dari divisi (CP: pilih DAF / ABP). Admin hanya bisa pilih Divisi + Grup dari sini; bot mengisi 6 kotak NexDist dari baris ini.</span>
+      <span class="sp"></span><button id="katClose" class="btn sm">Tutup</button></h3>
+    <div class="rowsWrap"><table class="ftbl">
+      <thead><tr><th>Division</th><th>Cabang</th><th>Group Level 1</th><th>Group Level 2</th><th>Group Level 3</th><th>Vendor</th><th>Product Brand</th><th></th></tr></thead>
+      <tbody id="katBody"></tbody>
+    </table></div>
+    <div class="bar" style="margin:10px 0 0">
+      <button id="katAdd" class="btn">+ Tambah baris</button>
+      <span id="katMsg" class="msg" style="margin:0"></span>
+    </div>
+  </div>
 
   <div class="bar listSec hidden">
     <input id="q" class="inp" placeholder="Search..." style="width:240px">
@@ -165,8 +177,7 @@
   const BRANCHES = ['KSI', 'ABP', 'DAF'];
   const BR_COLOR = { DAF:'#4caf7d', ABP:'#5b8def', KSI:'#f2b36b' };
   const STATUS = ['SEMUA', 'BARU', 'PENDING', 'PROSES', 'GAGAL', 'OK', 'BATAL'];
-  let PIN = '', FULL = false, ITEMS = [], DIVS = [], BR = 'DAF', EDIT = null, stFilter = 'SEMUA';
-  try { const s = localStorage.getItem('item_baru_branch'); if (BRANCHES.includes(s)) BR = s; } catch (e) {}
+  let PIN = '', FULL = false, ITEMS = [], DIVS = [], KAT = [], DIVCAB = [], EDIT = null, stFilter = 'SEMUA';
 
   const $ = id => document.getElementById(id);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
@@ -186,16 +197,43 @@
   }
   function msg(id, t, cls){ $(id).textContent = t || ''; $(id).className = 'msg' + (cls ? ' ' + cls : ''); }
 
-  /* ================= cabang ================= */
+  /* ================= cabang otomatis dari divisi ================= */
+  // nilai pilihan divisi = "CABANG|DIVISI"; cabang tidak dipilih manual (admin sering lupa ganti)
   function drawBr(){
-    $('brSel').innerHTML = BRANCHES.map(b => `<button class="brChip${b === BR ? ' on' : ''}" data-br="${b}" style="${b === BR ? 'background:' + BR_COLOR[b] + ';border-color:' + BR_COLOR[b] : 'color:' + BR_COLOR[b]}">${b}</button>`).join('');
-    $('dlDiv').innerHTML = [...new Set(DIVS.filter(d => d.branch === BR).map(d => d.divisi))].map(d => `<option>${esc(d)}</option>`).join('');
+    [...$('fBody').rows].forEach(isiDiv);
+    drawKat();
   }
-  $('brSel').addEventListener('click', e => {
-    const b = e.target.closest('[data-br]'); if (!b) return;
-    BR = b.dataset.br; try { localStorage.setItem('item_baru_branch', BR); } catch (e) {}
-    drawBr();
-  });
+  const keyOf = (br, div) => br + '|' + div;
+  const brOf = tr => (tr.querySelector('.f-div').value.split('|')[0]) || '';
+  const divOf = tr => tr.querySelector('.f-div').value.split('|').slice(1).join('|');
+  function divList(){  // [{key, br, div, dobel}] urut cabang DAF, ABP, KSI lalu urutan NexDist
+    const seen = new Set(), out = [];
+    DIVS.forEach(d => { const k = keyOf(d.branch, d.divisi); if (!seen.has(k)) { seen.add(k); out.push({ key: k, br: d.branch, div: d.divisi }); } });
+    out.forEach(o => o.dobel = out.filter(x => x.div === o.div).length > 1);
+    return out;
+  }
+  const grpList = key => DIVS.filter(d => keyOf(d.branch, d.divisi) === key).map(d => d.grup);
+  function isiDiv(tr){
+    const s = tr.querySelector('.f-div'), cur = s.value || s.dataset.v || '';
+    const list = divList();
+    s.innerHTML = '<option value="">- pilih -</option>' + ['DAF', 'ABP', 'KSI'].map(b => {
+      const l = list.filter(o => o.br === b); if (!l.length) return '';
+      return `<optgroup label="${b}">` + l.map(o => `<option value="${esc(o.key)}"${o.key === cur ? ' selected' : ''}>${esc(o.div)}${o.dobel ? ' (' + b + ')' : ''}</option>`).join('') + '</optgroup>';
+    }).join('');
+    if (cur && !list.some(o => o.key === cur)) s.dataset.v = cur; else delete s.dataset.v;  // tunggu data master dimuat
+    isiGrp(tr);
+  }
+  function isiGrp(tr){
+    const br = brOf(tr);
+    tr.querySelector('.f-br').innerHTML = br ? brTag(br) : '<span class="muted">—</span>';
+    const s = tr.querySelector('.f-grp'), cur = s.value || s.dataset.v || '';
+    const list = grpList(tr.querySelector('.f-div').value);
+    const pilih = list.includes(cur) ? cur : (list.length === 1 ? list[0] : '');
+    s.innerHTML = (list.length === 1 ? '' : '<option value="">- pilih -</option>')
+      + list.map(x => `<option${x === pilih ? ' selected' : ''}>${esc(x)}</option>`).join('');
+    s.disabled = !list.length;
+    if (cur && !list.includes(cur)) s.dataset.v = cur; else delete s.dataset.v;
+  }
   const brTag = b => `<span class="brTag" style="background:${BR_COLOR[b] || '#999'}">${b}</span>`;
 
   /* ================= data ================= */
@@ -211,6 +249,9 @@
     try {
       const d = await rpc('item_baru_list');
       ITEMS = d.items || [];
+      KAT = d.kategori || [];
+      DIVCAB = d.divcab || [];
+      DIVS = KAT.map(k => ({ branch: k.branch, divisi: k.divisi, grup: k.grup }));
       $('who').textContent = '';
       drawBr(); draw(); msg('msg', '');
     } catch (e) { msg('msg', 'Gagal memuat: ' + e.message, 'bad'); }
@@ -228,7 +269,7 @@
     document.querySelectorAll('.colWho').forEach(x => x.classList.toggle('hidden', !FULL));
     const q = $('q').value.trim().toUpperCase();
     const rows = ITEMS.filter(i => (stFilter === 'SEMUA' || i.status === stFilter)
-      && (!q || [i.nama, i.divisi, i.branch, i.kode_nexdist, i.diajukan_by].join(' ').toUpperCase().includes(q)));
+      && (!q || [i.nama, i.divisi, i.grup, i.branch, i.kode_nexdist, i.diajukan_by].join(' ').toUpperCase().includes(q)));
     $('info').textContent = rows.length + ' item';
     $('body').innerHTML = rows.map(i => {
       const bisaUbah = i.status === 'BARU' || i.status === 'PENDING' || i.status === 'GAGAL';
@@ -240,7 +281,7 @@
       const mg = margin(+i.harga_beli, +i.harga_jual);
       const karton = i.karton_p ? `${i.karton_p} × ${i.karton_l} × ${i.karton_t}` : '—';
       return `<tr class="${EDIT === i.id ? 'editing' : ''}">
-        <td>${dm(i.diajukan_at)}</td><td>${brTag(i.branch)}</td><td>${esc(i.divisi)}</td>
+        <td>${dm(i.diajukan_at)}</td><td>${brTag(i.branch)}</td><td>${esc(i.divisi)}${i.grup && i.grup !== i.divisi ? `<div class="muted">${esc(i.grup)}</div>` : ''}${i.grup ? '' : '<div class="neg" style="font-size:11px">grup belum dipilih</div>'}</td>
         <td class="name">${esc(i.nama)}</td>
         <td class="r bl">${fmt(i.harga_beli_ppn)}</td><td class="r">${fmt(i.harga_jual_ppn)}</td>
         <td class="r bl">${fmt(i.harga_beli)}</td><td class="r">${fmt(i.harga_jual)}</td>
@@ -264,7 +305,9 @@
     d = d || {};
     return `<tr>
       <td class="no muted"></td>
-      <td><input class="inp f-div" list="dlDiv" autocomplete="off" value="${esc(d.divisi || '')}" style="width:120px"></td>
+      <td><select class="inp f-div" data-v="${d.divisi ? esc(keyOf(d.branch, d.divisi)) : ''}" style="max-width:200px"></select></td>
+      <td class="f-br"></td>
+      <td><select class="inp f-grp" data-v="${esc(d.grup || '')}" style="max-width:150px"></select></td>
       <td><input class="inp f-nama" autocomplete="off" value="${esc(d.nama || '')}" style="width:300px"></td>
       <td><input class="inp f-hb" type="number" step="any" min="0" value="${d.harga_beli_ppn ?? ''}" style="width:115px"></td>
       <td><input class="inp f-hj" type="number" step="any" min="0" value="${d.harga_jual_ppn ?? ''}" style="width:115px"></td>
@@ -280,7 +323,7 @@
   }
   function addRows(n, d){
     const tb = $('fBody');
-    for (let i = 0; i < n; i++) tb.insertAdjacentHTML('beforeend', rowHtml(d));
+    for (let i = 0; i < n; i++) { tb.insertAdjacentHTML('beforeend', rowHtml(d)); isiDiv(tb.lastElementChild); }
     renum();
   }
   function renum(){
@@ -304,6 +347,11 @@
     el.classList.remove('bad');
     prevRow(el.closest('tr'));
   });
+  $('fBody').addEventListener('change', e => {
+    const el = e.target;
+    el.classList.remove('bad');
+    if (el.classList.contains('f-div')) { const tr = el.closest('tr'); delete tr.querySelector('.f-grp').dataset.v; isiGrp(tr); tr.querySelector('.f-grp').classList.remove('bad'); }
+  });
   $('fBody').addEventListener('click', e => {
     const b = e.target.closest('.f-del'); if (!b) return;
     b.closest('tr').remove(); renum();
@@ -315,7 +363,8 @@
     const isi = ['f-div','f-nama','f-hb','f-hj','f-konv','f-p','f-l','f-t'].map(c => v(tr, c));  // satuan tidak dihitung (sudah terisi bawaan KRT/PAK)
     if (isi.every(x => x === '')) return null;
     const salah = (c, t) => { tr.querySelector('.' + c).classList.add('bad'); tr.querySelector('.' + c).focus(); throw new Error('Baris ' + no + ': ' + t); };
-    if (!v(tr, 'f-div')) salah('f-div', 'Divisi wajib diisi');
+    if (!v(tr, 'f-div')) salah('f-div', 'Pilih divisi');
+    if (!v(tr, 'f-grp')) salah('f-grp', 'Pilih grup');
     if (!v(tr, 'f-nama')) salah('f-nama', 'Nama barang wajib diisi');
     ['f-hb','f-hj'].forEach((c, i) => {
       const el = tr.querySelector('.' + c), s = el.value.trim(), nm = i ? 'Harga jual' : 'Harga beli';
@@ -326,7 +375,7 @@
     if (!v(tr, 'f-u2')) salah('f-u2', 'Pilih satuan kecil');
     if (!/^\d{1,3}$/.test(v(tr, 'f-konv')) || +v(tr, 'f-konv') < 1) salah('f-konv', 'Isi harus angka 1 - 999');
     ['f-p','f-l','f-t'].forEach(c => { if (!/^\d{1,2}$/.test(v(tr, c)) || +v(tr, c) < 1) salah(c, 'Ukuran karton harus angka 1 - 99'); });
-    return { baris: no, divisi: v(tr, 'f-div'), nama: v(tr, 'f-nama'), harga_beli: +v(tr, 'f-hb'), harga_jual: +v(tr, 'f-hj'),
+    return { baris: no, branch: brOf(tr), divisi: divOf(tr), grup: v(tr, 'f-grp'), nama: v(tr, 'f-nama'), harga_beli: +v(tr, 'f-hb'), harga_jual: +v(tr, 'f-hj'),
              uom1: v(tr, 'f-u1'), uom2: v(tr, 'f-u2'), konversi: +v(tr, 'f-konv'),
              p: +v(tr, 'f-p'), l: +v(tr, 'f-l'), t: +v(tr, 'f-t') };
   }
@@ -349,17 +398,18 @@
     const by = $('fBy').value.trim();
     if (!EDIT && by.length < 2) { $('fBy').classList.add('bad'); $('fBy').focus(); msg('formMsg', 'Isi nama pengaju dulu', 'bad'); return; }
     try { localStorage.setItem('item_baru_pengaju', by); } catch (e) {}
-    if (!EDIT && !confirm(`Submit ${rows.length} item ke cabang ${BR}?`)) return;
+    const perBr = ['DAF', 'ABP', 'KSI'].map(b => [b, rows.filter(r => r.branch === b).length]).filter(x => x[1]).map(x => x[0] + ' ' + x[1]).join(', ');
+    if (!EDIT && !confirm(`Submit ${rows.length} item (${perBr})?`)) return;
     $('saveBtn').disabled = true;
     try {
       if (EDIT) {
         const r = rows[0];
-        await rpc('item_baru_simpan', { p_id: EDIT, p_branch: BR, p_divisi: r.divisi, p_nama: r.nama,
+        await rpc('item_baru_simpan', { p_id: EDIT, p_branch: r.branch, p_divisi: r.divisi, p_grup: r.grup, p_nama: r.nama,
           p_harga_beli: r.harga_beli, p_harga_jual: r.harga_jual, p_uom1: r.uom1, p_uom2: r.uom2,
           p_konversi: r.konversi, p_karton_p: r.p, p_karton_l: r.l, p_karton_t: r.t });
         resetForm(); msg('formMsg', 'Perubahan disimpan, menunggu bot.', 'ok');
       } else {
-        const { data, error } = await sb.rpc('item_baru_kirim', { p_pengaju: by, p_branch: BR, p_rows: rows });
+        const { data, error } = await sb.rpc('item_baru_kirim', { p_pengaju: by, p_branch: '', p_rows: rows });
         if (error) throw new Error(error.message);
         const d = parseJson(data);
         resetForm(); msg('formMsg', (d && d.jumlah || rows.length) + ' item disubmit, menunggu approve.', 'ok');
@@ -375,7 +425,7 @@
     const b = e.target.closest('[data-act]'); if (!b) return;
     const it = ITEMS.find(i => String(i.id) === b.dataset.id); if (!it) return;
     if (b.dataset.act === 'ubah') {
-      EDIT = it.id; BR = it.branch; drawBr();
+      EDIT = it.id;
       $('fBody').innerHTML = ''; addRows(1, it);
       $('formTitle').textContent = 'Ubah item #' + it.id; $('saveBtn').textContent = 'Simpan perubahan';
       $('addRow').classList.add('hidden'); $('cancelEdit').classList.remove('hidden'); msg('formMsg', '');
@@ -391,6 +441,80 @@
       if (EDIT === it.id) resetForm();
       await load();
     } catch (err) { msg('msg', err.message, 'bad'); b.disabled = false; }
+  });
+
+  /* ================= Master Divisi (Full Access) ================= */
+  const KF = ['divisi', 'grup', 'grup2', 'grup3', 'vendor', 'brand'];
+  // Division = pilihan dari daftar divisi per cabang (item_baru_divisi_cabang) -> cabang ikut otomatis
+  function katDivSel(cur){
+    const dobel = d => DIVCAB.filter(x => x.divisi === d).length > 1;
+    return '<select class="inp k-divisi" style="width:240px"><option value="">- pilih -</option>' + ['DAF', 'ABP', 'KSI'].map(b => {
+      const l = DIVCAB.filter(x => x.branch === b); if (!l.length) return '';
+      return `<optgroup label="${b}">` + l.map(x => { const k = keyOf(b, x.divisi);
+        return `<option value="${esc(k)}"${k === cur ? ' selected' : ''}>${esc(x.divisi)}${dobel(x.divisi) ? ' (' + b + ')' : ''}</option>`; }).join('') + '</optgroup>';
+    }).join('') + '</select>';
+  }
+  function katRow(k){
+    k = k || {};
+    const cur = k.divisi ? keyOf(k.branch, k.divisi) : '';
+    return `<tr data-id="${k.id || ''}"><td>${katDivSel(cur)}</td><td class="k-br">${k.branch ? brTag(k.branch) : '—'}</td>`
+      + KF.slice(1).map(f => `<td><input class="inp k-${f}" autocomplete="off" value="${esc(k[f] || '')}" style="width:${f === 'vendor' ? 230 : 120}px"></td>`).join('')
+      + `<td><button class="btn sm pri k-save">Simpan</button> ${k.id ? '<button class="btn sm k-del" style="color:var(--red)">Hapus</button>' : '<button class="btn sm k-del">✕</button>'}</td></tr>`;
+  }
+  const katDiv = tr => tr.querySelector('.k-divisi').value.split('|').slice(1).join('|');
+  const katBr = tr => tr.querySelector('.k-divisi').value.split('|')[0] || '';
+  function drawKat(){
+    if (!FULL || !$('katBody')) return;
+    $('katBody').innerHTML = KAT.map(katRow).join('')
+      || '<tr class="kosong"><td colspan="8" class="muted" style="text-align:center;padding:12px">Belum ada divisi. Klik + Tambah baris.</td></tr>';
+  }
+  $('katBody').addEventListener('change', e => {
+    if (!e.target.classList.contains('k-divisi')) return;
+    const tr = e.target.closest('tr'), b = katBr(tr);
+    tr.querySelector('.k-br').innerHTML = b ? brTag(b) : '—';
+  });
+  $('katBtn').addEventListener('click', () => { $('katBox').classList.toggle('hidden'); drawKat(); msg('katMsg', ''); });
+  $('katClose').addEventListener('click', () => $('katBox').classList.add('hidden'));
+  $('katAdd').addEventListener('click', () => {
+    const k = $('katBody').querySelector('tr.kosong'); if (k) k.remove();
+    $('katBody').insertAdjacentHTML('beforeend', katRow());
+    const tr = $('katBody').lastElementChild;
+    // Ketik Division -> 5 kolom lain ikut sama (contoh SMART semua). Ketik Grup 1 -> Grup 2/3 & Brand ikut Grup 1.
+    // Kolom yang sudah diketik sendiri tidak ditimpa lagi.
+    const ikut = { vendor: 'divisi', grup: 'divisi', grup2: 'grup', grup3: 'grup', brand: 'grup' };
+    const manual = new Set();
+    const nilai = el => el.classList.contains('k-divisi') ? katDiv(tr) : el.value;
+    const ikuti = e => {
+      const f = KF.find(x => e.target.classList.contains('k-' + x)); if (!f) return;
+      if (e.isTrusted && f !== 'divisi') manual.add(f);
+      Object.keys(ikut).filter(x => ikut[x] === f && !manual.has(x)).forEach(x => {
+        const el = tr.querySelector('.k-' + x); el.value = nilai(e.target);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    };
+    tr.addEventListener('input', ikuti);
+    tr.querySelector('.k-divisi').addEventListener('change', ikuti);
+    tr.querySelector('.k-divisi').focus();
+  });
+  $('katBody').addEventListener('click', async e => {
+    const b = e.target.closest('.k-save, .k-del'); if (!b) return;
+    const tr = b.closest('tr'), id = tr.dataset.id ? +tr.dataset.id : null;
+    msg('katMsg', '');
+    if (b.classList.contains('k-del')) {
+      if (!id) { tr.remove(); return; }
+      if (!confirm('Hapus ' + katDiv(tr) + ' (' + katBr(tr) + ') / ' + tr.querySelector('.k-grup').value + ' dari Master Divisi?')) return;
+    }
+    b.disabled = true;
+    try {
+      if (b.classList.contains('k-del')) await rpc('item_baru_kategori_hapus', { p_id: id });
+      else {
+        if (!katBr(tr)) throw new Error('Pilih Division dulu');
+        const a = { p_id: id, p_branch: katBr(tr), p_divisi: katDiv(tr) };
+        KF.slice(1).forEach(f => a['p_' + f] = tr.querySelector('.k-' + f).value);
+        await rpc('item_baru_kategori_simpan', a);
+      }
+      await load(); msg('katMsg', 'Tersimpan.', 'ok');
+    } catch (err) { msg('katMsg', err.message, 'bad'); b.disabled = false; }
   });
 
   /* ================= login ================= */
@@ -412,7 +536,7 @@
       PIN = pin; FULL = true; $('pin').value = '';
       $('gate').classList.add('hidden');
       document.querySelectorAll('.listSec').forEach(x => x.classList.remove('hidden'));
-      $('listBtn').classList.add('hidden'); $('outBtn').classList.remove('hidden');
+      $('listBtn').classList.add('hidden'); $('outBtn').classList.remove('hidden'); $('katBtn').classList.remove('hidden');
       load();
     }
     catch (e) { $('pinErr').textContent = e.message; }
