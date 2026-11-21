@@ -78,6 +78,12 @@
   .prev b{color:var(--text);font-variant-numeric:tabular-nums;}
   .neg{color:var(--red);font-weight:700;}
   th.grp{text-align:center;border-left:1px solid var(--line);}
+  th.hBeli,th.hJual{font-weight:800;font-size:13px;color:#fff;text-align:center;}
+  th.hBeli{background:#c0392b;}
+  th.hJual{background:#1e8449;}
+  th.hBeli small,th.hJual small{display:block;font-weight:400;font-size:10px;opacity:.9;}
+  .f-hb{border:2px solid #c0392b !important;}
+  .f-hj{border:2px solid #1e8449 !important;}
   td.bl,th.bl{border-left:1px solid var(--line);}
   .rowsWrap{max-height:38vh;overflow:auto;border:1px solid var(--line);border-radius:8px;}
   .ftbl td{padding:4px 5px;}
@@ -116,7 +122,7 @@
       <label class="pengaju">Nama Admin <input id="fBy" class="inp" maxlength="40" autocomplete="off"></label></h3>
     <div class="rowsWrap"><table class="ftbl">
       <thead><tr>
-        <th>#</th><th>Divisi</th><th title="Otomatis dari divisi">Cabang</th><th>Grup</th><th>Nama barang</th><th>Harga beli (+PPN)</th><th>Harga jual (+PPN)</th>
+        <th>#</th><th>Divisi</th><th title="Otomatis dari divisi">Cabang</th><th>Grup</th><th>Nama barang</th><th class="hBeli">HARGA BELI<small>(modal, +PPN)</small></th><th class="hJual">HARGA JUAL<small>(ke toko, +PPN)</small></th>
         <th>Satuan besar</th><th>Satuan kecil</th><th>Isi</th><th>Karton P × L × T (cm)</th>
         <th class="r">Beli sblm PPN</th><th class="r">Jual sblm PPN</th><th class="r">Case width</th><th></th>
       </tr></thead>
@@ -297,7 +303,7 @@
 
   /* ================= form (banyak baris) ================= */
   const ROW_AWAL = 5;
-  const U1 = ['KRT','LSN','PCS'], U2 = ['PAK','LSN','PCS'];
+  const U1 = ['KRT','LSN','PCS'], U2 = ['PAK','LSN','PCS','RCG'];
   const opt = (list, v) => '<option value="">- pilih -</option>' + list.map(x => `<option${x === v ? ' selected' : ''}>${x}</option>`).join('');
   function rowHtml(d){
     d = d || {};
