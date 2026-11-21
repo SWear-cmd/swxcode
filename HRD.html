@@ -2475,7 +2475,7 @@ document.getElementById('pinInput').addEventListener('keydown', e => { if (e.key
     const t = D.today || todayWIT();
     const tgl = inp('amf_tgl', 'Tanggal pasang *', t, 'type="date" max="' + t + '"');
     if (kind === 'ban') return inp('amf_kode', 'Kode ban *', '', 'style="text-transform:uppercase"') + tgl +
-      '<label class="full">Foto kode ban *<input type="file" id="amf_foto" accept="image/*" capture="environment"></label>';
+      '<label class="full">Foto kode ban (opsional)<input type="file" id="amf_foto" accept="image/*" capture="environment"></label>';
     return inp('amf_merk', 'Merk aki *', '') + tgl;
   }
 
@@ -2604,12 +2604,11 @@ document.getElementById('pinInput').addEventListener('keydown', e => { if (e.key
       const ban = modal.kind === 'ban', tgl = v('amf_tgl');
       const isi = ban ? v('amf_kode') : v('amf_merk');
       if (!isi || !tgl){ err.textContent = (ban ? 'Kode ban' : 'Merk aki') + ' dan tanggal wajib diisi'; return; }
-      if (ban && !$('amf_foto').files[0]){ err.textContent = 'Foto kode ban wajib diupload'; return; }
       if (tgl > (D.today || todayWIT())){ err.textContent = 'Tanggal tidak boleh di masa depan'; return; }
       const p = { mobil_id: d.mid, tgl_pasang: tgl };
       if (ban){
         sv.disabled = true;
-        try{ p.foto = await kyCompress($('amf_foto').files[0]); }
+        try{ const f = $('amf_foto').files[0]; if (f) p.foto = await kyCompress(f); }
         catch(e){ err.textContent = e.message; sv.disabled = false; return; }
         p.posisi = d.pos; p.kode = isi.toUpperCase(); name = 'armada_ganti_ban'; msg = 'Ganti ban tersimpan';
       } else { p.merk = isi; name = 'armada_ganti_aki'; msg = 'Ganti aki tersimpan'; }
