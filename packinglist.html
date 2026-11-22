@@ -342,6 +342,7 @@
       <div class="empty hidden" id="trackEmpty">Belum ada invoice dengan status FULL/CORETAN/BATAL.</div>
     </div>
   </div>
+
 </div>
 
 <!-- PL header edit modal (Sopir / Tgl Antar) -->
@@ -1226,8 +1227,8 @@
   async function loadKasColStatus(){
     try{
       const [kas, col] = await Promise.all([
-        rpcAll('get_kas_kecil_faktur_list'),
-        rpcAll('get_invoice_payment_no_list')
+        rpcAll('get_kas_kecil_faktur_list', { p_pin: currentPin }),
+        rpcAll('get_invoice_payment_no_list', { p_pin: currentPin })
       ]);
       if (kas.error) throw kas.error;
       if (col.error) throw col.error;
