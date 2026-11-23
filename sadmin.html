@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Menu SPV Admin</title>
+<style>
+  :root{
+    --bg:#f3f5f8; --card:#fff; --text:#1d2433; --muted:#6b7385; --line:#e2e6ee;
+    --green:#16a34a; --blue:#2563eb; --orange:#ea7a12;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  body{display:flex;flex-direction:column;overflow:hidden}
+
+  /* bar atas */
+  .bar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#1d2433;color:#fff;flex:0 0 auto;overflow-x:auto}
+  .bar .judul{font-weight:700;font-size:16px;white-space:nowrap;margin-right:6px}
+  .bar button{border:0;border-radius:8px;padding:9px 14px;font-size:15px;font-weight:600;cursor:pointer;
+    background:#2e3648;color:#fff;white-space:nowrap}
+  .bar button.aktif{background:var(--c,#2563eb)}
+  .bar .menu{background:#3b4459}
+
+  /* halaman menu */
+  #home{flex:1;overflow:auto;padding:24px 16px}
+  #home h1{margin:0 0 4px;font-size:22px}
+  #home p{margin:0 0 20px;color:var(--muted)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;max-width:900px}
+  .tombol{display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;
+    background:var(--card);border:2px solid var(--line);border-left:8px solid var(--c);border-radius:14px;
+    padding:22px 20px;cursor:pointer;font:inherit;color:inherit;min-height:120px}
+  .tombol:hover,.tombol:active{border-color:var(--c)}
+  .tombol .ikon{font-size:34px;line-height:1}
+  .tombol .nama{font-size:20px;font-weight:700}
+  .tombol .ket{font-size:14px;color:var(--muted)}
+
+  /* area tool */
+  #area{flex:1;position:relative;display:none}
+  #area iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#fff;display:none}
+  #area iframe.tampil{display:block}
+</style>
+</head>
+<body>
+
+<div class="bar" id="bar">
+  <span class="judul">SPV Admin</span>
+  <button class="menu" id="btnMenu" type="button">☰ Menu</button>
+  <span id="tabs" style="display:flex;gap:8px"></span>
+</div>
+
+<div id="home">
+  <h1>Pilih halaman</h1>
+  <p>Login (PIN) dilakukan di masing-masing halaman.</p>
+  <div class="grid" id="grid"></div>
+</div>
+
+<div id="area"></div>
+
+<script>
+/* Daftar halaman untuk SPVADMIN. Tambah/hapus di sini saja. */
+var TOOLS = [
+  { id:'gudang',  nama:'Gudang',       ikon:'📦', file:'gudang.html',      warna:'var(--green)',  ket:'Packing list keluar, sopir, cek faktur' },
+  { id:'opname',  nama:'Stock Opname', ikon:'📋', file:'opname.html',      warna:'var(--blue)',   ket:'Opname, barcode, kanvas' },
+  { id:'packing', nama:'Packing List', ikon:'🚚', file:'packinglist.html', warna:'var(--orange)', ket:'Invoice, packing list, tracking' }
+];
+
+var KEY = 'spvadmin_last';
+var frames = {};
+var aktif = null;
+
+function simpan(v){ try{ localStorage.setItem(KEY, v || ''); }catch(e){} }
+function ambil(){ try{ return localStorage.getItem(KEY) || ''; }catch(e){ return ''; } }
+
+function buatMenu(){
+  var grid = document.getElementById('grid');
+  var tabs = document.getElementById('tabs');
+  TOOLS.forEach(function(t){
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'tombol'; b.style.setProperty('--c', t.warna);
+    b.innerHTML = '<span class="ikon">'+t.ikon+'</span><span class="nama">'+t.nama+'</span><span class="ket">'+t.ket+'</span>';
+    b.onclick = function(){ buka(t.id); };
+    grid.appendChild(b);
+
+    var tb = document.createElement('button');
+    tb.type = 'button'; tb.id = 'tab_'+t.id; tb.style.setProperty('--c', t.warna);
+    tb.textContent = t.ikon + ' ' + t.nama;
+    tb.onclick = function(){ buka(t.id); };
+    tabs.appendChild(tb);
+  });
+  document.getElementById('btnMenu').onclick = keMenu;
+}
+
+function buka(id){
+  var t = TOOLS.filter(function(x){ return x.id === id; })[0];
+  if (!t) return keMenu();
+  var area = document.getElementById('area');
+  /* iframe disimpan, jadi pindah halaman tidak perlu login ulang */
+  if (!frames[id]){
+    var f = document.createElement('iframe');
+    f.src = t.file;
+    f.title = t.nama;
+    area.appendChild(f);
+    frames[id] = f;
+  }
+  Object.keys(frames).forEach(function(k){ frames[k].classList.toggle('tampil', k === id); });
+  document.getElementById('home').style.display = 'none';
+  area.style.display = 'block';
+  TOOLS.forEach(function(x){ document.getElementById('tab_'+x.id).classList.toggle('aktif', x.id === id); });
+  document.getElementById('btnMenu').classList.remove('aktif');
+  aktif = id; simpan(id);
+}
+
+function keMenu(){
+  document.getElementById('home').style.display = 'block';
+  document.getElementById('area').style.display = 'none';
+  TOOLS.forEach(function(x){ document.getElementById('tab_'+x.id).classList.remove('aktif'); });
+  aktif = null; simpan('');
+}
+
+buatMenu();
+var last = ambil();
+if (last) buka(last);
+</script>
+</body>
+</html>
