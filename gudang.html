@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>GUDANG</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root{
+    --bg:#dfe3e8; --panel:#f5f6f8; --panel2:#ffffff; --border:#c3c9d1;
+    --text:#1d232b; --muted:#5d6876; --green:#1e9e5a; --red:#d33a4f;
+    --blue:#2468b0; --teal:#178c83; --purple:#7346d1; --amber:#b5730f;
+    --inv:#0b4fa0;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:16px;-webkit-font-smoothing:antialiased;}
+  button{font-family:inherit;}
+  .hidden{display:none !important;}
+
+  /* ---- layout: 1 layar penuh, isi yang scroll ---- */
+  .view{position:fixed;inset:0;display:flex;flex-direction:column;}
+  .bar{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--panel);border-bottom:1px solid var(--border);flex:0 0 auto;}
+  .bar h1{font-size:18px;margin:0;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .bar .sub{font-size:12px;color:var(--muted);font-weight:400;display:block;}
+  .back{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:10px;min-width:48px;height:48px;font-size:22px;cursor:pointer;}
+  .scroll{flex:1;overflow-y:auto;padding:14px;-webkit-overflow-scrolling:touch;}
+  .foot{flex:0 0 auto;padding:12px 14px;background:var(--panel);border-top:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+
+  .btn{background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:0 18px;height:50px;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;}
+  .btn:disabled{opacity:.4;cursor:default;}
+  .btn.primary{background:var(--teal);color:#fff;border-color:var(--teal);}
+  .btn.red{background:transparent;border-color:var(--red);color:var(--red);}
+  .btn.grow{flex:1;}
+  .btn-sm{height:38px;padding:0 12px;font-size:14px;border-radius:9px;}
+
+  /* ---- PIN ---- */
+  #pinView{align-items:center;justify-content:center;}
+  .pin-box{width:min(360px,90vw);background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:26px;text-align:center;}
+  .pin-box h2{margin:0 0 6px;}
+  .pin-box p{color:var(--muted);font-size:14px;margin:0 0 18px;}
+  .pin-box input{width:100%;height:56px;font-size:24px;text-align:center;background:var(--panel2);border:1px solid var(--border);border-radius:12px;color:var(--text);margin-bottom:12px;letter-spacing:6px;}
+  .pin-box .btn{width:100%;}
+  .err{color:var(--red);font-size:14px;min-height:18px;margin-top:10px;}
+
+  /* ---- Menu IN / OUT ---- */
+  .menu{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:18px;}
+  .big{border-radius:22px;border:2px solid var(--border);background:var(--panel);color:var(--text);font-size:44px;font-weight:800;letter-spacing:2px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;}
+  .big small{font-size:15px;font-weight:500;color:var(--muted);letter-spacing:0;}
+  .big.out{border-color:var(--red);color:var(--red);background:#fbe9ec;}
+  .big.in{border-color:var(--green);color:var(--green);background:#e6f5ec;}
+  .big:disabled{opacity:.45;cursor:default;}
+  @media (max-width:600px){ .menu{grid-template-columns:1fr;} .big{font-size:36px;} }
+
+  /* ---- tabs + search ---- */
+  .tools{display:flex;gap:10px;padding:12px 14px 0;flex-wrap:wrap;flex:0 0 auto;}
+  .seg{display:flex;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:4px;gap:4px;}
+  .seg button{background:transparent;border:0;color:var(--muted);height:42px;padding:0 16px;border-radius:9px;font-size:15px;font-weight:700;cursor:pointer;}
+  .seg button.active{background:var(--teal);color:#fff;}
+  .search{flex:1;min-width:160px;height:50px;background:var(--panel);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:16px;padding:0 14px;}
+
+  /* ---- cards ---- */
+  .card{background:var(--panel2);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:10px;cursor:pointer;display:flex;gap:12px;align-items:center;}
+  .card:active{background:var(--panel2);}
+  .card .main{flex:1;min-width:0;}
+  .card .t1{font-size:17px;font-weight:700;}
+  .card .t2{font-size:14px;color:var(--muted);margin-top:4px;}
+  .card .right{text-align:right;flex:0 0 auto;}
+  .card .chev{font-size:24px;color:var(--muted);}
+  .pill{display:inline-block;font-size:12px;font-weight:700;border-radius:20px;padding:3px 10px;border:1px solid currentColor;}
+  .st-NULL{color:var(--muted);} .st-FULL{color:var(--green);} .st-CORETAN{color:#d9650b;} .st-BATAL{color:var(--red);} .st-REKAP{color:#a88400;}
+  /* warna kartu faktur per status: putih = open */
+  .card.cs-FULL{background:#e3f6ea;border-color:#8fd3ab;}
+  .card.cs-CORETAN{background:#fdebd9;border-color:#f2b27a;}
+  .card.cs-BATAL{background:#fbe1e4;border-color:#ec9aa5;}
+  .card.cs-REKAP{background:#fdf6cc;border-color:#e6cf5c;}
+  .prog{font-size:14px;font-weight:700;}
+  .empty{padding:50px 20px;text-align:center;color:var(--muted);}
+
+  /* ---- header PL ---- */
+  .lock-note{border:1px solid var(--amber);color:var(--amber);border-radius:12px;padding:10px 14px;margin-bottom:12px;font-weight:600;}
+  .hdr{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:14px;}
+  .field{margin-bottom:12px;}
+  .field:last-child{margin-bottom:0;}
+  .field label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px;font-weight:600;}
+  .field input,.field select{width:100%;height:50px;background:var(--panel2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;padding:0 12px;}
+  /* urut ke bawah: 4 baris per kolom, lalu kolom berikutnya */
+  .sp-grid{display:grid;grid-auto-flow:column;grid-template-rows:repeat(4,auto);grid-auto-columns:minmax(clamp(88px,26vw,190px),1fr);gap:clamp(6px,1.2vw,12px);overflow-x:auto;}
+  /* ukuran ikut lebar layar: HP lebih kecil, PC lebih besar */
+  .sp-tile{position:relative;min-height:clamp(42px,6vw,72px);padding:clamp(4px,.8vw,10px) clamp(6px,1.2vw,14px);border-radius:12px;background:var(--panel2);border:2px solid var(--border);color:var(--text);font-size:clamp(12px,1.1vw + 6px,20px);font-weight:700;cursor:pointer;text-align:center;line-height:1.25;}
+  .sp-tile.on{background:var(--teal);border-color:var(--teal);color:#fff;}
+  .sp-tile:disabled{cursor:default;opacity:.6;}
+  .sp-tile.on:disabled{opacity:1;}
+  .sp-no{position:absolute;top:4px;left:6px;font-size:12px;background:#fff;color:var(--teal);border-radius:10px;padding:0 6px;}
+  .sec-title{font-size:13px;color:var(--muted);font-weight:700;margin:4px 2px 8px;text-transform:uppercase;letter-spacing:.5px;}
+
+  /* ---- isi barang ---- */
+  .item{background:var(--panel2);border:1px solid var(--border);border-radius:14px;padding:12px 14px;margin-bottom:10px;}
+  .item.rej{border-color:var(--purple);}
+  .item .nm{font-size:16px;font-weight:700;}
+  .item .cd{font-size:13px;color:var(--muted);margin-top:2px;}
+  .item .row{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap;}
+  .qty-lbl{font-size:13px;color:var(--muted);}
+  .stepper{display:flex;align-items:center;gap:6px;}
+  .stepper button{width:50px;height:50px;border-radius:10px;background:var(--panel);border:1px solid var(--border);color:var(--text);font-size:24px;font-weight:700;cursor:pointer;}
+  .stepper input{width:84px;height:50px;border-radius:10px;background:var(--panel);border:1px solid var(--border);color:var(--text);font-size:20px;font-weight:700;text-align:center;}
+  .lv{display:flex;flex-direction:column;gap:4px;}
+  .quick{display:flex;gap:8px;margin-left:auto;align-self:flex-end;}
+  .btn.ok{background:var(--green);border-color:var(--green);color:#fff;}
+  .btn.no{background:var(--red);border-color:var(--red);color:#fff;}
+  .btn.rekap{background:var(--amber);border-color:var(--amber);color:#fff;}
+  .inv-act{display:flex;gap:8px;margin-top:8px;justify-content:flex-end;}
+  .rj-head{font-weight:700;font-size:16px;margin-bottom:10px;line-height:1.5;}
+  .modal-list .chips{border:0;padding:0;}
+  .modal-list .rj-head,.modal-list .msg{border:0;padding:0 2px;}
+  .inv{color:var(--inv);font-size:16px;font-family:Consolas,"Courier New",monospace;letter-spacing:.3px;}
+  .inv b{font-size:19px;font-weight:800;color:var(--inv);}
+  .bar .sub .inv{font-size:14px;} .bar .sub .inv b{font-size:16px;}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+  .chip{height:42px;padding:0 14px;border-radius:21px;background:var(--panel);border:1px solid var(--border);color:var(--text);font-size:14px;font-weight:600;cursor:pointer;}
+  .chip.on{background:var(--purple);border-color:var(--purple);color:#fff;}
+  .chips.need .chip{border-color:var(--red);}
+  .sum{font-size:14px;flex:1;min-width:180px;}
+
+  /* ---- modal ---- */
+  .modal{position:fixed;inset:0;background:rgba(20,25,32,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50;}
+  .modal-box{background:var(--panel);border:1px solid var(--border);border-radius:16px;width:min(520px,100%);max-height:90vh;display:flex;flex-direction:column;padding:20px;}
+  .modal-box h3{margin:0 0 6px;font-size:18px;}
+  .modal-box .msg{font-size:15px;color:var(--muted);margin-bottom:12px;}
+  .modal-list{overflow-y:auto;flex:1;margin-bottom:14px;}
+  .modal-list div{padding:10px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:6px;font-size:15px;}
+  .modal-list small{color:var(--muted);display:block;}
+  .modal-act{display:flex;gap:10px;}
+  .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:12px 18px;font-size:15px;z-index:60;max-width:90vw;}
+  .toast.bad{border-color:var(--red);color:var(--red);}
+</style>
+</head>
+<body>
+
+<!-- ============ PIN ============ -->
+<div class="view" id="pinView">
+  <div class="pin-box">
+    <h2>Gudang</h2>
+    <p>Masukkan PIN</p>
+    <input type="text" id="pinInput" name="gd-kode-akses" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" inputmode="text" style="-webkit-text-security:disc;text-security:disc;" placeholder="••••" maxlength="12">
+    <button class="btn primary" id="pinBtn">Masuk</button>
+    <div class="err" id="pinErr"></div>
+  </div>
+</div>
+
+<!-- ============ MENU ============ -->
+<div class="view hidden" id="menuView">
+  <div class="bar">
+    <h1>GUDANG <span class="sub" id="menuSub"></span></h1>
+    <button class="btn btn-sm" id="logoutBtn">Keluar</button>
+  </div>
+  <div class="menu">
+    <button class="big in" id="inBtn" disabled>IN<small>segera</small></button>
+    <button class="big out" id="outBtn">OUT<small>Packing list &amp; antaran</small></button>
+  </div>
+</div>
+
+<!-- ============ OUT: daftar PL ============ -->
+<div class="view hidden" id="plListView">
+  <div class="bar">
+    <button class="back" data-go="menu">&#8249;</button>
+    <h1>OUT &middot; Packing List <span class="sub" id="plListSub"></span></h1>
+    <button class="btn btn-sm" id="plRefreshBtn">&#8635;</button>
+  </div>
+  <div class="tools">
+    <div class="seg" id="plSeg">
+      <button data-v="open" class="active">Belum Tuntas <span id="cntOpen"></span></button>
+      <button data-v="done">Tuntas <span id="cntDone"></span></button>
+    </div>
+    <input class="search" id="plSearch" placeholder="Search...">
+  </div>
+  <div class="scroll" id="plList"></div>
+</div>
+
+<!-- ============ PL langkah 1: tanggal antar + sopir ============ -->
+<div class="view hidden" id="plHdrView">
+  <div class="bar">
+    <button class="back" data-go="plList">&#8249;</button>
+    <h1 id="plHdrTitle">PL <span class="sub" id="plHdrSub"></span></h1>
+  </div>
+  <div class="scroll">
+    <div class="lock-note hidden" id="plLockNote">&#128274; PL sudah tuntas &middot; hanya bisa dilihat. Perubahan hanya oleh Full Access.</div>
+    <div class="hdr">
+      <div class="field">
+        <label for="plTgl">Tanggal Antar</label>
+        <input type="date" id="plTgl">
+      </div>
+      <div class="field">
+        <label>Sopir &middot; tekan nama (boleh lebih dari 1)</label>
+        <div id="sopirRows" class="sp-grid"></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot">
+    <button class="btn primary grow" id="hdrNextBtn">Lanjut ke Faktur &#8250;</button>
+  </div>
+</div>
+
+<!-- ============ PL langkah 2: daftar faktur ============ -->
+<div class="view hidden" id="plView">
+  <div class="bar">
+    <button class="back" id="plBack">&#8249;</button>
+    <h1 id="plTitle">PL <span class="sub" id="plSub"></span></h1>
+  </div>
+  <div class="tools">
+    <input class="search" id="invSearch" placeholder="Search...">
+  </div>
+  <div class="scroll">
+    <div class="sec-title">Faktur <span id="invCount"></span> &middot; klik faktur untuk isi coretan / reject</div>
+    <div id="invList"></div>
+  </div>
+  <div class="foot">
+    <button class="btn primary grow" id="selesaiBtn">Simpan &amp; Selesai</button>
+  </div>
+</div>
+
+<!-- ============ Isi barang faktur ============ -->
+<div class="view hidden" id="itemView">
+  <div class="bar">
+    <button class="back" id="itemBack">&#8249;</button>
+    <h1 id="itemTitle">Faktur <span class="sub" id="itemSub"></span></h1>
+  </div>
+  <div class="tools">
+    <input class="search" id="itemSearch" placeholder="Search...">
+  </div>
+  <div class="scroll" id="itemList"></div>
+  <div class="foot">
+    <div class="sum" id="itemSum"></div>
+    <button class="btn red" id="rejectAllBtn">Reject semua</button>
+    <button class="btn primary" id="itemSaveBtn">Simpan</button>
+  </div>
+</div>
+
+<!-- ============ Modal konfirmasi ============ -->
+<div class="modal hidden" id="modal">
+  <div class="modal-box">
+    <h3 id="mTitle"></h3>
+    <div class="msg" id="mMsg"></div>
+    <div class="modal-list" id="mList"></div>
+    <div class="modal-act">
+      <button class="btn grow" id="mNo">Tidak</button>
+      <button class="btn primary grow" id="mYes">Ya</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast hidden" id="toast"></div>
+
+<script>
+  // ---- Supabase ----
+  const SUPABASE_URL = 'https://swxgkuaoctrcfbgncwaz.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_0e8sOfljWkkin-hwhNweEw_CWqt1Az-';
+  const sb = (window.supabase && window.supabase.createClient)
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+  if (!sb) alert('Library Supabase gagal dimuat. Cek koneksi internet lalu refresh.');
+
+  // ---- storage aman (file:// / mode privat) ----
+  const _mem = {};
+  function makeStore(get){
+    return {
+      getItem(k){ try{ return get().getItem(k); }catch(e){ return k in _mem ? _mem[k] : null; } },
+      setItem(k,v){ try{ get().setItem(k,v); }catch(e){ _mem[k] = String(v); } },
+      removeItem(k){ try{ get().removeItem(k); }catch(e){ delete _mem[k]; } }
+    };
+  }
+  const safeLocal = makeStore(() => window.localStorage);
+  const safeSession = makeStore(() => window.sessionStorage);
+
+  // ---- helpers ----
+  const $ = id => document.getElementById(id);
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function fmtNum(n){ const v = Number(n) || 0; return v.toLocaleString('id-ID', { maximumFractionDigits: 3 }); }
+  const BLN = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  function fmtTgl(iso){ const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[3] + '-' + BLN[+m[2] - 1] : '-'; }
+  function todayWIT(){ return new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10); }   // Jayapura UTC+9
+  let toastT = null;
+  function toast(msg, bad){
+    const t = $('toast'); t.textContent = msg; t.className = 'toast' + (bad ? ' bad' : '');
+    clearTimeout(toastT); toastT = setTimeout(() => t.classList.add('hidden'), bad ? 5000 : 2500);
+  }
+  // pesan error teknis dari server -> kalimat singkat untuk admin gudang
+  function pesanGagal(error){
+    const m = String((error && error.message) || error || '');
+    if (/sopir/i.test(m) && /null|wajib/i.test(m)) return 'ISI NAMA SOPIR';
+    if (/tgl_antar|tanggal antar wajib/i.test(m)) return 'ISI TANGGAL';
+    if (/lewat hari ini/i.test(m)) return 'TANGGAL TIDAK BOLEH LEWAT HARI INI';
+    if (/failed to fetch|network|timeout/i.test(m)) return 'KONEKSI INTERNET TERPUTUS, COBA LAGI';
+    if (/violates|constraint|relation|column|syntax|function/i.test(m)) return 'GAGAL SIMPAN, HUBUNGI ADMIN KANTOR';
+    return 'GAGAL: ' + m;
+  }
+  function invHtml(no){ const v = String(no || ''); const k = Math.max(0, v.length - 5);
+    return `<span class="inv">${esc(v.slice(0, k))}<b>${esc(v.slice(k))}</b></span>`; }
+  function stPill(st){ const s = st || 'NULL'; const c = s === 'REKAP ULANG' ? 'REKAP' : s; return `<span class="pill st-${c}">${s === 'NULL' ? 'BELUM' : esc(s)}</span>`; }
+
+  // ---- navigasi antar layar ----
+  const VIEWS = ['pinView', 'menuView', 'plListView', 'plHdrView', 'plView', 'itemView'];
+  function show(v){ VIEWS.forEach(x => $(x).classList.toggle('hidden', x !== v)); }
+  document.querySelectorAll('.back[data-go]').forEach(b => b.addEventListener('click', () => {
+    const go = b.dataset.go;
+    if (go === 'menu') show('menuView');
+    if (go === 'plList'){ show('plListView'); loadPlList(); }
+  }));
+
+  // ---- modal Ya / Tidak ----
+  let mResolve = null, mValidate = null;
+  function ask(title, msg, listHtml, yes, no, validate){
+    mValidate = validate || null;
+    $('mYes').classList.remove('no', 'rekap');
+    $('mTitle').textContent = title; $('mMsg').textContent = msg || '';
+    $('mList').innerHTML = listHtml || ''; $('mList').classList.toggle('hidden', !listHtml);
+    $('mYes').textContent = yes || 'Ya'; $('mNo').textContent = no || 'Tidak';
+    $('modal').classList.remove('hidden');
+    return new Promise(r => { mResolve = r; });
+  }
+  $('mYes').addEventListener('click', () => { if (mValidate && !mValidate()) return; $('modal').classList.add('hidden'); if (mResolve) mResolve(true); mResolve = null; });
+  $('mNo').addEventListener('click', () => { $('modal').classList.add('hidden'); if (mResolve) mResolve(false); mResolve = null; });
+
+  // =================================================================
+  // PIN
+  // =================================================================
+  const TOOL_NAME = 'Gudang';
+  const SK_LABEL = 'gudang_pin_label', SK_PIN = 'gudang_pin';
+  let currentPin = null, currentLabel = '';
+
+  function getDeviceId(){
+    let id = safeLocal.getItem('device_id');
+    if (!id){
+      id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'dev-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+      safeLocal.setItem('device_id', id);
+    }
+    return id;
+  }
+  async function getIp(){ try{ const r = await fetch('https://api.ipify.org?format=json'); return (await r.json()).ip || 'unknown'; }catch(e){ return 'unknown'; } }
+
+  async function submitPin(){
+    const pin = $('pinInput').value.trim();
+    $('pinErr').textContent = '';
+    if (!pin) return;
+    $('pinBtn').disabled = true;
+    try{
+      const { data, error } = await sb.rpc('verify_access_pin', { p_pin: pin, p_device_id: getDeviceId() });
+      if (error || !data || !data.success){
+        $('pinErr').textContent = (data && data.error === 'locked') ? 'Terkunci, coba lagi nanti' : 'PIN salah';
+        $('pinBtn').disabled = false; return;
+      }
+      currentPin = pin; currentLabel = data.label || '';
+      safeSession.setItem(SK_LABEL, currentLabel); safeSession.setItem(SK_PIN, pin);
+      getIp().then(ip => sb.rpc('log_pin_login', { p_tool: TOOL_NAME, p_label: currentLabel, p_ip: ip, p_user_agent: navigator.userAgent }));
+      await unlock();
+    }catch(e){ $('pinErr').textContent = 'Gagal memverifikasi PIN'; }
+    $('pinBtn').disabled = false;
+  }
+  $('pinBtn').addEventListener('click', submitPin);
+  $('pinInput').addEventListener('keydown', e => { if (e.key === 'Enter') submitPin(); });
+
+  let gudangInfo = { lokasi: null };
+  async function unlock(){
+    const { data, error } = await sb.rpc('gd_info', { p_pin: currentPin });
+    if (error || !data || !data.ok){
+      logout(error ? 'Gagal cek akses: ' + error.message : 'PIN ini tidak punya akses ke Gudang');
+      return;
+    }
+    gudangInfo = data;
+    $('menuSub').textContent = currentLabel + (data.lokasi ? ' · ' + data.lokasi : ' · semua gudang');
+    show('menuView');
+    loadSopir();
+  }
+  function logout(msg){
+    currentPin = null; currentLabel = '';
+    safeSession.removeItem(SK_LABEL); safeSession.removeItem(SK_PIN);
+    $('pinInput').value = ''; $('pinErr').textContent = msg || '';
+    show('pinView');
+  }
+  $('logoutBtn').addEventListener('click', () => logout(''));
+  $('outBtn').addEventListener('click', () => { show('plListView'); loadPlList(); });
+
+  // =================================================================
+  // Sopir
+  // =================================================================
+  let sopirList = [];
+  async function loadSopir(){
+    const [a, b] = await Promise.all([
+      sb.rpc('get_sopir_list', { p_pin: currentPin }),
+      sb.rpc('get_sopir_extra_list', { p_pin: currentPin })
+    ]);
+    const s = new Set();
+    (a.data || []).forEach(r => r.nama && s.add(r.nama));
+    (b.data || []).forEach(r => r.nama && s.add(r.nama));
+    sopirList = [...s].sort((x, y) => x.localeCompare(y));
+    if (activePl) renderSopirRows(sopirSel);
+  }
+  const SOPIR_SEP = ' / ', SOPIR_MAX = 5;
+  // Sopir = kotak nama, sekali tekan pilih / batal; boleh lebih dari 1 (urutan sesuai tekan)
+  let sopirSel = [];
+  function renderSopirRows(names){
+    sopirSel = names.slice(0, SOPIR_MAX);
+    const list = sopirSel.filter(n => !sopirList.includes(n)).concat(sopirList);
+    const dis = (typeof plLocked !== 'undefined' && plLocked) ? 'disabled' : '';
+    $('sopirRows').innerHTML = list.length ? list.map(n => {
+      const i = sopirSel.indexOf(n);
+      return `<button type="button" class="sp-tile ${i >= 0 ? 'on' : ''}" data-n="${esc(n)}" ${dis}>` +
+        (i >= 0 && sopirSel.length > 1 ? `<span class="sp-no">${i + 1}</span>` : '') + esc(n) + `</button>`;
+    }).join('') : '<div class="t2">Daftar sopir kosong.</div>';
+    $('sopirRows').querySelectorAll('.sp-tile').forEach(b => b.addEventListener('click', () => {
+      const n = b.dataset.n, i = sopirSel.indexOf(n);
+      if (i >= 0) sopirSel.splice(i, 1);
+      else if (sopirSel.length >= SOPIR_MAX){ toast('Maksimal ' + SOPIR_MAX + ' sopir', true); return; }
+      else sopirSel.push(n);
+      hdrDirty = true;
+      renderSopirRows(sopirSel);
+    }));
+  }
+  function getSopirNames(){ return [...new Set(sopirSel.filter(Boolean))]; }
+
+  // =================================================================
+  // OUT: daftar packing list
+  // =================================================================
+  let plRows = [], plSeg = 'open';
+  // TUNTAS = tgl antar + sopir terisi + semua faktur sudah punya status
+  const isDone = p => !!p.tgl_antar && !!p.sopir && p.n_faktur > 0 && p.n_status >= p.n_faktur;
+  // PL tuntas terkunci, kecuali FULL ACCESS (server juga menolak)
+  let plLocked = false;
+  function applyPlLock(){
+    ['plTgl', 'selesaiBtn'].forEach(id => $(id).disabled = plLocked);
+    document.querySelectorAll('#sopirRows .sp-tile').forEach(el => el.disabled = plLocked);
+    $('plLockNote').classList.toggle('hidden', !plLocked);
+  }
+
+  async function loadPlList(){
+    $('plList').innerHTML = '<div class="empty">Memuat...</div>';
+    const { data, error } = await sb.rpc('gd_pl_list', { p_pin: currentPin });
+    if (error){ $('plList').innerHTML = `<div class="empty">Gagal memuat: ${esc(error.message)}</div>`; return; }
+    plRows = data || [];
+    renderPlList();
+  }
+  function renderPlList(){
+    const q = $('plSearch').value.trim().toLowerCase();
+    const open = plRows.filter(p => !isDone(p)), done = plRows.filter(isDone);
+    $('cntOpen').textContent = '(' + open.length + ')';
+    $('cntDone').textContent = '(' + done.length + ')';
+    $('plListSub').textContent = gudangInfo.lokasi ? 'Gudang ' + gudangInfo.lokasi : 'Semua gudang';
+    let rows = (plSeg === 'open' ? open : done).filter(p => !q ||
+      [p.no_pl, p.area, p.sopir].some(v => String(v || '').toLowerCase().includes(q)));
+    rows.sort((a, b) => plSeg === 'open'
+      ? String(a.tgl || '').localeCompare(String(b.tgl || '')) || String(a.no_pl).localeCompare(String(b.no_pl))
+      : String(b.tgl_antar || '').localeCompare(String(a.tgl_antar || '')) || String(b.no_pl).localeCompare(String(a.no_pl)));
+    if (!rows.length){ $('plList').innerHTML = `<div class="empty">${plSeg === 'open' ? 'Semua packing list sudah tuntas.' : 'Belum ada yang tuntas.'}</div>`; return; }
+    $('plList').innerHTML = rows.map(p => {
+      const belum = p.n_faktur - p.n_status;
+      const progColor = belum ? 'var(--amber)' : 'var(--green)';
+      return `<div class="card" data-pl="${esc(p.no_pl)}">` +
+        `<div class="main"><div class="t1">${esc(p.no_pl)}</div>` +
+        `<div class="t2">Rekap ${fmtTgl(p.tgl)} · ${esc(p.area || '-')} · ${p.n_faktur} faktur</div>` +
+        `<div class="t2">Antar ${p.tgl_antar ? fmtTgl(p.tgl_antar) : '<b style="color:var(--amber)">belum</b>'} · Sopir ${p.sopir ? esc(p.sopir) : '<b style="color:var(--amber)">belum</b>'}</div></div>` +
+        `<div class="right"><div class="prog" style="color:${progColor}">${p.n_status}/${p.n_faktur}</div>` +
+        (p.n_coretan ? `<div class="t2" style="color:var(--purple)">${p.n_coretan} coretan</div>` : '') +
+        `</div><div class="chev">&#8250;</div></div>`;
+    }).join('');
+    $('plList').querySelectorAll('.card').forEach(c => c.addEventListener('click', () => openPl(c.dataset.pl)));
+  }
+  $('plSearch').addEventListener('input', renderPlList);
+  $('plRefreshBtn').addEventListener('click', loadPlList);
+  $('plSeg').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    plSeg = b.dataset.v;
+    $('plSeg').querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
+    renderPlList();
+  }));
+
+  // =================================================================
+  // PL detail: tgl antar, sopir, daftar faktur
+  // =================================================================
+  let activePl = null, plInv = [], hdrDirty = false;
+
+  async function openPl(noPl, keepHeader){
+    activePl = noPl;
+    const p = plRows.find(x => x.no_pl === noPl) || {};
+    $('plTitle').firstChild.textContent = noPl + ' ';
+    $('plHdrTitle').firstChild.textContent = noPl + ' ';
+    $('plHdrSub').textContent = 'Rekap ' + fmtTgl(p.tgl) + ' · ' + (p.area || '-');
+    plLocked = isDone(p) && !gudangInfo.full;
+    if (!keepHeader){
+      $('plTgl').value = p.tgl_antar || todayWIT();
+      renderSopirRows(p.sopir ? String(p.sopir).split(SOPIR_SEP).map(s => s.trim()).filter(Boolean) : []);
+      hdrDirty = false;
+      $('invSearch').value = '';
+    }
+    applyPlLock();
+    setPlSub();
+    $('invList').innerHTML = '<div class="empty">Memuat...</div>';
+    // buka PL dari daftar -> langkah 1 (tanggal & sopir) dulu; refresh -> tetap di daftar faktur
+    show(keepHeader ? 'plView' : 'plHdrView');
+    const { data, error } = await sb.rpc('gd_pl_faktur', { p_pin: currentPin, p_no_pl: noPl });
+    if (activePl !== noPl) return;
+    if (error){ $('invList').innerHTML = `<div class="empty">Gagal memuat: ${esc(error.message)}</div>`; return; }
+    plInv = data || [];
+    renderInv();
+  }
+  function setPlSub(){
+    const tgl = $('plTgl').value, sopir = getSopirNames().join(', ');
+    $('plSub').textContent = 'Antar ' + (tgl ? fmtTgl(tgl) : '-') + ' · Sopir ' + (sopir || '-');
+  }
+  function renderInv(){
+    const q = $('invSearch').value.trim().toLowerCase();
+    const rows = plInv.filter(r => !q || [r.invoice_no, r.customer].some(v => String(v || '').toLowerCase().includes(q)));
+    $('invCount').textContent = '(' + (q ? rows.length + '/' : '') + plInv.length + ')';
+    $('invList').innerHTML = rows.map(r => {
+      const locked = r.exported || plLocked;
+      const cs = r.status ? ' cs-' + (r.status === 'REKAP ULANG' ? 'REKAP' : r.status) : '';
+      return `<div class="card${cs}" data-id="${r.id}">` +
+        `<div class="main"><div class="t1">${esc(r.customer)}</div>` +
+        `<div class="t2">${invHtml(r.invoice_no)}${r.n_item ? ' · ' + r.n_item + ' item' : ' · <span style="color:var(--amber)">isi barang belum ada</span>'}` +
+        (r.n_reject ? ` · <span style="color:var(--purple)">${r.n_reject} item reject</span>` : '') +
+        (r.exported ? ' · sudah tracking' : '') + `</div></div>` +
+        `<div class="right">${stPill(r.status)}` +
+        (locked ? '' : `<div class="inv-act">` +
+          `<button class="btn btn-sm no" data-act="reject" data-id="${r.id}">Reject</button>` +
+          `<button class="btn btn-sm rekap" data-act="rekap" data-id="${r.id}">Rekap Ulang</button></div>`) +
+        `</div><div class="chev">&#8250;</div></div>`;
+    }).join('') || `<div class="empty">${q ? 'Faktur tidak ditemukan.' : 'Tidak ada faktur.'}</div>`;
+    $('invList').querySelectorAll('.card').forEach(c => c.addEventListener('click', () => openItems(Number(c.dataset.id))));
+    $('invList').querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', e => {
+      e.stopPropagation();
+      const inv = plInv.find(r => r.id === Number(b.dataset.id));
+      if (inv) (b.dataset.act === 'reject' ? rejectFaktur : rekapUlang)(inv);
+    }));
+  }
+
+  // Reject 1 faktur penuh (semua barang ditolak) -> BATAL, wajib alasan
+  async function rejectFaktur(inv){
+    let pilih = '';
+    const chips = `<div class="chips" id="rjChips">` + ALASAN.map(a => `<button class="chip" type="button" data-a="${a}">${a}</button>`).join('') + `</div>`;
+    const p = ask('Reject semua barang?', '', `<div class="rj-head">${esc(inv.customer)}<br>${invHtml(inv.invoice_no)}</div>` +
+      `<div class="msg">Toko menolak SEMUA barang di faktur ini. Pilih alasan:</div>` + chips,
+      'Ya, reject', 'Batal', () => { if (!pilih){ toast('PILIH ALASAN REJECT', true); return false; } return true; });
+    $('mYes').classList.add('no');
+    $('rjChips').querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => {
+      pilih = c.dataset.a;
+      $('rjChips').querySelectorAll('.chip').forEach(x => x.classList.toggle('on', x === c));
+    }));
+    if (!(await p)) return;
+    if (hdrDirty && $('plTgl').value && getSopirNames().length) await saveHeader(true);
+    const { error } = await sb.rpc('gd_faktur_reject', { p_pin: currentPin, p_invoice_id: inv.id, p_alasan: pilih });
+    if (error){ toast(pesanGagal(error), true); return; }
+    toast('Faktur di-reject \u00b7 BATAL');
+    openPl(activePl, true);
+  }
+
+  // Rekap Ulang: faktur keluar dari PL, kembali ke daftar invoice untuk packing list baru
+  async function rekapUlang(inv){
+    const p = ask('Rekap Ulang?', '',
+      `<div class="rj-head">${esc(inv.customer)}<br>${invHtml(inv.invoice_no)}</div>` +
+      `<div class="msg">Faktur ini TIDAK jadi diantar. Faktur keluar dari PL ini dan muncul lagi di daftar invoice saat membuat packing list baru.</div>`,
+      'Ya, rekap ulang', 'Batal');
+    $('mYes').classList.add('rekap');
+    const ok = await p;
+    if (!ok) return;
+    if (hdrDirty && $('plTgl').value && getSopirNames().length) await saveHeader(true);
+    const { error } = await sb.rpc('gd_faktur_rekap_ulang', { p_pin: currentPin, p_invoice_id: inv.id });
+    if (error){ toast(pesanGagal(error), true); return; }
+    toast('Faktur dikembalikan (Rekap Ulang)');
+    openPl(activePl, true);
+  }
+  $('invSearch').addEventListener('input', renderInv);
+
+  // Langkah 1 -> 2: tanggal & sopir wajib, disimpan dulu, baru daftar faktur
+  $('hdrNextBtn').addEventListener('click', async () => {
+    if (!plLocked){
+      const p = plRows.find(x => x.no_pl === activePl) || {};
+      if (hdrDirty || !p.tgl_antar || !p.sopir){
+        $('hdrNextBtn').disabled = true;
+        const ok = await saveHeader(true);
+        $('hdrNextBtn').disabled = false;
+        if (!ok) return;
+      }
+    }
+    setPlSub();
+    show('plView');
+  });
+  $('plBack').addEventListener('click', () => show('plHdrView'));
+  $('plTgl').addEventListener('change', () => hdrDirty = true);
+  $('sopirRows').addEventListener('change', () => hdrDirty = true);
+
+  async function saveHeader(silent){
+    const tgl = $('plTgl').value, sopir = getSopirNames().join(SOPIR_SEP);
+    if (!tgl){ toast('ISI TANGGAL', true); return false; }
+    if (!sopir){ toast('ISI NAMA SOPIR', true); return false; }
+    if (tgl > todayWIT()){ toast('TANGGAL TIDAK BOLEH LEWAT HARI INI', true); return false; }
+    const { error } = await sb.rpc('gd_pl_header', { p_pin: currentPin, p_no_pl: activePl, p_tgl: tgl, p_sopir: sopir });
+    if (error){ toast(pesanGagal(error), true); return false; }
+    hdrDirty = false;
+    const p = plRows.find(x => x.no_pl === activePl); if (p){ p.tgl_antar = tgl || null; p.sopir = sopir || null; }
+    if (!silent) toast('Tanggal & sopir tersimpan');
+    return true;
+  }
+  // Simpan & Selesai (1 tombol): cek tgl + sopir, faktur yang belum disentuh -> tanya "Terantar & Bersih?"
+  // YA -> FULL + PL selesai; TIDAK -> tanggal & sopir tetap disimpan, PL belum selesai
+  $('selesaiBtn').addEventListener('click', async () => {
+    const tgl = $('plTgl').value, sopir = getSopirNames();
+    if (!tgl){ toast('ISI TANGGAL', true); return; }
+    if (!sopir.length){ toast('ISI NAMA SOPIR', true); return; }
+    if (tgl > todayWIT()){ toast('Tanggal antar tidak boleh lewat hari ini', true); return; }
+    const belum = plInv.filter(r => !r.status);
+    let fullIds = [];
+    if (belum.length){
+      const list = belum.map(r => `<div>${esc(r.customer)}<small>${invHtml(r.invoice_no)}</small></div>`).join('');
+      const ok = await ask('Faktur belum disentuh', `${belum.length} faktur ini Terantar dan Bersih (diterima semua)?`, list, 'Ya, FULL', 'Tidak');
+      if (!ok){
+        if (await saveHeader(true)) toast('Tanggal & sopir tersimpan. Buka faktur yang ada coretan / reject, isi dulu barangnya');
+        return;
+      }
+      fullIds = belum.map(r => r.id);
+    }
+    $('selesaiBtn').disabled = true;
+    const { error } = await sb.rpc('gd_pl_selesai', {
+      p_pin: currentPin, p_no_pl: activePl, p_tgl: tgl, p_sopir: sopir.join(SOPIR_SEP), p_full_ids: fullIds
+    });
+    $('selesaiBtn').disabled = false;
+    if (error){ toast(pesanGagal(error), true); return; }
+    toast('PL ' + activePl + ' selesai');
+    show('plListView'); loadPlList();
+  });
+
+  // =================================================================
+  // Isi barang faktur: qty terima + alasan reject
+  // =================================================================
+  const ALASAN = ['BARANG HABIS', 'TIDAK PESAN', 'DEKAT ED'];
+  let activeInv = null, items = [], itemDirty = false;
+
+  async function openItems(id){
+    const inv = plInv.find(r => r.id === id);
+    if (!inv) return;
+    // tgl/sopir sudah lengkap -> simpan dulu; belum lengkap -> biarkan di layar (tidak hilang)
+    if (hdrDirty && $('plTgl').value && getSopirNames().length) await saveHeader(true);
+    activeInv = inv; items = []; itemDirty = false;
+    $('itemSearch').value = '';
+    $('itemTitle').firstChild.textContent = inv.customer + ' ';
+    $('itemSub').innerHTML = invHtml(inv.invoice_no) + ' \u00b7 status ' + esc(inv.status || 'BELUM');
+    $('itemList').innerHTML = '<div class="empty">Memuat...</div>';
+    $('itemSum').textContent = '';
+    $('itemSaveBtn').disabled = true; $('rejectAllBtn').disabled = true;
+    show('itemView');
+    const { data, error } = await sb.rpc('gd_faktur_item', { p_pin: currentPin, p_invoice_id: id });
+    if (activeInv !== inv) return;
+    if (error){ $('itemList').innerHTML = `<div class="empty">Gagal memuat: ${esc(error.message)}</div>`; return; }
+    // Qty NexDist "15.2.0" = besar.tengah.kecil. Belum pernah dicek -> anggap diterima penuh.
+    items = (data || []).map(d => {
+      const q = [Number(d.q1) || 0, Number(d.q2) || 0, Number(d.q3) || 0];
+      const saved = d.t1 != null;
+      return { line_no: d.line_no, product_code: d.product_code, product_name: d.product_name, q,
+        t: saved ? [Number(d.t1), Number(d.t2), Number(d.t3)] : q.slice(), alasan: d.alasan || '' };
+    });
+    if (!items.length){
+      $('itemList').innerHTML = '<div class="empty">Isi barang faktur ini belum ditarik dari NexDist.<br>Hubungi admin kantor.</div>';
+      return;
+    }
+    const locked = inv.exported || plLocked;
+    $('itemSaveBtn').disabled = locked; $('rejectAllBtn').disabled = locked;
+    if (inv.exported) toast('Faktur sudah dikirim ke tracking, hanya bisa dilihat');
+    else if (plLocked) toast('PL sudah tuntas, hanya Full Access yang bisa ubah');
+    renderItems();
+  }
+
+  const LV = ['Besar', 'Tengah', 'Kecil'];
+  const qtyTxt = a => a.map(fmtNum).join('.');
+  const isRej = it => it.t.some((v, k) => v < it.q[k]);
+  const isZero = it => it.t.every(v => v === 0);
+  function previewStatus(){
+    if (!items.some(isRej)) return 'FULL';
+    if (items.every(isZero)) return 'BATAL';
+    return 'CORETAN';
+  }
+  function renderItems(){
+    const locked = activeInv && (activeInv.exported || plLocked);
+    const dis = locked ? 'disabled' : '';
+    const sq = $('itemSearch').value.trim().toLowerCase();
+    $('itemList').innerHTML = items.map((it, i) => {
+      if (sq && ![it.product_name, it.product_code].some(v => String(v || '').toLowerCase().includes(sq))) return '';
+      const rej = isRej(it);
+      const chips = rej ? `<div class="chips ${it.alasan ? '' : 'need'}">` + ALASAN.map(a =>
+        `<button class="chip ${it.alasan === a ? 'on' : ''}" data-i="${i}" data-a="${a}" ${dis}>${a}</button>`).join('') + `</div>` : '';
+      // stepper hanya untuk satuan yang dikirim (qty > 0)
+      const steppers = it.q.map((qk, k) => qk > 0 ?
+        `<div class="lv"><span class="qty-lbl">${LV[k]} <b>/${fmtNum(qk)}</b></span>` +
+        `<div class="stepper"><button data-i="${i}" data-k="${k}" data-d="-1" ${dis}>&minus;</button>` +
+        `<input data-i="${i}" data-k="${k}" inputmode="decimal" value="${it.t[k]}" ${dis}>` +
+        `<button data-i="${i}" data-k="${k}" data-d="1" ${dis}>+</button></div></div>` : '').join('');
+      const rejTxt = rej ? `reject ${qtyTxt(it.q.map((qk, k) => qk - it.t[k]))}` : '';
+      return `<div class="item ${rej ? 'rej' : ''}">` +
+        `<div class="nm">${esc(it.product_name || it.product_code)}</div>` +
+        `<div class="cd">${esc(it.product_code || '')} \u00b7 kirim <b>${qtyTxt(it.q)}</b> \u00b7 diterima <b>${qtyTxt(it.t)}</b>` +
+        (rej ? ` \u00b7 <span style="color:var(--purple);font-weight:700">${rejTxt}</span>` : '') + `</div>` +
+        `<div class="row">${steppers}` +
+        `<span class="quick"><button class="btn btn-sm ok" data-i="${i}" data-full="1" ${dis}>Terima semua</button>` +
+        `<button class="btn btn-sm no" data-i="${i}" data-zero="1" ${dis}>Tolak semua</button></span></div>` +
+        `${chips}</div>`;
+    }).join('') || (sq ? '<div class="empty">Barang tidak ditemukan.</div>' : '');
+    const L = $('itemList');
+    L.querySelectorAll('.stepper button').forEach(b => b.addEventListener('click', () => {
+      const it = items[+b.dataset.i], k = +b.dataset.k;
+      setT(+b.dataset.i, k, it.t[k] + Number(b.dataset.d));
+    }));
+    L.querySelectorAll('.stepper input').forEach(inp => inp.addEventListener('change', () => {
+      const it = items[+inp.dataset.i], k = +inp.dataset.k;
+      const v = Number(inp.value.trim().replace(',', '.'));
+      if (inp.value.trim() === '' || isNaN(v) || v < 0 || v > it.q[k]){
+        toast('Qty ' + LV[k].toLowerCase() + ' diterima harus 0 s/d ' + fmtNum(it.q[k]) + '. Tulis ulang.', true);
+        renderItems(); return;
+      }
+      setT(+inp.dataset.i, k, v);
+    }));
+    L.querySelectorAll('[data-full]').forEach(b => b.addEventListener('click', () => { const it = items[+b.dataset.i]; it.t = it.q.slice(); after(it); }));
+    L.querySelectorAll('[data-zero]').forEach(b => b.addEventListener('click', () => { const it = items[+b.dataset.i]; it.t = [0, 0, 0]; after(it); }));
+    L.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { items[+c.dataset.i].alasan = c.dataset.a; itemDirty = true; keepScroll(); }));
+    renderSum();
+  }
+  $('itemSearch').addEventListener('input', () => { if (items.length) renderItems(); });
+  function keepScroll(){ const y = $('itemList').scrollTop; renderItems(); $('itemList').scrollTop = y; }
+  function after(it){ if (!isRej(it)) it.alasan = ''; itemDirty = true; keepScroll(); }
+  function setT(i, k, v){
+    const it = items[i];
+    it.t[k] = Math.min(it.q[k], Math.max(0, v));
+    after(it);
+  }
+  function renderSum(){
+    const nRej = items.filter(isRej).length;
+    $('itemSum').innerHTML = `${items.length} barang \u00b7 reject <b>${nRej}</b> \u00b7 jadi ${stPill(previewStatus())}`;
+  }
+  $('rejectAllBtn').addEventListener('click', async () => {
+    if (!(await ask('Reject semua?', 'Semua barang di faktur ini ditolak toko (diterima 0). Status jadi BATAL.', '', 'Ya, reject semua', 'Batal'))) return;
+    items.forEach(it => it.t = [0, 0, 0]); itemDirty = true; keepScroll();
+  });
+
+  $('itemSaveBtn').addEventListener('click', async () => {
+    const noAlasan = items.filter(it => isRej(it) && !it.alasan);
+    if (noAlasan.length){ toast('Pilih alasan reject untuk: ' + noAlasan.map(it => it.product_name || it.product_code).join(', '), true); return; }
+    $('itemSaveBtn').disabled = true;
+    const { data, error } = await sb.rpc('gd_faktur_simpan', {
+      p_pin: currentPin, p_invoice_id: activeInv.id,
+      p_items: items.map(it => ({ line_no: it.line_no, t1: it.t[0], t2: it.t[1], t3: it.t[2], alasan: it.alasan || null }))
+    });
+    $('itemSaveBtn').disabled = false;
+    if (error){ toast(pesanGagal(error), true); return; }
+    itemDirty = false;
+    toast('Tersimpan · status ' + data);
+    openPl(activePl, true);
+  });
+  $('itemBack').addEventListener('click', async () => {
+    if (itemDirty && !(await ask('Belum disimpan', 'Perubahan qty / alasan belum disimpan. Keluar tanpa simpan?', '', 'Keluar', 'Kembali'))) return;
+    itemDirty = false;
+    show('plView');
+  });
+
+  // ---- restore sesi ----
+  (function(){
+    const l = safeSession.getItem(SK_LABEL), p = safeSession.getItem(SK_PIN);
+    if (l !== null && p !== null){ currentPin = p; currentLabel = l; unlock(); }
+    else show('pinView');
+  })();
+</script>
+</body>
+</html>
