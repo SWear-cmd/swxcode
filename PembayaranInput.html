@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>INPUT PEMBAYARAN — Admin Entry</title>
+<style>
+  :root{
+    --bg:#0b0f14;
+    --panel:#141a22;
+    --panel2:#1a212b;
+    --border:#242c38;
+    --text:#e7ecf3;
+    --muted:#8b95a5;
+    --orange:#e0a458;
+    --green:#4caf82;
+    --red:#e0637a;
+    --blue:#5b9bd5;
+    --teal:#4fb8b0;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:860px;margin:0 auto;padding:24px 20px 60px;}
+
+  .topbar{margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;}
+  h1{font-size:20px;margin:0 0 4px;font-weight:700;letter-spacing:0.2px;}
+  .subtitle{font-size:12px;color:var(--muted);}
+
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:16px;}
+
+  .filterbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:16px;}
+  .pill{
+    background:var(--panel);
+    border:1px solid var(--border);
+    color:var(--muted);
+    padding:8px 14px;
+    border-radius:8px;
+    font-size:13px;
+    cursor:pointer;
+    font-weight:600;
+  }
+  .pill.active{background:var(--orange);color:#241505;border-color:var(--orange);}
+  .pill.method-active-cash{background:var(--green);color:#082017;border-color:var(--green);}
+  .pill.method-active-giro{background:var(--blue);color:#071b2b;border-color:var(--blue);}
+  .pill.method-active-transfer{background:var(--teal);color:#062220;border-color:var(--teal);}
+  .divider{width:1px;align-self:stretch;background:var(--border);margin:2px 4px;}
+  .pill.expense-btn{background:var(--teal);color:#062220;border-color:var(--teal);font-weight:700;}
+  .pill.expense-btn:hover{opacity:.9;background:var(--teal);}
+
+  label{display:block;font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;font-weight:600;}
+  .field{margin-bottom:14px;}
+  input[type=text], input[type=number], input[type=date]{
+    width:100%;
+    background:var(--panel2);
+    border:1px solid var(--border);
+    color:var(--text);
+    padding:10px 12px;
+    border-radius:8px;
+    font-size:14px;
+  }
+  input:focus{outline:2px solid var(--blue);outline-offset:1px;}
+  input[disabled]{color:var(--muted);cursor:not-allowed;opacity:.75;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+
+  .lockbox{
+    display:flex;justify-content:space-between;align-items:center;gap:8px;
+    background:var(--panel2);border:1px solid var(--border);border-radius:8px;
+    padding:10px 14px;margin-bottom:16px;font-size:13px;color:var(--muted);
+  }
+  .lockbox .lockdate{font-weight:700;color:var(--text);font-variant-numeric:tabular-nums;}
+  .lockbox .lockicon{opacity:.7;}
+
+  .btn{
+    background:var(--panel2);
+    border:1px solid var(--border);
+    color:var(--text);
+    padding:10px 16px;
+    border-radius:8px;
+    font-size:13.5px;
+    font-weight:600;
+    cursor:pointer;
+    transition:background .15s ease, border-color .15s ease;
+  }
+  .btn:hover{background:#212a36;border-color:#33405190;}
+  .btn:disabled{opacity:.4;cursor:default;}
+  .btn.primary{background:var(--teal);color:#062220;border-color:var(--teal);}
+  .btn.primary:hover{opacity:.9;}
+  .btn.ghost{background:transparent;}
+  .btn.small{padding:6px 10px;font-size:12px;}
+  .btn.danger-outline{border-color:var(--red);color:var(--red);background:transparent;}
+
+  .lineitems{display:flex;flex-direction:column;gap:10px;margin-bottom:12px;}
+  .lineitem{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:start;}
+  .lineitem .field{margin-bottom:0;}
+  .lineitem.expense-line{grid-template-columns:1.3fr 1fr 0.8fr auto;}
+  @media (max-width:700px){
+    .lineitem.expense-line{grid-template-columns:1fr;}
+    .lineitem.expense-line .line-remove{width:fit-content;}
+  }
+
+  .combo-wrap{position:relative;}
+  .combo-list{
+    position:absolute;top:100%;left:0;right:0;margin-top:2px;
+    background:var(--panel2);border:1px solid var(--border);border-radius:8px;
+    max-height:220px;overflow-y:auto;z-index:30;
+    box-shadow:0 8px 20px rgba(0,0,0,.35);
+  }
+  .combo-item{padding:8px 12px;font-size:13px;cursor:pointer;}
+  .combo-item:hover, .combo-item.highlighted{background:#212a36;}
+  .combo-empty{padding:8px 12px;font-size:12px;color:var(--muted);}
+  .combo-input.invalid{border-color:var(--red);}
+  .line-faktur.invalid{border-color:var(--red);}
+
+  .summarybar{
+    display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;
+    background:var(--panel2);border:1px solid var(--border);border-radius:8px;
+    padding:10px 14px;margin-bottom:14px;font-size:13px;
+  }
+  .summarybar.ok{border-color:var(--green);}
+  .summarybar.warn{border-color:var(--orange);}
+  .summarybar .num{font-variant-numeric:tabular-nums;font-weight:700;}
+
+  .refbox{
+    display:flex;justify-content:space-between;align-items:center;gap:8px;
+    border-radius:8px;
+    padding:10px 14px;margin-bottom:14px;font-size:13px;
+  }
+  .refbox.giro{background:#0e1c2b;border:1px solid var(--blue);color:var(--blue);}
+  .refbox.transfer{background:#0e2321;border:1px solid var(--teal);color:var(--teal);}
+  .refbox .refcode{font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.03em;}
+  .refbox .refhint{font-size:11px;opacity:.8;font-weight:400;}
+
+  .msg{border-radius:8px;padding:12px 14px;font-size:13px;margin-bottom:14px;display:none;}
+  .msg.success{display:block;background:#122a1e;border:1px solid var(--green);color:var(--green);}
+  .msg.error{display:block;background:#2a1418;border:1px solid var(--red);color:var(--red);}
+
+  .hidden{display:none !important;}
+  .hint{font-size:11.5px;color:var(--muted);margin-top:-6px;margin-bottom:14px;}
+
+  #printArea{display:none;}
+  @media print{
+    body > *:not(.wrap){display:none !important;}
+    .wrap > *:not(#printArea){display:none !important;}
+    #printArea{display:block !important;background:#fff;color:#000;padding:0;}
+    #printArea h2{margin:0 0 4px;font-size:16px;}
+    #printArea .print-meta{font-size:11px;color:#444;margin-bottom:12px;}
+    #printArea table{width:100%;border-collapse:collapse;font-size:11px;}
+    #printArea th, #printArea td{border:1px solid #999;padding:5px 7px;text-align:left;}
+    #printArea th{background:#eee;}
+    #printArea td.num, #printArea th.num{text-align:right;}
+    #printArea tfoot td{font-weight:700;border-top:2px solid #333;}
+  }
+</style>
+</head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<body>
+
+<div id="loginOverlay" style="position:fixed;inset:0;background:#0b0f14;display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;">
+  <div style="width:100%;max-width:320px;background:#141a22;border:1px solid #242c38;border-radius:12px;padding:28px 24px;">
+    <div style="font-size:16px;font-weight:700;color:#e7ecf3;margin-bottom:4px;">INPUT PEMBAYARAN</div>
+    <div style="font-size:12px;color:#8b95a5;margin-bottom:18px;">Masukkan PIN untuk melanjutkan.</div>
+    <input type="password" id="loginPinInput" placeholder="PIN" inputmode="numeric"
+      style="width:100%;background:#1a212b;border:1px solid #242c38;color:#e7ecf3;padding:10px 12px;border-radius:8px;font-size:14px;box-sizing:border-box;margin-bottom:10px;">
+    <button id="loginBtn" type="button"
+      style="width:100%;background:#e0a458;color:#241505;border:none;padding:10px 12px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">Masuk</button>
+    <div id="loginError" style="color:#e0637a;font-size:12.5px;margin-top:10px;min-height:16px;"></div>
+  </div>
+</div>
+
+<div class="wrap" id="appWrap" style="display:none;">
+  <div class="topbar">
+    <div>
+      <h1>INPUT PEMBAYARAN</h1>
+      <div class="subtitle">Form input data pembayaran per invoice — masuk ke sheet staging untuk direview sebelum masuk ke PAID.</div>
+    </div>
+    <button class="btn" id="printTodayBtn">🖨️ Cetak Hari Ini</button>
+  </div>
+
+  <div class="filterbar" id="pageNav">
+    <button class="pill active" data-page="input">Input Baru</button>
+    <button class="pill" data-page="history">Riwayat Input</button>
+  </div>
+
+  <div id="pageInput">
+
+  <div class="card">
+    <div class="field">
+      <label>Branch</label>
+      <div class="filterbar" id="branchPills">
+        <button class="pill active" data-branch="DAF">DAF</button>
+        <button class="pill" data-branch="ABP">ABP</button>
+        <button class="pill" data-branch="KSI">KSI</button>
+      </div>
+    </div>
+
+    <div class="field" style="margin-bottom:0;">
+      <label>Metode Pembayaran</label>
+      <div class="filterbar" id="methodPills">
+        <button class="pill method-active-cash" data-method="CASH">Cash</button>
+        <button class="pill" data-method="GIRO">Giro</button>
+        <button class="pill" data-method="TRANSFER">Transfer</button>
+        <span class="divider"></span>
+        <button class="pill expense-btn" data-method="EXPENSE">Pembayaran</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="lockbox" id="lockboxRow">
+    <span><span class="lockicon">🔒</span> Tanggal Input<span id="lockboxHint"> (otomatis, tidak bisa diubah)</span></span>
+    <span style="display:flex;align-items:center;gap:10px;">
+      <span class="lockdate" id="lockedInputDate">—</span>
+      <select id="futureDaySelect" class="btn small" style="cursor:pointer;"></select>
+    </span>
+  </div>
+
+  <div id="msgBox" class="msg"></div>
+
+  <!-- ==================== CASH ==================== -->
+  <div class="card" id="panelCash">
+    <label>Pembayaran Cash</label>
+    <div class="lineitems" id="cashLines"></div>
+    <button class="btn small ghost" id="addCashLineBtn" style="margin-bottom:14px;">+ Tambah Cash</button>
+    <div class="hint">Setiap baris = 1 invoice. Tanggal bayar cash mengikuti Tanggal Input di atas (hari ini).</div>
+    <button class="btn primary" id="submitCashBtn">Simpan Semua Pembayaran Cash</button>
+  </div>
+
+  <!-- ==================== GIRO ==================== -->
+  <div class="card hidden" id="panelGiro">
+    <div class="row2">
+      <div class="field">
+        <label>Tanggal Giro (sesuai fisik giro)</label>
+        <input type="date" id="giroDate">
+      </div>
+      <div class="field">
+        <label>Total Nilai Giro</label>
+        <input type="number" id="giroTotal" placeholder="10000000">
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Bank Giro</label>
+        <input type="text" id="giroBank" placeholder="mis. BRI / Mandiri" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>No Giro</label>
+        <input type="text" id="giroNo" placeholder="mis. AB123456" autocomplete="off">
+      </div>
+    </div>
+
+    <div class="refbox giro">
+      <span>Referensi Giro (otomatis)<div class="refhint">Terisi di sheet hanya jika giro ini membayar &gt; 1 invoice</div></span>
+      <span class="refcode" id="giroRefCode">—</span>
+    </div>
+
+    <label>Invoice yang Dibayar Giro Ini</label>
+    <div class="lineitems" id="giroLines"></div>
+    <button class="btn small ghost" id="addGiroLineBtn" style="margin-bottom:14px;">+ Tambah Invoice</button>
+    <div class="hint">1 Giro bisa membayar banyak invoice sekaligus — tambahkan semua invoice-nya di sini lalu simpan sekali jalan.</div>
+
+    <div class="summarybar" id="giroSummary">
+      <span>Total invoice: <span class="num" id="giroLineSum">0</span></span>
+      <span id="giroSummaryStatus">—</span>
+    </div>
+
+    <button class="btn primary" id="submitGiroBtn" disabled>Simpan Batch Giro</button>
+  </div>
+
+  <!-- ==================== TRANSFER ==================== -->
+  <div class="card hidden" id="panelTransfer">
+    <div class="row2">
+      <div class="field">
+        <label>Tanggal Transfer (sesuai bank)</label>
+        <input type="date" id="transferDate">
+      </div>
+      <div class="field">
+        <label>Total Nilai Transfer</label>
+        <input type="number" id="transferTotal" placeholder="10000000">
+      </div>
+    </div>
+
+    <div class="refbox transfer">
+      <span>Referensi Transfer (otomatis)<div class="refhint">Terisi di sheet hanya jika transfer ini membayar &gt; 1 invoice</div></span>
+      <span class="refcode" id="transferRefCode">—</span>
+    </div>
+
+    <label>Invoice yang Dibayar</label>
+    <div class="lineitems" id="transferLines"></div>
+    <button class="btn small ghost" id="addTransferLineBtn" style="margin-bottom:14px;">+ Tambah Invoice</button>
+
+    <div class="summarybar" id="transferSummary">
+      <span>Total invoice: <span class="num" id="transferLineSum">0</span></span>
+      <span id="transferSummaryStatus">—</span>
+    </div>
+
+    <button class="btn primary" id="submitTransferBtn" disabled>Simpan Batch Transfer</button>
+  </div>
+
+  <!-- ==================== EXPENSE / PEMBAYARAN ==================== -->
+  <div class="card hidden" id="panelExpense">
+    <label>Pengeluaran</label>
+    <div class="lineitems" id="expenseLines"></div>
+    <button class="btn small ghost" id="addExpenseLineBtn" style="margin-bottom:14px;">+ Tambah Pengeluaran</button>
+    <div class="hint">Keterangan wajib dipilih dari daftar (ketik untuk mencari). Kolom Catatan bebas diisi apa saja — tidak wajib.</div>
+    <button class="btn primary" id="submitExpenseBtn">Simpan Pengeluaran</button>
+  </div>
+
+  </div><!-- /pageInput -->
+
+  <!-- ==================== RIWAYAT INPUT (HISTORY / SEARCH) ==================== -->
+  <div id="pageHistory" class="hidden">
+    <div class="card">
+      <div class="field">
+        <label>Branch</label>
+        <div class="filterbar" id="historyBranchPills">
+          <button class="pill active" data-branch="DAF">DAF</button>
+          <button class="pill" data-branch="ABP">ABP</button>
+          <button class="pill" data-branch="KSI">KSI</button>
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>Cari (No Faktur atau Keterangan)</label>
+          <input type="text" id="historySearchBox" placeholder="Ketik untuk mencari...">
+        </div>
+        <div class="field">
+          <label>Filter Tanggal</label>
+          <div class="filterbar" style="margin-bottom:0;">
+            <button class="pill" id="dateFilterToday">Hari Ini</button>
+            <button class="pill active" id="dateFilterAll">Semua Tanggal</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="filterbar" style="margin-bottom:0;">
+        <button class="btn" id="historyRefreshBtn">Refresh</button>
+        <button class="btn" id="historyPrintBtn">🖨️ Cetak</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="hint" id="historyMeta" style="margin-bottom:10px;">Memuat...</div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+          <thead>
+            <tr style="text-align:left;color:var(--muted);font-size:11px;letter-spacing:.03em;text-transform:uppercase;border-bottom:1px solid var(--border);">
+              <th style="padding:8px;">Tanggal</th>
+              <th style="padding:8px;">Keterangan</th>
+              <th style="padding:8px;">No Faktur / Catatan</th>
+              <th style="padding:8px;text-align:right;">Nilai</th>
+              <th style="padding:8px;text-align:right;">Balance</th>
+              <th style="padding:8px;">Referensi</th>
+              <th style="padding:8px;">Tgl Ref</th>
+              <th style="padding:8px;text-align:right;">Nilai Batch</th>
+            </tr>
+          </thead>
+          <tbody id="historyTbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- print-only area, populated just before window.print() and hidden otherwise -->
+  <div id="printArea"></div>
+</div>
+
+<script>
+  // ==== CONFIG ====
+  // Supabase project — replaces the old Apps Script Web App URL. All
+  // actions below (submitCashPaymentBatch, submitGiroPaymentBatch,
+  // submitTransferPayment, submitExpenseBatch, getPaymentHistory) now
+  // route through postAction() to the matching RPC function defined in
+  // supabase_schema_pembayaran.sql.
+  const SUPABASE_URL = 'https://swxgkuaoctrcfbgncwaz.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_0e8sOfljWkkin-hwhNweEw_CWqt1Az-';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // Keterangan list for the Pembayaran (expense) panel - loaded from the
+  // kas_kecil_coa table via the get_kas_kecil_coa_list RPC (see
+  // loadKeteranganList()) instead of being hardcoded here. Populated after
+  // login; empty until then.
+  let KETERANGAN_LIST = [];
+  let keteranganListLoaded = false;
+
+  async function loadKeteranganList(pin){
+    const data = await postAction('getKasKecilCoaList', {}, pin);
+    if (data && data.success) {
+      // de-duplicated, order preserved
+      KETERANGAN_LIST = Array.from(new Set(data.list || []));
+      keteranganListLoaded = true;
+    } else {
+      keteranganListLoaded = false;
+      throw new Error((data && data.error) || 'Gagal memuat daftar keterangan.');
+    }
+  }
+
+  let currentBranch = 'DAF';
+  let currentMethod = 'CASH';
+  let giroRef = null;     // generated once per giro batch, reset after successful submit
+  let transferRef = null; // generated once per transfer batch, reset after successful submit
+
+  // ---- PIN gate ----
+  // Checked server-side against CONFIG2!B4 in the DAF spreadsheet (see
+  // PEMBAYARAN_PIN_CELL in Code.gs). Entered once on the login screen,
+  // validated against the server, then kept only in memory (never
+  // localStorage/sessionStorage) and injected into every postAction()
+  // call below - no further PIN prompts for the rest of the session.
+  // To revoke access later, just clear or change CONFIG2!B4 in the
+  // sheet; this file needs no further edits.
+  let APP_PIN = '';
+
+  async function attemptLogin(){
+    const input = document.getElementById('loginPinInput');
+    const errorBox = document.getElementById('loginError');
+    const btn = document.getElementById('loginBtn');
+    const pin = (input.value || '').trim();
+    if (!pin) { errorBox.textContent = 'Masukkan PIN.'; return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Memeriksa...';
+    errorBox.textContent = '';
+
+    try {
+      // Validate by piggybacking on a harmless read - the real
+      // gatekeeping happens server-side on every action, this call just
+      // confirms the PIN before revealing the app.
+      const data = await postAction('getPaymentHistory', { branch: 'DAF' }, pin);
+      if (data && data.success) {
+        APP_PIN = pin;
+        try {
+          await loadKeteranganList(pin);
+        } catch (listErr) {
+          errorBox.textContent = 'PIN benar, tapi daftar keterangan gagal dimuat: ' + listErr.message;
+          APP_PIN = '';
+          return;
+        }
+        document.getElementById('loginOverlay').style.display = 'none';
+        document.getElementById('appWrap').style.display = '';
+      } else {
+        errorBox.textContent = (data && data.error) || 'PIN salah.';
+      }
+    } catch (err) {
+      errorBox.textContent = 'Gagal menghubungi server. Coba lagi.';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Masuk';
+    }
+  }
+  document.getElementById('loginBtn').addEventListener('click', attemptLogin);
+  document.getElementById('loginPinInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') attemptLogin();
+  });
+  document.getElementById('loginPinInput').focus();
+
+  function todayISO(){
+    const d = new Date();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return d.getFullYear() + '-' + mm + '-' + dd;
+  }
+  function todayDisplay(){
+    const d = new Date();
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    return dd + '-' + mm + '-' + d.getFullYear();
+  }
+  function offsetISO(n){
+    const d = new Date();
+    d.setDate(d.getDate() + n);
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return d.getFullYear() + '-' + mm + '-' + dd;
+  }
+  function offsetDisplay(n){
+    const d = new Date();
+    d.setDate(d.getDate() + n);
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    return dd + '-' + mm + '-' + d.getFullYear();
+  }
+
+  // Tanggal Input defaults to today and is never a free-text/date-picker
+  // field - the dropdown below only ever offers today or up to 5 days
+  // AHEAD (H+1..H+5). There is no way to enter a backdate, and picking
+  // "Hari Ini" just returns to the default - it can't be used to fake
+  // an earlier date either.
+  const MAX_DAYS_AHEAD = 5;
+  let LOCKED_INPUT_DATE = todayISO();
+  let dayOffset = 0;
+
+  function refreshLockedDateUI(){
+    LOCKED_INPUT_DATE = offsetISO(dayOffset);
+    document.getElementById('lockedInputDate').textContent = offsetDisplay(dayOffset);
+    document.getElementById('lockboxHint').textContent = dayOffset === 0
+      ? ' (otomatis, tidak bisa diubah)'
+      : ' (mode: input untuk H+' + dayOffset + ')';
+    document.getElementById('lockboxRow').style.borderColor = dayOffset === 0 ? '' : 'var(--orange)';
+  }
+
+  const futureSelect = document.getElementById('futureDaySelect');
+  for (let n = 0; n <= MAX_DAYS_AHEAD; n++) {
+    const opt = document.createElement('option');
+    opt.value = n;
+    opt.textContent = n === 0 ? 'Hari Ini' : ('Besok +' + n + ' (' + offsetDisplay(n) + ')');
+    futureSelect.appendChild(opt);
+  }
+  futureSelect.addEventListener('change', () => {
+    dayOffset = parseInt(futureSelect.value, 10) || 0;
+    refreshLockedDateUI();
+  });
+  refreshLockedDateUI();
+
+  document.getElementById('giroDate').value = todayISO();
+  document.getElementById('transferDate').value = todayISO();
+
+  // ---- branch / method pills ----
+  // Both the Input page's branch pills and the Riwayat page's branch
+  // pills drive the same currentBranch, and stay visually in sync with
+  // each other no matter which one was clicked.
+  function setBranch(branch){
+    currentBranch = branch;
+    document.querySelectorAll('#branchPills .pill, #historyBranchPills .pill').forEach(b => {
+      b.classList.toggle('active', b.dataset.branch === branch);
+    });
+    if (!document.getElementById('pageHistory').classList.contains('hidden')) loadHistory();
+  }
+  document.querySelectorAll('#branchPills .pill').forEach(btn => {
+    btn.addEventListener('click', () => setBranch(btn.dataset.branch));
+  });
+  document.querySelectorAll('#historyBranchPills .pill').forEach(btn => {
+    btn.addEventListener('click', () => setBranch(btn.dataset.branch));
+  });
+
+  const methodPanels = { CASH: 'panelCash', GIRO: 'panelGiro', TRANSFER: 'panelTransfer', EXPENSE: 'panelExpense' };
+  document.querySelectorAll('#methodPills .pill[data-method]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#methodPills .pill[data-method]').forEach(b => b.classList.remove('method-active-cash', 'method-active-giro', 'method-active-transfer'));
+      currentMethod = btn.dataset.method;
+      if (currentMethod !== 'EXPENSE') btn.classList.add('method-active-' + currentMethod.toLowerCase());
+      Object.values(methodPanels).forEach(id => document.getElementById(id).classList.add('hidden'));
+      document.getElementById(methodPanels[currentMethod]).classList.remove('hidden');
+      hideMsg();
+    });
+  });
+
+  function showMsg(type, text){
+    const box = document.getElementById('msgBox');
+    box.className = 'msg ' + type;
+    box.textContent = text;
+  }
+  function hideMsg(){
+    const box = document.getElementById('msgBox');
+    box.className = 'msg';
+    box.textContent = '';
+  }
+
+  // ---- date helper: DB dates come back as ISO 'YYYY-MM-DD'; the
+  // history table/print view compare against todayDisplayUS(), which
+  // is no-padded US style ('M/D/YYYY') - same format the old sheet's
+  // column A used (formatDateNoPad_ in Code.gs). ----
+  function isoToMDYNoPad(iso){
+    if (!iso) return '';
+    const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return String(iso);
+    return String(parseInt(m[2],10)) + '/' + String(parseInt(m[3],10)) + '/' + m[1];
+  }
+
+  // Maps each old GAS action name to its Supabase RPC + how to build
+  // the RPC's named params from the same `payload` object every call
+  // site below already builds - so no call site needs to change, only
+  // this router.
+  async function postAction(action, payload, pinOverride){
+    const pin = pinOverride !== undefined ? pinOverride : APP_PIN;
+    let rpcName, rpcArgs;
+
+    if (action === 'submitCashPaymentBatch') {
+      rpcName = 'submit_cash_payment_batch';
+      rpcArgs = { p_pin: pin, p_branch: payload.branch, p_input_date: payload.inputDate, p_items: payload.items };
+    } else if (action === 'submitGiroPaymentBatch') {
+      rpcName = 'submit_giro_payment_batch';
+      rpcArgs = { p_pin: pin, p_branch: payload.branch, p_input_date: payload.inputDate, p_giro_date: payload.giroDate, p_total_amount: payload.totalAmount, p_reference: payload.reference, p_items: payload.items, p_giro_bank: payload.giroBank, p_giro_no: payload.giroNo };
+    } else if (action === 'submitTransferPayment') {
+      rpcName = 'submit_transfer_payment';
+      rpcArgs = { p_pin: pin, p_branch: payload.branch, p_input_date: payload.inputDate, p_transfer_date: payload.transferDate, p_total_amount: payload.totalAmount, p_reference: payload.reference, p_items: payload.items };
+    } else if (action === 'submitExpenseBatch') {
+      rpcName = 'submit_expense_batch';
+      rpcArgs = { p_pin: pin, p_branch: payload.branch, p_input_date: payload.inputDate, p_items: payload.items };
+    } else if (action === 'getPaymentHistory') {
+      rpcName = 'get_payment_history';
+      rpcArgs = { p_pin: pin, p_branch: payload.branch };
+    } else if (action === 'getKasKecilCoaList') {
+      rpcName = 'get_kas_kecil_coa_list';
+      rpcArgs = { p_pin: pin };
+    } else {
+      return { success: false, error: 'Unknown action: ' + action };
+    }
+
+    const { data, error } = await sb.rpc(rpcName, rpcArgs);
+    if (error) {
+      // PIN was revoked/changed mid-session - drop back to the login
+      // screen instead of letting further actions silently fail.
+      APP_PIN = '';
+      document.getElementById('appWrap').style.display = 'none';
+      document.getElementById('loginOverlay').style.display = 'flex';
+      document.getElementById('loginError').textContent = 'Koneksi terputus. Masukkan PIN untuk masuk kembali.';
+      document.getElementById('loginPinInput').value = '';
+      document.getElementById('loginPinInput').focus();
+      return { success: false, error: error.message };
+    }
+    if (data && data.success === false && data.error === 'Invalid PIN.') {
+      APP_PIN = '';
+      document.getElementById('appWrap').style.display = 'none';
+      document.getElementById('loginOverlay').style.display = 'flex';
+      document.getElementById('loginError').textContent = 'PIN tidak valid lagi. Masukkan PIN yang baru.';
+      document.getElementById('loginPinInput').value = '';
+      document.getElementById('loginPinInput').focus();
+      return data;
+    }
+
+    // getPaymentHistory rows come back with raw DB field names/ISO
+    // dates - remap to exactly what renderHistoryTable()/openPrintView()
+    // already expect, so nothing else in this file needs to change.
+    if (action === 'getPaymentHistory' && data && data.success) {
+      data.rows = (data.rows || []).map(r => ({
+        rowIndex: r.id,
+        date: isoToMDYNoPad(r.tgl),
+        keterangan: r.keterangan || '',
+        noFaktur: r.no_faktur || '',
+        nilai: r.nilai || 0,
+        balance: r.saldo || 0,
+        reference: r.reference || '',
+        refDate: isoToMDYNoPad(r.ref_date),
+        refTotal: r.nilai_transfer || 0
+      }));
+    }
+
+    return data;
+  }
+
+  function fmtNumber(n){
+    const num = parseFloat(n) || 0;
+    return num.toLocaleString('en-US', { maximumFractionDigits: 2 });
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // Shared reference generator for both Giro and Transfer batches -
+  // one flat code per batch (no per-row letter suffix), since the
+  // sheet groups rows by an exact match on the Reference column.
+  function generateRef(prefix){
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+    return prefix + yyyy + mm + dd + '-' + rand;
+  }
+
+  // ==================== generic line-item manager (invoices) ====================
+  // Reused by Cash, Giro, and Transfer - each is just a container of
+  // { No Faktur, Nilai } rows the admin can add/remove freely.
+  function makeLineManager(containerId, onChange){
+    const container = document.getElementById(containerId);
+    function addLine(){
+      const row = document.createElement('div');
+      row.className = 'lineitem';
+      row.innerHTML = `
+        <div class="field">
+          <label>No Faktur</label>
+          <input type="text" class="line-faktur" placeholder="FK260709003">
+        </div>
+        <div class="field">
+          <label>Nilai</label>
+          <input type="number" class="line-nilai" placeholder="0">
+        </div>
+        <button class="btn small danger-outline line-remove" type="button">✕</button>
+      `;
+      const fk = row.querySelector('.line-faktur');
+      fk.addEventListener('input', () => {
+        // auto uppercase, no spaces; red border while format is wrong
+        const pos = fk.selectionStart;
+        fk.value = fk.value.toUpperCase().replace(/\s+/g, '');
+        try { fk.setSelectionRange(pos, pos); } catch(e) {}
+        fk.classList.toggle('invalid', fk.value !== '' && !isValidFaktur(fk.value));
+        onChange && onChange();
+      });
+      row.querySelector('.line-nilai').addEventListener('input', () => onChange && onChange());
+      row.querySelector('.line-remove').addEventListener('click', () => {
+        row.remove();
+        onChange && onChange();
+      });
+      container.appendChild(row);
+      onChange && onChange();
+    }
+    function getLines(){
+      return Array.from(container.querySelectorAll('.lineitem')).map(row => ({
+        noFaktur: row.querySelector('.line-faktur').value.trim(),
+        nilai: parseFloat(row.querySelector('.line-nilai').value) || 0
+      }));
+    }
+    function reset(){
+      container.innerHTML = '';
+    }
+    return { addLine, getLines, reset };
+  }
+
+  // No Faktur format: branch code + exactly 9 digits
+  // DAF = DFINV, ABP = FK / BSI, KSI = SI / INV
+  const FAKTUR_RE = /^(DFINV|FK|BSI|SI|INV)\d{9}$/;
+  function isValidFaktur(v){
+    return FAKTUR_RE.test(String(v || '').trim().toUpperCase());
+  }
+
+  function validateLines(lines){
+    if (lines.length === 0) return 'Tambahkan minimal 1 invoice.';
+    const incomplete = lines.some(l => !l.noFaktur || !l.nilai || l.nilai <= 0);
+    if (incomplete) return 'Setiap baris invoice wajib punya No Faktur dan Nilai (lebih dari 0).';
+    const bad = lines.filter(l => !isValidFaktur(l.noFaktur)).map(l => l.noFaktur);
+    if (bad.length) return 'NO INVOICE SALAH, CEK ULANG';
+    const fakturSet = new Set(lines.map(l => l.noFaktur.toUpperCase()));
+    if (fakturSet.size !== lines.length) return 'Ada No Faktur yang duplikat dalam batch ini — periksa kembali.';
+    return null;
+  }
+
+  // ==================== generic combobox (restricted search) ====================
+  // Text input that only accepts an exact match from KETERANGAN_LIST.
+  // Typing filters the dropdown; clicking (or Enter on a highlighted
+  // row) fills the input with the exact list text.
+  function attachKeteranganCombo(wrapEl){
+    const input = wrapEl.querySelector('.combo-input');
+    const list = wrapEl.querySelector('.combo-list');
+    let highlighted = -1;
+
+    function currentMatches(){
+      const q = input.value.trim().toLowerCase();
+      return q ? KETERANGAN_LIST.filter(k => k.toLowerCase().includes(q)).slice(0, 8)
+                : KETERANGAN_LIST.slice(0, 8);
+    }
+    function render(){
+      const matches = currentMatches();
+      highlighted = -1;
+      list.innerHTML = matches.length
+        ? matches.map(k => `<div class="combo-item">${escapeHtml(k)}</div>`).join('')
+        : '<div class="combo-empty">Tidak ada di daftar</div>';
+      list.classList.remove('hidden');
+    }
+    function close(){ list.classList.add('hidden'); }
+    function selectValue(val){
+      input.value = val;
+      input.classList.remove('invalid');
+      close();
+    }
+
+    input.addEventListener('focus', render);
+    input.addEventListener('input', render);
+    input.addEventListener('keydown', (e) => {
+      const items = Array.from(list.querySelectorAll('.combo-item'));
+      if (e.key === 'ArrowDown') { e.preventDefault(); highlighted = Math.min(highlighted + 1, items.length - 1); items.forEach((el,i)=>el.classList.toggle('highlighted', i===highlighted)); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); highlighted = Math.max(highlighted - 1, 0); items.forEach((el,i)=>el.classList.toggle('highlighted', i===highlighted)); }
+      else if (e.key === 'Enter') { e.preventDefault(); if (items[highlighted]) selectValue(items[highlighted].textContent); }
+      else if (e.key === 'Escape') { close(); }
+    });
+    list.addEventListener('mousedown', (e) => {
+      const item = e.target.closest('.combo-item');
+      if (!item) return;
+      selectValue(item.textContent);
+    });
+    input.addEventListener('blur', () => {
+      setTimeout(() => {
+        close();
+        if (input.value && !KETERANGAN_LIST.includes(input.value.trim())) {
+          input.classList.add('invalid');
+        }
+      }, 150);
+    });
+  }
+
+  // ==================== CASH ====================
+  const cashLines = makeLineManager('cashLines');
+  document.getElementById('addCashLineBtn').addEventListener('click', cashLines.addLine);
+  cashLines.addLine();
+  cashLines.addLine();
+
+  document.getElementById('submitCashBtn').addEventListener('click', async () => {
+    hideMsg();
+    const lines = cashLines.getLines().filter(l => l.noFaktur || l.nilai);
+    const err = validateLines(lines);
+    if (err) { showMsg('error', err); return; }
+
+    const btn = document.getElementById('submitCashBtn');
+    btn.disabled = true; btn.textContent = 'Menyimpan...';
+    try {
+      const data = await postAction('submitCashPaymentBatch', {
+        branch: currentBranch,
+        inputDate: LOCKED_INPUT_DATE,
+        items: lines
+      });
+      if (!data.success) throw new Error(data.error || 'Unknown error');
+      showMsg('success', lines.length + ' pembayaran cash tersimpan.');
+      cashLines.reset();
+      cashLines.addLine();
+      cashLines.addLine();
+    } catch (err2) {
+      showMsg('error', 'Gagal menyimpan: ' + err2.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Simpan Semua Pembayaran Cash';
+    }
+  });
+
+  // ==================== GIRO ====================
+  function ensureGiroRef(){
+    if (!giroRef) {
+      giroRef = generateRef('GIR');
+      document.getElementById('giroRefCode').textContent = giroRef;
+    }
+  }
+
+  const giroLines = makeLineManager('giroLines', updateGiroSummary);
+  document.getElementById('addGiroLineBtn').addEventListener('click', () => { ensureGiroRef(); giroLines.addLine(); });
+  document.getElementById('giroDate').addEventListener('input', ensureGiroRef);
+  document.getElementById('giroTotal').addEventListener('input', () => { ensureGiroRef(); updateGiroSummary(); });
+  giroLines.addLine();
+
+  // Sum mismatch is a WARNING only (admin fees / rounding happen) - it
+  // never blocks submission, same rule Transfer already uses.
+  function updateGiroSummary(){
+    const lines = giroLines.getLines();
+    const sum = lines.reduce((s, l) => s + l.nilai, 0);
+    const total = parseFloat(document.getElementById('giroTotal').value) || 0;
+    document.getElementById('giroLineSum').textContent = fmtNumber(sum);
+
+    const bar = document.getElementById('giroSummary');
+    const statusEl = document.getElementById('giroSummaryStatus');
+    const diff = total - sum;
+
+    if (total === 0) {
+      bar.className = 'summarybar';
+      statusEl.textContent = 'Isi total giro di atas';
+    } else if (Math.abs(diff) < 0.01) {
+      bar.className = 'summarybar ok';
+      statusEl.textContent = 'Sesuai ✓';
+    } else {
+      bar.className = 'summarybar warn';
+      statusEl.textContent = 'Selisih ' + fmtNumber(diff) + ' — tetap bisa disimpan';
+    }
+
+    // Total Nilai Giro is required - keep the save button disabled until
+    // a real (>0) number is entered, instead of only catching it on
+    // click.
+    document.getElementById('submitGiroBtn').disabled = !(total > 0);
+  }
+
+  document.getElementById('submitGiroBtn').addEventListener('click', async () => {
+    hideMsg();
+    const giroDate = document.getElementById('giroDate').value;
+    const total = parseFloat(document.getElementById('giroTotal').value);
+    const lines = giroLines.getLines().filter(l => l.noFaktur || l.nilai);
+
+    const giroBank = document.getElementById('giroBank').value.trim();
+    const giroNo = document.getElementById('giroNo').value.trim().toUpperCase();
+
+    if (!giroDate || !total || total <= 0) {
+      showMsg('error', 'Tanggal Giro dan Total Nilai Giro wajib diisi.');
+      return;
+    }
+    if (!giroBank || !giroNo) {
+      showMsg('error', 'Bank Giro dan No Giro wajib diisi.');
+      return;
+    }
+    const err = validateLines(lines);
+    if (err) { showMsg('error', err); return; }
+
+    ensureGiroRef();
+    const btn = document.getElementById('submitGiroBtn');
+    btn.disabled = true; btn.textContent = 'Menyimpan...';
+    try {
+      const data = await postAction('submitGiroPaymentBatch', {
+        branch: currentBranch,
+        inputDate: LOCKED_INPUT_DATE,
+        giroDate: giroDate,
+        totalAmount: total,
+        reference: giroRef,
+        giroBank: giroBank,
+        giroNo: giroNo,
+        items: lines
+      });
+      if (!data.success) throw new Error(data.error || 'Unknown error');
+      showMsg('success', lines.length + ' invoice tersimpan'
+        + (lines.length > 1 ? ' di bawah referensi ' + giroRef : '') + '.');
+      giroLines.reset();
+      document.getElementById('giroTotal').value = '';
+      document.getElementById('giroBank').value = '';
+      document.getElementById('giroNo').value = '';
+      giroLines.addLine();
+      document.getElementById('giroRefCode').textContent = '—';
+      giroRef = null;
+      updateGiroSummary();
+    } catch (err2) {
+      showMsg('error', 'Gagal menyimpan: ' + err2.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Simpan Batch Giro';
+    }
+  });
+
+  // ==================== TRANSFER ====================
+  function ensureTransferRef(){
+    if (!transferRef) {
+      transferRef = generateRef('TRF');
+      document.getElementById('transferRefCode').textContent = transferRef;
+    }
+  }
+
+  const transferLines = makeLineManager('transferLines', updateTransferSummary);
+  document.getElementById('addTransferLineBtn').addEventListener('click', () => { ensureTransferRef(); transferLines.addLine(); });
+  document.getElementById('transferTotal').addEventListener('input', () => { ensureTransferRef(); updateTransferSummary(); });
+
+  // Sum mismatch is a WARNING only (bank fees / rounding happen) - it
+  // never blocks submission.
+  function updateTransferSummary(){
+    const lines = transferLines.getLines();
+    const sum = lines.reduce((s, l) => s + l.nilai, 0);
+    const total = parseFloat(document.getElementById('transferTotal').value) || 0;
+    document.getElementById('transferLineSum').textContent = fmtNumber(sum);
+
+    const bar = document.getElementById('transferSummary');
+    const statusEl = document.getElementById('transferSummaryStatus');
+    const diff = total - sum;
+
+    if (total === 0) {
+      bar.className = 'summarybar';
+      statusEl.textContent = 'Isi total transfer di atas';
+    } else if (Math.abs(diff) < 0.01) {
+      bar.className = 'summarybar ok';
+      statusEl.textContent = 'Sesuai ✓';
+    } else {
+      bar.className = 'summarybar warn';
+      statusEl.textContent = 'Selisih ' + fmtNumber(diff) + ' — tetap bisa disimpan';
+    }
+
+    // Total Nilai Transfer is required - keep the save button disabled
+    // until a real (>0) number is entered, instead of only catching it
+    // on click.
+    document.getElementById('submitTransferBtn').disabled = !(total > 0);
+  }
+
+  // start with 2 empty lines by default, since a transfer needing this
+  // form almost always covers more than one invoice
+  transferLines.addLine();
+  transferLines.addLine();
+
+  document.getElementById('submitTransferBtn').addEventListener('click', async () => {
+    hideMsg();
+    const date = document.getElementById('transferDate').value;
+    const total = parseFloat(document.getElementById('transferTotal').value);
+    const lines = transferLines.getLines().filter(l => l.noFaktur || l.nilai);
+
+    if (!date || !total || total <= 0) {
+      showMsg('error', 'Tanggal Transfer dan Total Nilai Transfer wajib diisi.');
+      return;
+    }
+    const err = validateLines(lines);
+    if (err) { showMsg('error', err); return; }
+
+    // If the invoice lines don't add up to the actual transfer total,
+    // tag each No Faktur with "(Selisih)" so the shortfall/overage stays
+    // visible on the sheet instead of silently disappearing. This never
+    // blocks the save - it's just a marker for reconciliation.
+    // Tidak lagi menulis "(Selisih)": kaskecil.html menghitung sendiri
+    // Transfer LEBIH / KURANG dari nilai transfer vs nilai faktur.
+    const itemsToSend = lines.map(l => ({ ...l }));
+
+    ensureTransferRef();
+    const btn = document.getElementById('submitTransferBtn');
+    btn.disabled = true; btn.textContent = 'Menyimpan...';
+    try {
+      const data = await postAction('submitTransferPayment', {
+        branch: currentBranch,
+        inputDate: LOCKED_INPUT_DATE,
+        transferDate: date,
+        totalAmount: total,
+        reference: transferRef,
+        items: itemsToSend
+      });
+      if (!data.success) throw new Error(data.error || 'Unknown error');
+      showMsg('success', lines.length + ' invoice tersimpan'
+        + (lines.length > 1 ? ' di bawah referensi ' + transferRef : '') + '.');
+
+      // reset for next batch
+      transferLines.reset();
+      document.getElementById('transferTotal').value = '';
+      document.getElementById('transferRefCode').textContent = '—';
+      transferRef = null;
+      transferLines.addLine();
+      transferLines.addLine();
+      updateTransferSummary();
+    } catch (err2) {
+      showMsg('error', 'Gagal menyimpan batch: ' + err2.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Simpan Batch Transfer';
+    }
+  });
+
+  // ==================== EXPENSE / PEMBAYARAN ====================
+  const expenseContainer = document.getElementById('expenseLines');
+  function addExpenseLine(){
+    const row = document.createElement('div');
+    row.className = 'lineitem expense-line';
+    row.innerHTML = `
+      <div class="field combo-wrap">
+        <label>Keterangan</label>
+        <input type="text" class="line-keterangan combo-input" placeholder="Cari keterangan...">
+        <div class="combo-list hidden"></div>
+      </div>
+      <div class="field">
+        <label>Catatan (opsional)</label>
+        <input type="text" class="line-catatan" placeholder="Detail tambahan...">
+      </div>
+      <div class="field">
+        <label>Nilai</label>
+        <input type="number" class="line-nilai" placeholder="0">
+      </div>
+      <button class="btn small danger-outline line-remove" type="button">✕</button>
+    `;
+    attachKeteranganCombo(row.querySelector('.combo-wrap'));
+    row.querySelector('.line-remove').addEventListener('click', () => row.remove());
+    expenseContainer.appendChild(row);
+  }
+  function getExpenseLines(){
+    return Array.from(expenseContainer.querySelectorAll('.lineitem')).map(row => ({
+      keterangan: row.querySelector('.line-keterangan').value.trim(),
+      catatan: row.querySelector('.line-catatan').value.trim(),
+      nilai: parseFloat(row.querySelector('.line-nilai').value) || 0
+    }));
+  }
+  document.getElementById('addExpenseLineBtn').addEventListener('click', addExpenseLine);
+  addExpenseLine();
+
+  function validateExpenseLines(lines){
+    if (lines.length === 0) return 'Tambahkan minimal 1 pengeluaran.';
+    for (const l of lines) {
+      if (!l.keterangan) return 'Setiap baris wajib punya Keterangan.';
+      if (!KETERANGAN_LIST.includes(l.keterangan)) return 'Keterangan "' + l.keterangan + '" tidak ada di daftar — pilih dari daftar yang muncul saat mengetik.';
+      if (!l.nilai || l.nilai <= 0) return 'Setiap baris wajib punya Nilai (lebih dari 0).';
+    }
+    return null;
+  }
+
+  document.getElementById('submitExpenseBtn').addEventListener('click', async () => {
+    hideMsg();
+    const lines = getExpenseLines().filter(l => l.keterangan || l.catatan || l.nilai);
+    const err = validateExpenseLines(lines);
+    if (err) { showMsg('error', err); return; }
+
+    const btn = document.getElementById('submitExpenseBtn');
+    btn.disabled = true; btn.textContent = 'Menyimpan...';
+    try {
+      const data = await postAction('submitExpenseBatch', {
+        branch: currentBranch,
+        inputDate: LOCKED_INPUT_DATE,
+        items: lines
+      });
+      if (!data.success) throw new Error(data.error || 'Unknown error');
+      showMsg('success', lines.length + ' pengeluaran tersimpan.');
+      expenseContainer.innerHTML = '';
+      addExpenseLine();
+    } catch (err2) {
+      showMsg('error', 'Gagal menyimpan: ' + err2.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Simpan Pengeluaran';
+    }
+  });
+
+  // ==================== PAGE NAV (Input Baru / Riwayat Input) ====================
+  document.querySelectorAll('#pageNav .pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#pageNav .pill').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const page = btn.dataset.page;
+      document.getElementById('pageInput').classList.toggle('hidden', page !== 'input');
+      document.getElementById('pageHistory').classList.toggle('hidden', page !== 'history');
+      if (page === 'history') loadHistory();
+    });
+  });
+
+  // ==================== RIWAYAT INPUT (history / search) ====================
+  // "Tanggal Input" is stored on the sheet as M/D/YYYY (no zero-padding,
+  // via formatDateNoPad_ in Code.gs) - this matches that exact format so
+  // client-side date comparisons ("Hari Ini" filter, print-today) work
+  // as plain string equality against what's actually in column A.
+  function todayDisplayUS(){
+    const d = new Date();
+    return (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear();
+  }
+
+  let historyRows = [];
+  let historyDateFilter = 'all'; // 'today' | 'all' - defaults to all so the page shows everything on the sheet, not just today
+
+  async function loadHistory(){
+    const meta = document.getElementById('historyMeta');
+    meta.textContent = 'Memuat...';
+    try {
+      const data = await postAction('getPaymentHistory', { branch: currentBranch });
+      if (!data.success) throw new Error(data.error || 'Gagal memuat data');
+      historyRows = data.rows || [];
+      renderHistoryTable();
+    } catch (err) {
+      meta.textContent = 'Gagal memuat: ' + err.message;
+      document.getElementById('historyTbody').innerHTML = '';
+    }
+  }
+
+  function getFilteredHistoryRows(){
+    const q = document.getElementById('historySearchBox').value.trim().toLowerCase();
+    const today = todayDisplayUS();
+    return historyRows.filter(r => {
+      if (historyDateFilter === 'today' && r.date !== today) return false;
+      if (!q) return true;
+      return (r.noFaktur || '').toLowerCase().includes(q) || (r.keterangan || '').toLowerCase().includes(q);
+    });
+  }
+
+  function renderHistoryTable(){
+    // Ascending by rowIndex = sheet order = first input to last input.
+    const filtered = getFilteredHistoryRows().slice().sort((a, b) => (a.rowIndex || 0) - (b.rowIndex || 0));
+    document.getElementById('historyMeta').textContent = filtered.length + ' entri ditemukan (' + currentBranch + ', total ' + historyRows.length + ' baris di sheet)';
+
+    let emptyMsg = 'Belum ada data tersimpan untuk branch ' + currentBranch + '.';
+    if (historyRows.length > 0) {
+      emptyMsg = 'Tidak ada hasil yang cocok — coba "Semua Tanggal" atau ubah kata pencarian.';
+    }
+
+    document.getElementById('historyTbody').innerHTML = filtered.map(r => `
+      <tr style="border-bottom:1px solid #1d2530;">
+        <td style="padding:8px;">${escapeHtml(r.date)}</td>
+        <td style="padding:8px;">${escapeHtml(r.keterangan)}</td>
+        <td style="padding:8px;">${escapeHtml(r.noFaktur)}</td>
+        <td style="padding:8px;text-align:right;">${fmtNumber(r.nilai)}</td>
+        <td style="padding:8px;text-align:right;">${r.balance !== '' && r.balance !== undefined ? fmtNumber(r.balance) : ''}</td>
+        <td style="padding:8px;">${escapeHtml(r.reference)}</td>
+        <td style="padding:8px;">${escapeHtml(r.refDate)}</td>
+        <td style="padding:8px;text-align:right;">${r.refTotal ? fmtNumber(r.refTotal) : ''}</td>
+      </tr>
+    `).join('') || ('<tr><td colspan="8" style="padding:16px;text-align:center;color:var(--muted);">' + escapeHtml(emptyMsg) + '</td></tr>');
+  }
+
+  document.getElementById('historySearchBox').addEventListener('input', renderHistoryTable);
+  document.getElementById('historyRefreshBtn').addEventListener('click', loadHistory);
+  document.getElementById('dateFilterToday').addEventListener('click', () => {
+    historyDateFilter = 'today';
+    document.getElementById('dateFilterToday').classList.add('active');
+    document.getElementById('dateFilterAll').classList.remove('active');
+    renderHistoryTable();
+  });
+  document.getElementById('dateFilterAll').addEventListener('click', () => {
+    historyDateFilter = 'all';
+    document.getElementById('dateFilterAll').classList.add('active');
+    document.getElementById('dateFilterToday').classList.remove('active');
+    renderHistoryTable();
+  });
+
+  // ==================== PRINT ====================
+  // Fills #printArea with a plain black-and-white table and triggers the
+  // browser's print dialog - the @media print rule hides everything else
+  // on the page, so only this table ends up on paper.
+  function openPrintView(title, rows, branchLabel){
+    const totalNilai = rows.reduce((s, r) => s + (parseFloat(r.nilai) || 0), 0);
+    document.getElementById('printArea').innerHTML = `
+      <h2>${escapeHtml(title)}</h2>
+      <div class="print-meta">Branch: ${escapeHtml(branchLabel)} — Dicetak: ${new Date().toLocaleString('id-ID')} — ${rows.length} entri</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Tanggal</th><th>Keterangan</th><th>No Faktur / Catatan</th>
+            <th class="num">Nilai</th><th class="num">Balance</th><th>Referensi</th><th>Tgl Ref</th><th class="num">Nilai Batch</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr>
+              <td>${escapeHtml(r.date)}</td>
+              <td>${escapeHtml(r.keterangan)}</td>
+              <td>${escapeHtml(r.noFaktur)}</td>
+              <td class="num">${fmtNumber(r.nilai)}</td>
+              <td class="num">${r.balance !== '' && r.balance !== undefined ? fmtNumber(r.balance) : ''}</td>
+              <td>${escapeHtml(r.reference)}</td>
+              <td>${escapeHtml(r.refDate)}</td>
+              <td class="num">${r.refTotal ? fmtNumber(r.refTotal) : ''}</td>
+            </tr>
+          `).join('') || '<tr><td colspan="8">Tidak ada data</td></tr>'}
+        </tbody>
+        <tfoot>
+          <tr><td colspan="3">Total</td><td class="num">${fmtNumber(totalNilai)}</td><td colspan="4"></td></tr>
+        </tfoot>
+      </table>
+    `;
+    window.print();
+  }
+
+  document.getElementById('printTodayBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('printTodayBtn');
+    btn.disabled = true; btn.textContent = 'Memuat...';
+    try {
+      const data = await postAction('getPaymentHistory', { branch: currentBranch });
+      if (!data.success) throw new Error(data.error || 'Gagal memuat data');
+      const today = todayDisplayUS();
+      const todayRows = (data.rows || []).filter(r => r.date === today);
+      openPrintView('Input Pembayaran Hari Ini (' + today + ')', todayRows, currentBranch);
+    } catch (err) {
+      alert('Gagal cetak: ' + err.message);
+    } finally {
+      btn.disabled = false; btn.textContent = '🖨️ Cetak Hari Ini';
+    }
+  });
+
+  document.getElementById('historyPrintBtn').addEventListener('click', () => {
+    const filtered = getFilteredHistoryRows();
+    const label = historyDateFilter === 'today' ? ('Hari Ini (' + todayDisplayUS() + ')') : 'Semua Tanggal';
+    openPrintView('Riwayat Input Pembayaran — ' + label, filtered, currentBranch);
+  });
+</script>
+</body>
+</html>
