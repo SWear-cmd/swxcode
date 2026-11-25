@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M1 Monitoring</title>
+<link href="https://cdn.jsdelivr.net/npm/tabulator-tables@6.3.1/dist/css/tabulator.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#e9ecef; --panel:#ffffff; --panel2:#f3f5f7; --border:#d3d8de;
+    --text:#1f2933; --muted:#5f6b7a; --green:#2e8b57; --red:#c62839; --blue:#2f6fb5; --teal:#1f8f86;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;overflow:hidden;}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    display:flex;flex-direction:column;padding:14px 14px 12px;}
+  body > *{flex-shrink:0;}
+  h1{font-size:20px;margin:0 0 10px;font-weight:700;}
+
+  /* 2 panel: kiri NexDist, kanan LBP. Layar sempit → atas-bawah */
+  #wrap{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .side{min-width:0;min-height:0;display:flex;flex-direction:column;background:#f6f7f9;border:1px solid var(--border);border-radius:12px;padding:10px;}
+  .side > *{flex-shrink:0;}
+  .side h2{font-size:14px;margin:0 0 8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .side h2 small{font-weight:400;color:var(--muted);font-size:11.5px;}
+  .side .tbl{flex:1 1 auto;min-height:120px;}
+
+  .filterbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px;}
+  .search{background:var(--panel);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:8px;font-size:13px;outline:none;min-width:0;}
+  .search:focus{border-color:var(--teal);}
+  input.search[type=text],input.search:not([type]){flex:1 1 120px;}
+  .btn{background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:7px 12px;border-radius:8px;font-size:13px;cursor:pointer;white-space:nowrap;}
+  .btn:hover{background:#e4e8ec;}
+  .btn.teal{background:var(--teal);color:#fff;border-color:var(--teal);font-weight:700;}
+  .btn:disabled{opacity:.5;cursor:default;}
+  .kpi{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;}
+  .kpi div{flex:1 1 90px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:6px 10px;font-size:11.5px;color:var(--muted);}
+  .kpi b{display:block;font-size:14.5px;color:var(--text);margin-top:1px;white-space:nowrap;}
+  .drop{border:2px dashed var(--border);border-radius:10px;padding:6px 8px;color:var(--muted);font-size:12.5px;margin-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .drop.over{border-color:var(--teal);color:var(--teal);}
+  .msg{font-size:12px;color:var(--muted);}
+  .msg.err{color:var(--red);}
+
+  .tabulator{background:var(--panel);border:1px solid var(--border);border-radius:10px;font-size:13px;}
+  .tabulator .tabulator-header{background:var(--panel2);border-bottom:2px solid var(--border);color:#3e4a59;}
+  .tabulator .tabulator-header .tabulator-col{background:var(--panel2);border-right:none;}
+  .tabulator .tabulator-header .tabulator-col .tabulator-col-content{padding:9px 7px;}
+  .tabulator .tabulator-col-title{font-size:11px;letter-spacing:.03em;text-transform:uppercase;font-weight:700;}
+  .tabulator .tabulator-tableholder,.tabulator .tabulator-tableholder .tabulator-table{background:var(--panel);color:var(--text);}
+  .tabulator-row,.tabulator-row.tabulator-row-even{background-color:var(--panel);color:var(--text);border-bottom:1px solid #e6e9ed;min-height:0;}
+  .tabulator-row .tabulator-cell{border-right:none;padding:8px 7px;}
+  .tabulator .tabulator-footer{background:var(--panel2);border-top:1px solid var(--border);color:var(--muted);}
+  .tabulator .tabulator-header .tabulator-col.tabulator-sortable.tabulator-col-sorter-element:hover{background:#e6eaee;}
+  @media (hover:hover){ .tabulator-row:hover{background:#eef3f8;} }
+  .tabulator-row.retur{box-shadow:inset 3px 0 0 var(--red);}
+  /* Warna baris per cabang */
+  .tabulator-row.br-DAF{background:#e6f5ec;}
+  .tabulator-row.br-ABP{background:#e3eefc;}
+  .tabulator-row.br-KSI{background:#fdf0e2;}
+  .acc-badge{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 6px;border-radius:999px;color:#fff;margin-right:4px;}
+  .acc-DAF{background:#2eb45a;} .acc-ABP{background:#3c82e6;} .acc-KSI{background:#f0962f;} .acc-TFDAF{background:#6b7a8f;}
+  .neg{color:var(--red);} .muted{color:var(--muted);}
+  .tipe{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;background:#d3d8de;color:#fff;}
+  .tipe.F{background:#2e8b57;} .tipe.R{background:#c62839;}
+
+  /* Tab */
+  .tabs{display:flex;gap:6px;margin-bottom:10px;}
+  .tab{background:var(--panel2);border:1px solid var(--border);color:var(--muted);padding:7px 16px;border-radius:8px;font-size:13px;cursor:pointer;}
+  .tab.on{background:var(--teal);color:#fff;border-color:var(--teal);font-weight:700;}
+  #harian{flex:1 1 auto;min-height:0;display:none;flex-direction:column;background:#f6f7f9;border:1px solid var(--border);border-radius:12px;padding:10px;}
+  #harian > *{flex-shrink:0;}
+  #harian .tbl{flex:1 1 auto;min-height:120px;}
+  .tabulator .tabulator-footer .tabulator-calcs-holder,.tabulator .tabulator-footer .tabulator-calcs-holder .tabulator-row{background:var(--panel2);font-weight:700;}
+
+  /* Login */
+  #login{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:100;}
+  #login.off{display:none;}
+  .btn.red{background:#fff;color:var(--red);border-color:#e7a3ab;}
+  .btn.red:hover{background:#fdecee;}
+  .btn.redfill{background:var(--red);color:#fff;border-color:var(--red);font-weight:700;}
+  #hapusPop{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:60;}
+  #hapusPop.on{display:flex;}
+  #hapusBox{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:20px;width:min(420px,94vw);display:flex;flex-direction:column;gap:10px;}
+  #hapusBox h2{margin:0;font-size:17px;}
+  #hapusBox label{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:4px;flex:1 1 120px;}
+  #loginBox{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:24px;width:min(340px,92vw);display:flex;flex-direction:column;gap:10px;box-shadow:0 6px 24px rgba(0,0,0,.08);}
+  #loginBox h2{margin:0;font-size:18px;}
+  #loginBox .search{font-size:15px;padding:10px 12px;}
+  #loginBox .btn{padding:10px;font-size:14px;}
+  .topbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+  .topbar h1{margin:0;}
+  .who{font-size:12.5px;color:var(--muted);}
+  .who b{color:var(--text);}
+
+  @media (max-width:900px){
+    #wrap{grid-template-columns:1fr;grid-template-rows:1fr 1fr;}
+  }
+  @media (max-width:700px){
+    body{padding:8px 6px 6px;} h1{font-size:16px;margin-bottom:6px;}
+    .kpi b{font-size:13px;}
+    .tabulator-row .tabulator-cell{padding:7px 5px;}
+  }
+</style>
+</head>
+<body>
+<div id="login"><div id="loginBox">
+  <h2>M1 Monitoring</h2>
+  <div class="msg">Masukkan PIN (Full Access / M1 Principal)</div>
+  <input class="search" id="pin" type="password" placeholder="PIN" autocomplete="off">
+  <button class="btn teal" id="btnPin">Masuk</button>
+  <div class="msg" id="pinMsg"></div>
+</div></div>
+
+<div class="topbar">
+  <h1>M1 Monitoring — ND vs Matrix</h1>
+  <span style="flex:1"></span>
+  <span class="who" id="who"></span>
+  <button class="btn" id="btnKeluar">Keluar</button>
+</div>
+<div class="tabs"><button class="tab on" data-tab="faktur">Faktur</button><button class="tab" data-tab="harian">Harian</button></div>
+
+<div id="wrap">
+  <!-- ===== KIRI: invoice NexDist (sama dengan dash tab Invoices) ===== -->
+  <section class="side">
+    <h2>Invoice ND <small>divisi M1 · wilayah ABE / SENTANI</small></h2>
+    <div class="filterbar">
+      <input class="search" type="date" id="dFrom" title="Print date dari">
+      <span class="muted">s/d</span>
+      <input class="search" type="date" id="dTo" title="Print date sampai">
+      <select class="search" id="fWil" title="Lokasi (ND dan Matrix)"><option value="">M1 ABE + SENTANI</option><option value="ABE">M1 ABE</option><option value="SENTANI">M1 SENTANI</option></select>
+      <button class="btn" id="btnMuat">Muat</button>
+      <span class="msg" id="nxMsg"></span>
+    </div>
+    <div class="kpi">
+      <div>Invoice<b id="nFak">0</b></div>
+      <div>Customer<b id="nCust">0</b></div>
+      <div>Amount<b id="nAmt">0</b></div>
+    </div>
+    <div class="filterbar"><input class="search" id="nCari" placeholder="Search..."></div>
+    <div class="tbl" id="tabelNx"></div>
+  </section>
+
+  <!-- ===== KANAN: file LBP ===== -->
+  <section class="side">
+    <h2>Faktur Matrix <small>dari file txt · tersimpan di Supabase</small></h2>
+    <div class="drop" id="drop"><select class="search" id="uLok" title="Lokasi file yang di-upload"><option value="">Lokasi upload...</option><option>ABE</option><option>SENTANI</option></select><button class="btn teal" id="btnFile">Pilih file</button><input type="file" id="file" accept=".txt,.csv" multiple hidden><span id="fileInfo">atau seret file .txt Matrix ke sini (boleh banyak)</span></div>
+    <div class="kpi">
+      <div>Faktur<b id="kFak">0</b></div>
+      <div>Toko<b id="kToko">0</b></div>
+      <div>Bruto<b id="kBruto">0</b></div>
+      <div>Diskon<b id="kDisc">0</b></div>
+      <div>Total<b id="kTotal">0</b></div>
+    </div>
+    <div class="filterbar">
+      <input class="search" id="cari1" placeholder="Search...">
+      <input class="search" id="cari2" placeholder="Search...">
+      <select class="search" id="fSales" style="flex:0 1 150px"><option value="">Semua Salesman</option></select>
+      <button class="btn" id="btnExcel">⬇ Excel</button>
+      <button class="btn" id="btnReset">Reset</button>
+      <button class="btn red" id="btnHapus" style="display:none">🗑 Hapus Data</button>
+    </div>
+    <div class="tbl" id="tabelLbp"></div>
+  </section>
+</div>
+
+<div id="hapusPop"><div id="hapusBox">
+  <h2>Hapus Data Matrix</h2>
+  <div class="msg">Hapus faktur Matrix yang tersimpan di Supabase sesuai periode tanggal faktur. Tidak bisa dibatalkan — upload ulang file kalau perlu.</div>
+  <div class="filterbar" style="margin:0">
+    <label>Dari<input class="search" type="date" id="hFrom"></label>
+    <label>Sampai<input class="search" type="date" id="hTo"></label>
+    <label>Lokasi<select class="search" id="hLok"><option value="">Semua</option><option>ABE</option><option>SENTANI</option></select></label>
+  </div>
+  <div class="msg" id="hMsg"></div>
+  <div class="filterbar" style="margin:0;justify-content:flex-end">
+    <button class="btn" id="hBatal">Batal</button>
+    <button class="btn" id="hCek">Cek jumlah</button>
+    <button class="btn redfill" id="hHapus" disabled>Hapus</button>
+  </div>
+</div></div>
+
+<!-- ===== TAB HARIAN: per tanggal, lembar faktur + amount ===== -->
+<section id="harian">
+  <div class="filterbar"><span class="msg">Per tanggal faktur · ikut tanggal, wilayah, salesman &amp; search di tab Faktur</span><span style="flex:1"></span><button class="btn" id="btnExcelH">⬇ Excel</button></div>
+  <div class="tbl" id="tabelHarian"></div>
+</section>
+
+<script>
+const BLN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const el = id => document.getElementById(id);
+const rp = v => (Math.round(v) || 0).toLocaleString("id-ID");
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const num = s => { const n = parseFloat(String(s || "").trim()); return isNaN(n) ? 0 : n; };
+// Tanggal di file LBP: dd/mm/yyyy → yyyy-mm-dd
+const tglKey = s => { const m = String(s).match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/); return m ? m[3] + "-" + m[2].padStart(2, "0") + "-" + m[1].padStart(2, "0") : ""; };
+const ddmmm = k => k ? String(k).slice(8, 10) + "-" + BLN[+String(k).slice(5, 7) - 1] : "";
+const uang = c => { const v = c.getValue(); return `<span class="${v < 0 ? "neg" : ""}">${rp(v)}</span>`; };
+// Hari ini di Jayapura (UTC+9)
+const hariIni = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+const tambahHari = (k, n) => { const d = new Date(k + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+
+/* =====================================================================
+   KIRI — Invoice NexDist (RPC get_invoice_pipeline_json, sama dengan dash)
+   ===================================================================== */
+const SUPABASE_URL = "https://swxgkuaoctrcfbgncwaz.supabase.co";
+const SUPABASE_KEY = "sb_publishable_0e8sOfljWkkin-hwhNweEw_CWqt1Az-";
+let _sb = null, pin = "";
+const sb = () => (_sb ||= supabase.createClient(SUPABASE_URL, SUPABASE_KEY));
+let devId; try { devId = localStorage.getItem("dash_device_id"); if (!devId) { devId = crypto.randomUUID(); localStorage.setItem("dash_device_id", devId); } } catch (e) { devId = crypto.randomUUID(); }
+
+let lokasi = "";   // ALL = Full Access, ABE / SENTANI = principal
+
+function pakaiLokasi(lok) {
+  lokasi = lok;
+  const semua = lok === "ALL";
+  el("who").innerHTML = semua ? "Login: <b>Full Access</b>" : "Login: <b>M1 Principal " + esc(lok) + "</b>";
+  // principal: lokasi dikunci ke lokasinya sendiri
+  el("fWil").value = semua ? "" : lok;
+  el("fWil").disabled = !semua;
+  el("uLok").style.display = semua ? "" : "none";
+  el("btnHapus").style.display = semua ? "" : "none";
+  el("login").classList.add("off");
+}
+async function masuk(p) {
+  el("pinMsg").className = "msg"; el("pinMsg").textContent = "Cek PIN...";
+  const { data, error } = await sb().rpc("verify_access_pin", { p_pin: p, p_device_id: devId });
+  if (error) { el("pinMsg").className = "msg err"; el("pinMsg").textContent = "Gagal: " + error.message; return; }
+  if (!data || !data.success) {
+    el("pinMsg").className = "msg err";
+    el("pinMsg").textContent = data && data.error === "locked" ? "Terkunci, coba lagi nanti" : "PIN salah";
+    return;
+  }
+  const r = await sb().rpc("m1_login", { p_pin: p });
+  if (r.error) {
+    el("pinMsg").className = "msg err";
+    el("pinMsg").textContent = /tidak punya akses/i.test(r.error.message) ? "PIN ini tidak punya akses ke M1 Monitoring" : "Gagal: " + r.error.message + " (sudah run sql/m1_monitoring.sql?)";
+    return;
+  }
+  pin = p;
+  try { sessionStorage.setItem("m1_pin", p); } catch (e) {}
+  el("pin").value = ""; el("pinMsg").textContent = "";
+  pakaiLokasi(r.data);
+  muatNx();
+}
+el("btnPin").onclick = () => { const p = el("pin").value.trim(); if (p) masuk(p); };
+el("pin").addEventListener("keydown", e => { if (e.key === "Enter") el("btnPin").click(); });
+el("btnKeluar").onclick = () => {
+  try { sessionStorage.removeItem("m1_pin"); } catch (e) {}
+  pin = ""; lokasi = "";
+  tabelNx.setData([]); setLbp([]);
+  el("login").classList.remove("off"); el("pin").focus();
+};
+
+let nxData = [];
+async function muatNx() {
+  if (!pin) { el("nxMsg").className = "msg err"; el("nxMsg").textContent = "Masukkan PIN dulu"; return; }
+  const from = el("dFrom").value, to = el("dTo").value;
+  if (!from || !to) return;
+  el("nxMsg").className = "msg"; el("nxMsg").textContent = "Memuat...";
+  el("btnMuat").disabled = true;
+  try {
+    const [inv, lbp] = await Promise.all([
+      sb().rpc("m1_nd_list", { p_pin: pin, p_from: from, p_to: to }),
+      sb().rpc("lbp_faktur_list", { p_pin: pin, p_from: from, p_to: to }),
+    ]);
+    if (inv.error) throw new Error("m1_nd_list: " + inv.error.message + " (sudah run sql/m1_monitoring.sql?)");
+    if (lbp.error) throw new Error("lbp_faktur_list: " + lbp.error.message + " (sudah run sql/m1_monitoring.sql?)");
+    setLbp((lbp.data || []).map(f => ({ ...f, tgl: String(f.tgl || "").slice(0, 10), bruto: +f.bruto || 0, disc: +f.disc || 0, total: +f.total || 0 })));
+    nxData = (inv.data || []).map(r => ({
+      key: (r.branch || "") + "|" + r.invoice_no,
+      cabang: String(r.branch || "").replace(/\s/g, "").toUpperCase(),
+      invoice: r.invoice_no, customer: r.customer, salesman: r.salesman, wilayah: r.wilayah || "",
+      tgl: String(r.tgl || "").slice(0, 10), amount: +r.amount || 0,
+    }));
+    tabelNx.setData(nxData).then(filterNx);
+    el("nxMsg").textContent = "";
+  } catch (e) {
+    el("nxMsg").className = "msg err"; el("nxMsg").textContent = "Gagal: " + (e.message || e);
+  } finally { el("btnMuat").disabled = false; }
+}
+function lolosNx(r) {
+  const q = el("nCari").value.toLowerCase();
+  if (q && !(r.invoice + " " + r.customer + " " + r.salesman + " " + r.amount).toLowerCase().includes(q)) return false;
+  if (el("fWil").value && r.wilayah !== el("fWil").value) return false;
+  return true;
+}
+function filterNx() {
+  tabelNx.setFilter(lolosNx);
+  const rows = tabelNx.getData("active");
+  el("nFak").textContent = rows.length;
+  el("nCust").textContent = new Set(rows.map(r => r.customer)).size;
+  el("nAmt").textContent = rp(rows.reduce((s, r) => s + r.amount, 0));
+  hitungHarian();
+}
+const tabelNx = new Tabulator("#tabelNx", {
+  data: [], height: "100%", layout: "fitColumns", index: "key", responsiveLayout: "hide",
+  placeholder: "Pilih tanggal, lalu Muat",
+  rowFormatter: row => { const e = row.getElement(); e.classList.remove("br-DAF", "br-ABP", "br-KSI"); e.classList.add("br-" + row.getData().cabang); },
+  columns: [
+    { title: "Invoice No", field: "invoice", minWidth: 100, widthGrow: 1, responsive: 0,
+      formatter: c => `<span class="acc-badge acc-${esc(c.getData().cabang)}">${esc(c.getData().cabang)}</span>${esc(c.getValue())}` },
+    { title: "Customer", field: "customer", minWidth: 130, widthGrow: 2.2, responsive: 0 },
+    { title: "Print Date", field: "tgl", minWidth: 80, widthGrow: 0.7, responsive: 0, formatter: c => ddmmm(c.getValue()) },
+    { title: "Amount", field: "amount", minWidth: 100, widthGrow: 1, responsive: 0, hozAlign: "right", headerHozAlign: "right", formatter: c => `<b>${uang(c)}</b>` },
+  ],
+});
+el("btnMuat").onclick = muatNx;
+el("fWil").addEventListener("change", () => { filterNx(); terapkanFilter(); });
+let tNx; el("nCari").addEventListener("input", () => { clearTimeout(tNx); tNx = setTimeout(filterNx, 300); });
+
+// Tanggal awal: awal bulan ini s/d hari ini (WIT)
+el("dTo").value = hariIni(); el("dFrom").value = hariIni().slice(0, 8) + "01";
+// Login otomatis kalau tab ini sudah pernah login (PIN dicek ulang di server)
+(async () => {
+  let p = ""; try { p = sessionStorage.getItem("m1_pin") || ""; } catch (e) {}
+  if (!p) { el("pin").focus(); return; }
+  const r = await sb().rpc("m1_login", { p_pin: p });
+  if (r.error) { try { sessionStorage.removeItem("m1_pin"); } catch (e) {} el("pin").focus(); return; }
+  pin = p; pakaiLokasi(r.data); muatNx();
+})();
+if (pin) setTimeout(muatNx);
+
+/* =====================================================================
+   KANAN — Faktur dari file txt LBP (1 baris = 1 faktur)
+   ===================================================================== */
+let faktur = [];
+let sudahBaris = new Set();  // cegah baris dobel dalam 1 kali upload
+
+function parseTeks(teks, map) {
+  const lines = teks.split(/\r?\n/).filter(l => l.trim());
+  if (!lines.length) return 0;
+  const head = lines[0].split("|").map(h => h.trim().toUpperCase());
+  const ix = n => head.indexOf(n);
+  const I = {
+    outlet: ix("NO OUTLET"), nama: ix("NAMA OUTLET"), tgl: ix("TANGGAL FAKTUR"), fak: ix("FAKTUR"), tipe: ix("TRANSTYPE"),
+    amount: ix("AMOUNT"), hbruto: ix("HARGA BRUTO"),
+    disc: ix("DISC"), disc1: ix("DISC1KH"), pro: ix("PROAMOUNT"), total: ix("TOTAL"), salesman: ix("SALESMAN"),
+  };
+  if (I.fak < 0 || I.nama < 0) { alert("Format file tidak dikenal (kolom Faktur / Nama Outlet tidak ada)."); return 0; }
+  let n = 0;
+  for (let i = 1; i < lines.length; i++) {
+    if (sudahBaris.has(lines[i])) continue;
+    const c = lines[i].split("|");
+    const g = k => I[k] >= 0 ? String(c[I[k]] ?? "").trim() : "";
+    const no = g("fak"); if (!no || no.toUpperCase() === "FAKTUR") continue;
+    sudahBaris.add(lines[i]); n++;
+    let f = map.get(no);
+    if (!f) {
+      f = { faktur: no, tgl: tglKey(g("tgl")), tipe: g("tipe"), outlet: g("outlet"), toko: g("nama"),
+            salesman: g("salesman"), bruto: 0, disc: 0, total: 0 };
+      map.set(no, f);
+    }
+    const disc = num(g("disc")) + num(g("disc1")) + num(g("pro"));
+    // Bruto pakai kolom "Harga Bruto" (retur sudah minus). Kolom AMOUNT selalu plus walau retur → jangan dipakai.
+    const bruto = I.hbruto >= 0 ? num(g("hbruto")) : num(g("amount"));
+    f.bruto += bruto; f.disc += disc; f.total += num(g("total"));
+  }
+  return n;
+}
+
+function setLbp(rows) {
+  faktur = rows;
+  const sales = [...new Set(faktur.map(f => f.salesman).filter(Boolean))].sort();
+  const pilih = el("fSales").value;
+  el("fSales").innerHTML = '<option value="">Semua Salesman</option>' + sales.map(s => `<option>${esc(s)}</option>`).join("");
+  if (sales.includes(pilih)) el("fSales").value = pilih;
+  tabel.setData(faktur).then(terapkanFilter);
+}
+
+async function bacaFile(files) {
+  if (!pin) return alert("Login dulu.");
+  const lok = lokasi === "ALL" ? el("uLok").value : lokasi;
+  if (!lok) { el("uLok").focus(); return alert("Pilih lokasi file dulu (ABE / SENTANI)."); }
+  // Setiap upload dihitung baru per faktur → faktur yang sama di Supabase ditimpa (bukan ditambah)
+  const map = new Map(); sudahBaris = new Set();
+  let baris = 0; const nama = [];
+  for (const file of files) { baris += parseTeks(await file.text(), map); nama.push(file.name); }
+  const r2 = v => Math.round(v * 100) / 100;
+  const rows = [...map.values()].map(f => ({ ...f, bruto: r2(f.bruto), disc: r2(f.disc), total: r2(f.total) }));
+  if (!rows.length) { el("fileInfo").textContent = nama.join(", ") + " · tidak ada faktur"; return; }
+  el("fileInfo").textContent = "Menyimpan " + rows.length + " faktur " + lok + " ke Supabase...";
+  el("btnFile").disabled = true;
+  try {
+    let simpan = 0;
+    for (let i = 0; i < rows.length; i += 500) {
+      const { data, error } = await sb().rpc("lbp_faktur_simpan", { p_pin: pin, p_rows: rows.slice(i, i + 500), p_lokasi: lok });
+      if (error) throw new Error(error.message + " (sudah run sql/m1_monitoring.sql?)");
+      simpan += +data || 0;
+    }
+    el("fileInfo").textContent = nama.join(", ") + " · " + lok + " · " + simpan + " faktur tersimpan" +
+      (simpan < rows.length ? " · " + (rows.length - simpan) + " dilewati (sudah ada di lokasi lain)" : "");
+  } catch (e) {
+    el("fileInfo").textContent = "Gagal simpan: " + (e.message || e);
+    return;
+  } finally { el("btnFile").disabled = false; }
+  // Samakan tanggal dengan rentang tanggal file LBP, lalu muat ulang dari Supabase
+  const tg = rows.map(f => f.tgl).filter(Boolean).sort();
+  if (tg.length) { el("dFrom").value = tg[0]; el("dTo").value = tg[tg.length - 1]; }
+  muatNx();
+}
+
+function lolos(r) {
+  const teks = [r.faktur, r.toko, r.outlet, r.salesman, r.total].join(" ").toLowerCase();
+  for (const q of [el("cari1").value, el("cari2").value]) if (q && !teks.includes(q.toLowerCase())) return false;
+  if (el("fSales").value && r.salesman !== el("fSales").value) return false;
+  if (el("fWil").value && r.lokasi !== el("fWil").value) return false;
+  return true;
+}
+function terapkanFilter() { tabel.setFilter(lolos); updateInfo(); hitungHarian(); }
+function updateInfo() {
+  const rows = tabel.getData("active");
+  const sum = k => rows.reduce((s, r) => s + r[k], 0);
+  el("kFak").textContent = rows.length;
+  el("kToko").textContent = new Set(rows.map(r => r.outlet || r.toko)).size;
+  el("kBruto").textContent = rp(sum("bruto"));
+  el("kDisc").textContent = rp(sum("disc"));
+  el("kTotal").textContent = rp(sum("total"));
+}
+
+const tabel = new Tabulator("#tabelLbp", {
+  data: [], height: "100%", layout: "fitColumns", index: "faktur",
+  // Adaptif lebar: kolom angka responsive terbesar hilang duluan (0 = selalu tampil)
+  responsiveLayout: "hide",
+  placeholder: "Belum ada data — pilih file txt Matrix atau Muat",
+  rowFormatter: row => row.getElement().classList.toggle("retur", row.getData().total < 0),
+  columns: [
+    { title: "Tgl", field: "tgl", minWidth: 65, widthGrow: 0.6, responsive: 0, formatter: c => ddmmm(c.getValue()) },
+    { title: "No Faktur", field: "faktur", minWidth: 90, widthGrow: 0.8, responsive: 0 },
+    { title: "Tipe", field: "tipe", minWidth: 50, widthGrow: 0.4, responsive: 4, hozAlign: "center", headerHozAlign: "center", formatter: c => `<span class="tipe ${esc(c.getValue())}">${esc(c.getValue())}</span>` },
+    { title: "Lokasi", field: "lokasi", minWidth: 70, widthGrow: 0.5, responsive: 5 },
+    { title: "Nama Toko", field: "toko", minWidth: 120, widthGrow: 1.8, responsive: 0 },
+    { title: "Salesman", field: "salesman", minWidth: 110, widthGrow: 1.1, responsive: 3 },
+    { title: "Bruto", field: "bruto", minWidth: 95, widthGrow: 0.9, responsive: 2, hozAlign: "right", headerHozAlign: "right", formatter: uang },
+    { title: "Diskon", field: "disc", minWidth: 80, widthGrow: 0.7, responsive: 2, hozAlign: "right", headerHozAlign: "right", formatter: uang },
+    { title: "Nilai Faktur", field: "total", minWidth: 100, widthGrow: 1, responsive: 0, hozAlign: "right", headerHozAlign: "right", formatter: c => `<b>${uang(c)}</b>` },
+  ],
+});
+tabel.on("dataFiltered", () => setTimeout(updateInfo));
+
+/* =====================================================================
+   TAB HARIAN — per tanggal: lembar faktur & amount (LBP vs NexDist)
+   ===================================================================== */
+const hitung = c => rp(c.getValue());
+const tabelHarian = new Tabulator("#tabelHarian", {
+  data: [], height: "100%", layout: "fitColumns", index: "tgl", responsiveLayout: "hide",
+  placeholder: "Belum ada data",
+  columns: [
+    { title: "Tanggal", field: "tgl", minWidth: 90, widthGrow: 0.8, responsive: 0, formatter: c => ddmmm(c.getValue()) + " " + String(c.getValue()).slice(0, 4), bottomCalc: () => "TOTAL" },
+    { title: "Lembar Matrix", field: "nLbp", minWidth: 80, widthGrow: 0.6, responsive: 0, hozAlign: "right", headerHozAlign: "right", bottomCalc: "sum", bottomCalcFormatter: hitung },
+    { title: "Lembar ND", field: "nNx", minWidth: 80, widthGrow: 0.6, responsive: 1, hozAlign: "right", headerHozAlign: "right", bottomCalc: "sum", bottomCalcFormatter: hitung },
+    { title: "Amount Matrix", field: "aLbp", minWidth: 110, widthGrow: 1, responsive: 0, hozAlign: "right", headerHozAlign: "right", formatter: c => `<b>${uang(c)}</b>`, bottomCalc: "sum", bottomCalcFormatter: uang },
+    { title: "Amount ND", field: "aNx", minWidth: 110, widthGrow: 1, responsive: 1, hozAlign: "right", headerHozAlign: "right", formatter: uang, bottomCalc: "sum", bottomCalcFormatter: uang },
+    { title: "Selisih (Matrix − ND)", field: "sel", minWidth: 110, widthGrow: 1, responsive: 2, hozAlign: "right", headerHozAlign: "right", formatter: uang, bottomCalc: "sum", bottomCalcFormatter: uang },
+  ],
+});
+function hitungHarian() {
+  const m = new Map();
+  const ambil = t => { if (!m.has(t)) m.set(t, { tgl: t, nLbp: 0, aLbp: 0, nNx: 0, aNx: 0, sel: 0 }); return m.get(t); };
+  for (const f of tabel.getData("active")) if (f.tgl) { const d = ambil(f.tgl); d.nLbp++; d.aLbp += f.total; }
+  for (const r of tabelNx.getData("active")) if (r.tgl) { const d = ambil(r.tgl); d.nNx++; d.aNx += r.amount; }
+  const rows = [...m.values()].sort((a, b) => b.tgl.localeCompare(a.tgl));
+  rows.forEach(d => d.sel = d.aLbp - d.aNx);
+  tabelHarian.setData(rows);
+}
+document.querySelectorAll(".tab").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === b));
+  const h = b.dataset.tab === "harian";
+  el("wrap").style.display = h ? "none" : "";
+  el("harian").style.display = h ? "flex" : "none";
+  (h ? [tabelHarian] : [tabelNx, tabel]).forEach(t => t.redraw(true));
+});
+el("btnExcelH").onclick = () => {
+  const rows = tabelHarian.getData();
+  if (!rows.length) return alert("Belum ada data.");
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows.map(d => ({
+    "Tanggal": d.tgl, "Lembar Matrix": d.nLbp, "Lembar ND": d.nNx, "Amount Matrix": d.aLbp, "Amount ND": d.aNx, "Selisih": d.sel }))), "Harian");
+  XLSX.writeFile(wb, "m1_harian.xlsx");
+};
+
+// File
+el("btnFile").onclick = () => el("file").click();
+el("file").onchange = e => { if (e.target.files.length) bacaFile([...e.target.files]); e.target.value = ""; };
+const drop = el("drop");
+["dragenter", "dragover"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => { if (e.dataTransfer.files.length) bacaFile([...e.dataTransfer.files]); });
+
+// Filter & tombol
+let timer;
+["cari1", "cari2"].forEach(id => el(id).addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(terapkanFilter, 300); }));
+el("fSales").addEventListener("change", terapkanFilter);
+el("btnReset").onclick = () => { el("cari1").value = el("cari2").value = el("fSales").value = ""; if (lokasi === "ALL") { el("fWil").value = ""; filterNx(); } terapkanFilter(); };
+// Hapus data Matrix per periode (Full Access) — cek jumlah dulu, lalu konfirmasi
+let hJumlah = 0;
+const hReset = () => { hJumlah = 0; el("hHapus").disabled = true; el("hHapus").textContent = "Hapus"; el("hMsg").className = "msg"; el("hMsg").textContent = "Klik Cek jumlah dulu."; };
+const hTutup = () => el("hapusPop").classList.remove("on");
+el("btnHapus").onclick = () => {
+  if (lokasi !== "ALL") return;
+  el("hFrom").value = el("dFrom").value; el("hTo").value = el("dTo").value; el("hLok").value = el("fWil").value;
+  hReset(); el("hapusPop").classList.add("on");
+};
+["hFrom", "hTo", "hLok"].forEach(id => el(id).addEventListener("change", hReset));
+el("hBatal").onclick = hTutup;
+el("hapusPop").onclick = e => { if (e.target.id === "hapusPop") hTutup(); };
+async function hJalan(cek) {
+  const from = el("hFrom").value, to = el("hTo").value, lok = el("hLok").value;
+  if (!from || !to || from > to) { el("hMsg").className = "msg err"; el("hMsg").textContent = "Periode tidak valid."; return null; }
+  el("hCek").disabled = el("hHapus").disabled = true;
+  const { data, error } = await sb().rpc("lbp_faktur_hapus", { p_pin: pin, p_from: from, p_to: to, p_lokasi: lok, p_cek: cek });
+  el("hCek").disabled = false;
+  if (error) { el("hMsg").className = "msg err"; el("hMsg").textContent = "Gagal: " + error.message + " (sudah run sql/m1_monitoring.sql?)"; return null; }
+  return { n: +data || 0, from, to, lok };
+}
+el("hCek").onclick = async () => {
+  const r = await hJalan(true); if (!r) return;
+  hJumlah = r.n;
+  el("hMsg").className = "msg";
+  el("hMsg").textContent = `${r.n} faktur Matrix ${r.lok || "semua lokasi"} tanggal ${ddmmm(r.from)} s/d ${ddmmm(r.to)}.`;
+  el("hHapus").disabled = r.n === 0;
+  el("hHapus").textContent = r.n ? `Hapus ${r.n} faktur` : "Hapus";
+};
+el("hHapus").onclick = async () => {
+  if (!hJumlah) return;
+  const lok = el("hLok").value || "semua lokasi";
+  if (!confirm(`Yakin hapus ${hJumlah} faktur Matrix (${lok}) tanggal ${ddmmm(el("hFrom").value)} s/d ${ddmmm(el("hTo").value)}?\nTidak bisa dibatalkan.`)) return;
+  const r = await hJalan(false); if (!r) return;
+  hTutup();
+  el("fileInfo").textContent = r.n + " faktur Matrix dihapus (" + (r.lok || "semua lokasi") + ", " + ddmmm(r.from) + " s/d " + ddmmm(r.to) + ")";
+  muatNx();
+};
+
+el("btnExcel").onclick = () => {
+  const rows = tabel.getData("active");
+  if (!rows.length) return alert("Belum ada data.");
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows.map(f => ({
+    "Tgl Faktur": f.tgl, "No Faktur": f.faktur, "Lokasi": f.lokasi, "Tipe": f.tipe, "No Outlet": f.outlet, "Nama Toko": f.toko,
+    "Salesman": f.salesman, "Bruto": f.bruto, "Diskon": f.disc, "Nilai Faktur": f.total }))), "Faktur");
+  XLSX.writeFile(wb, "m1_faktur_matrix.xlsx");
+};
+</script>
+</body>
+</html>
