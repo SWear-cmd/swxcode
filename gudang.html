@@ -88,6 +88,7 @@
   .sp-grid{display:grid;grid-auto-flow:column;grid-template-rows:repeat(4,auto);grid-auto-columns:minmax(clamp(88px,26vw,190px),1fr);gap:clamp(6px,1.2vw,12px);overflow-x:auto;}
   /* ukuran ikut lebar layar: HP lebih kecil, PC lebih besar */
   .sp-tile{position:relative;min-height:clamp(42px,6vw,72px);padding:clamp(4px,.8vw,10px) clamp(6px,1.2vw,14px);border-radius:12px;background:var(--panel2);border:2px solid var(--border);color:var(--text);font-size:clamp(12px,1.1vw + 6px,20px);font-weight:700;cursor:pointer;text-align:center;line-height:1.25;}
+  .sp-kanvas{display:grid;grid-template-columns:minmax(clamp(88px,26vw,190px),1fr);margin-top:clamp(10px,2vw,20px);padding-top:clamp(10px,2vw,20px);border-top:2px dashed var(--border);}
   .sp-tile.on{background:var(--teal);border-color:var(--teal);color:#fff;}
   .sp-tile:disabled{cursor:default;opacity:.6;}
   .sp-tile.on:disabled{opacity:1;}
@@ -192,7 +193,7 @@
       </div>
       <div class="field">
         <label>Sopir &middot; tekan nama (boleh lebih dari 1)</label>
-        <div id="sopirRows" class="sp-grid"></div>
+        <div id="sopirRows"></div>
       </div>
     </div>
   </div>
@@ -386,26 +387,33 @@
   async function loadSopir(){
     const [a, b] = await Promise.all([
       sb.rpc('get_sopir_list', { p_pin: currentPin }),
-      sb.rpc('get_sopir_extra_list', { p_pin: currentPin })
+      sb.rpc('gd_sopir_extra_list', { p_pin: currentPin })  // SQL gudang_sopir_extra.sql
     ]);
     const s = new Set();
     (a.data || []).forEach(r => r.nama && s.add(r.nama));
     (b.data || []).forEach(r => r.nama && s.add(r.nama));
+    s.delete('AMBIL SENDIRI');  // tidak dipakai di gudang
     sopirList = [...s].sort((x, y) => x.localeCompare(y));
     if (activePl) renderSopirRows(sopirSel);
   }
-  const SOPIR_SEP = ' / ', SOPIR_MAX = 5;
+  const SOPIR_SEP = ' / ', SOPIR_MAX = 5, SOPIR_KANVAS = 'KANVAS & AS';
   // Sopir = kotak nama, sekali tekan pilih / batal; boleh lebih dari 1 (urutan sesuai tekan)
   let sopirSel = [];
   function renderSopirRows(names){
     sopirSel = names.slice(0, SOPIR_MAX);
     const list = sopirSel.filter(n => !sopirList.includes(n)).concat(sopirList);
     const dis = (typeof plLocked !== 'undefined' && plLocked) ? 'disabled' : '';
-    $('sopirRows').innerHTML = list.length ? list.map(n => {
+    const tile = n => {
       const i = sopirSel.indexOf(n);
       return `<button type="button" class="sp-tile ${i >= 0 ? 'on' : ''}" data-n="${esc(n)}" ${dis}>` +
         (i >= 0 && sopirSel.length > 1 ? `<span class="sp-no">${i + 1}</span>` : '') + esc(n) + `</button>`;
-    }).join('') : '<div class="t2">Daftar sopir kosong.</div>';
+    };
+    // KANVAS & AS = baris sendiri di bawah daftar nama
+    const nama = list.filter(n => n !== SOPIR_KANVAS), adaKanvas = list.includes(SOPIR_KANVAS);
+    $('sopirRows').innerHTML = list.length
+      ? `<div class="sp-grid">${nama.map(tile).join('')}</div>` +
+        (adaKanvas ? `<div class="sp-kanvas">${tile(SOPIR_KANVAS)}</div>` : '')
+      : '<div class="t2">Daftar sopir kosong.</div>';
     $('sopirRows').querySelectorAll('.sp-tile').forEach(b => b.addEventListener('click', () => {
       const n = b.dataset.n, i = sopirSel.indexOf(n);
       if (i >= 0) sopirSel.splice(i, 1);
@@ -445,10 +453,16 @@
     $('cntDone').textContent = '(' + done.length + ')';
     $('plListSub').textContent = gudangInfo.lokasi ? 'Gudang ' + gudangInfo.lokasi : 'Semua gudang';
     let rows = (plSeg === 'open' ? open : done).filter(p => !q ||
-      [p.no_pl, p.area, p.sopir].some(v => String(v || '').toLowerCase().includes(q)));
+      [p.no_pl, p.area, p.sopir, p.faktur].some(v => String(v || '').toLowerCase().includes(q)));
     rows.sort((a, b) => plSeg === 'open'
       ? String(a.tgl || '').localeCompare(String(b.tgl || '')) || String(a.no_pl).localeCompare(String(b.no_pl))
       : String(b.tgl_antar || '').localeCompare(String(a.tgl_antar || '')) || String(b.no_pl).localeCompare(String(a.no_pl)));
+    if (!rows.length && q){
+      const lain = (plSeg === 'open' ? done : open).filter(p =>
+        [p.no_pl, p.area, p.sopir, p.faktur].some(v => String(v || '').toLowerCase().includes(q))).length;
+      $('plList').innerHTML = `<div class="empty">Tidak ditemukan${lain ? ` di tab ini — ada ${lain} di tab ${plSeg === 'open' ? 'Tuntas' : 'Belum Tuntas'}` : ''}.</div>`;
+      return;
+    }
     if (!rows.length){ $('plList').innerHTML = `<div class="empty">${plSeg === 'open' ? 'Semua packing list sudah tuntas.' : 'Belum ada yang tuntas.'}</div>`; return; }
     $('plList').innerHTML = rows.map(p => {
       const belum = p.n_faktur - p.n_status;
