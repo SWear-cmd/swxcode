@@ -740,6 +740,11 @@ async function doLogin(){
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     initApp();
+    // dibuka dari Pusat Issue (kartu Request Service) -> langsung ke Armada > Request Service
+    if (location.hash === '#armada-service') {
+      window.amSub && amSub('service');
+      const b = document.querySelector('nav button[data-tab="armada"]'); if (b) b.click();
+    }
   } catch(err){
     document.getElementById('loginError').textContent = 'Gagal login: ' + err.message;
     console.error(err);
@@ -2297,7 +2302,7 @@ document.getElementById('pinInput').addEventListener('keydown', e => { if (e.key
       const r = await rpc('armada_get', {});
       D = { today: r.today || todayWIT(), mobil: r.mobil||[], ban: r.ban||[], aki: r.aki||[], service: r.service||[], sparepart_master: r.sparepart_master||[] };
       window._amLoaded = true;
-      $('am_info').textContent = D.mobil.length + ' mobil · hari ini ' + dmy(D.today);
+      $('am_info').textContent = D.mobil.length + ' mobil';
     }catch(e){
       $('am_info').textContent = 'Gagal memuat: ' + e.message + (/armada_get/.test(e.message) ? ' (jalankan armada_hrd.sql dulu)' : '');
     }
@@ -2355,15 +2360,15 @@ document.getElementById('pinInput').addEventListener('keydown', e => { if (e.key
       const list = rows.filter(m => m.aktif);
       const show6 = list.some(m => m.tipe === '6 RODA');
       const cols = show6 ? ALL_POS : POSISI['4 RODA'];
-      N.textContent = 'Tiap ban dihitung sendiri. Patokan ganti ban ± ' + MIN_BULAN + ' bulan (lebih lama tidak apa-apa). Tanda "Boleh ganti" muncul kalau sudah ' + MIN_BULAN + ' bulan.';
+      N.textContent = '';
       H.innerHTML = '<tr><th>Plat</th><th>Tipe</th>' + cols.map(p => '<th>' + p + '</th>').join('') + '</tr>';
       B.innerHTML = list.map(m => {
         const mp = posOf(m);
         return '<tr><td><b>' + esc(m.plat) + '</b><br>' + brPill(m.cabang) + '</td><td>' + esc(m.tipe) + '</td>' + cols.map(p => {
           if (!mp.includes(p)) return '<td class="muted">—</td>';
           const l = lastBan(m.id, p), c = cek(l);
-          return '<td><div class="am-tire">' + (l ? '<b>' + esc(l.kode || '-') + '</b><br>Pasang ' + dmy(l.tgl_pasang) + ' · ' + umur(l.tgl_pasang) + '<br>' : '') + c.html +
-            '<br><button class="' + (c.ok ? '' : 'secondary ') + 'sm" style="margin-top:4px" onclick="amBan(' + m.id + ',\'' + p + '\')">Ganti / Riwayat</button></div></td>';
+          return '<td><div class="am-tire">' + (l ? '<b>' + esc(l.kode || '-') + '</b><br>Pasang ' + dmy(l.tgl_pasang) + ' · ' + umur(l.tgl_pasang) + '' : c.html) +
+            '<br><button class="sm" style="margin-top:4px" onclick="amBan(' + m.id + ',\'' + p + '\')">Ganti / Riwayat</button></div></td>';
         }).join('') + '</tr>';
       }).join('') || '<tr><td colspan="10" class="muted">Belum ada mobil aktif.</td></tr>';
       return;
