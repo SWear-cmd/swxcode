@@ -123,6 +123,8 @@
   tr.rpDet thead th { position: static; padding: 7px 10px; background: var(--surface); }
   tr.rpDet tbody td { padding: 6px 10px; }
   .invNo { font-family: var(--font-mono); font-size: 12.5px; }
+  #trfBody td.wrapTxt { min-width: 120px; }
+  #trfBody td.invNo { min-width: 220px; overflow-wrap: anywhere; }
   .muted { color: var(--text-muted); }
   .sisa { font-weight: 600; }
   .small { font-size: 12px; }
@@ -518,7 +520,7 @@
           <button data-s="BELUM">Belum Posting</button>
           <button data-s="SUDAH">Sudah Posting</button>
         </div>
-        <label class="meta" title="Yang sudah posting ditampilkan mulai tanggal tagih ini">Sudah posting dari tgl tagih <input type="date" class="inp" id="trfFrom"></label>
+        <label class="meta" title="Tampilkan hanya yang tgl tagih-nya hari ini (kosong = semua, sudah posting 30 hari terakhir)">Tgl tagih <input type="date" class="inp" id="trfFrom"></label><button type="button" class="btn" id="trfFromClr" title="Semua tanggal">×</button>
         <input type="text" class="inp" id="trfQ" placeholder="Cari toko / invoice / giro..." style="min-width:220px;">
         <span class="meta" id="trfSum"></span>
         <div class="actions" style="margin-left:auto;">
@@ -895,7 +897,9 @@
   const topOf = (br, cust) => { const v = topMap.get(topKey(br, cust)); return v === undefined ? null : v; };
   // umur > TOP → kuning; umur > TOP + 30 → merah. Toko tanpa TOP: > 14 kuning, > 30 merah (aturan lama)
   const umurCls = (days, top) => { if (days === null || days === undefined) return ''; const t = top === null ? 14 : top, r = top === null ? 30 : top + 30; return days > r ? 'umurR' : days > t ? 'umurY' : ''; };
-  const isMayora = r => r.branch === 'DAF' && /MAYORA/i.test(r.salesman || '');
+  // Kolektor 2: hanya cabang DAF, salesman Mayora atau "OFFICE M1 ABE"
+  const isMayora = r => { const s = String(r.salesman || '').trim().replace(/\s+/g, ' ').toUpperCase();
+    return r.branch === 'DAF' && (s.includes('MAYORA') || s === 'OFFICE M1 ABE'); };
   let kolById = new Map(), tokoMap = new Map(), activeMap = new Map(), recentMap = new Map();
   let currentTab = 'piutang';
   let kkMap = null, kkLoading = null, kkErr = '';
@@ -1722,6 +1726,7 @@
   function wmMarkDone() { wmDoneDay = wmToday(); try { localStorage.setItem(wmDoneKey, wmDoneDay); } catch (e) {} }
   async function openWarn() {
     if (rkWarnOk || currentTab !== 'rekap') return;
+    if (role === 'full') { rkWarnOk = true; return; } // Full Access tidak perlu pop up peringatan
     if (!rows.length) return; // data belum dimuat; dipanggil lagi setelah loadAll
     // sudah diisi hari ini? → lewati (1x per hari)
     try { if (localStorage.getItem(wmDoneKey) === wmToday()) wmDoneDay = wmToday(); } catch (e) {}
@@ -4342,7 +4347,7 @@
       <div style="margin-bottom:10px;"><b>${impRows.length}</b> baris Excel · cocok <b>${ok.length}</b> · tidak ketemu <b class="red">${miss.length}</b>
         → Kolektor 1: <b>${p1.size}</b> toko · Kolektor 2 (DAF): <b>${n2}</b> toko${skipOld ? ` · dilewati (sudah ada kolektor) ${skipOld}` : ''}</div>
       <div class="meta" style="margin-bottom:6px;">Kolom kolektor ke-1 → Kolektor 1 (semua cabang). Kolom ke-2 → Kolektor 2, hanya toko DAF.
-        Saat tagih: invoice DAF salesman MAYORA → Kolektor 2, lainnya → Kolektor 1.</div>
+        Saat tagih: invoice DAF salesman MAYORA / OFFICE M1 ABE → Kolektor 2, lainnya → Kolektor 1.</div>
       ${n2 && !kol2Ok ? `<div class="red" style="margin-bottom:8px;">Slot Kolektor 2 belum aktif. Jalankan toko_kolektor2.sql di Supabase SQL Editor dulu, lalu Refresh.</div>` : ''}
       <h4 style="margin:8px 0;">Nama kolektor di Excel → kolektor di sistem</h4>
       <div class="tableWrap" style="max-height:200px;"><table><thead><tr><th>Excel</th><th>Jadi</th><th class="num">Toko</th></tr></thead><tbody>
@@ -4474,11 +4479,11 @@
   // jam posting dalam WIT (UTC+9)
   const trfWit = v => { if (!v) return ''; const x = new Date(new Date(v).getTime() + 9 * 3600e3); return `${dMon(x.toISOString().slice(0, 10))} ${x.toISOString().slice(11, 16)}`; };
   const trfFromEl = document.getElementById('trfFrom');
-  if (!trfFromEl.value) { const x = new Date(Date.now() + 9 * 3600e3); x.setUTCDate(x.getUTCDate() - 30); trfFromEl.value = x.toISOString().slice(0, 10); }
+  const trfDari30 = () => { const x = new Date(Date.now() + 9 * 3600e3); x.setUTCDate(x.getUTCDate() - 30); return x.toISOString().slice(0, 10); };
   async function loadTrf() {
     const pend = ((await rpc('get_tagih_trf_pending')) || []).map(r => ({ ...r, posted: false }));
     let done = []; trfPostedErr = '';
-    try { done = ((await rpc('get_tagih_trf_posted', { p_from: trfFromEl.value || null })) || []).map(r => ({ ...r, posted: true })); }
+    try { done = ((await rpc('get_tagih_trf_posted', { p_from: trfFromEl.value || trfDari30() })) || []).map(r => ({ ...r, posted: true })); }
     catch (e) { trfPostedErr = 'Daftar yang sudah posting belum bisa tampil — run tagih_trf_posted.sql di Supabase SQL Editor.'; }
     // Tunai tidak diposting di sini (lewat Laporan Harian Kolektor); tunai yang sudah posting tetap tampil untuk Batal posting
     trfRows = pend.concat(done).filter(r => r.posted || r.metode !== 'CASH');
@@ -4490,6 +4495,7 @@
     const q = document.getElementById('trfQ').value.trim().toLowerCase();
     return trfRows.filter(r => (!trfBranch || r.branch === trfBranch) && (!trfMetode || r.metode === trfMetode) &&
       (!trfSt || (trfSt === 'SUDAH') === r.posted) &&
+      (!trfFromEl.value || String(r.tgl_tagih || '').slice(0, 10) === trfFromEl.value) &&
       (!q || [r.toko, r.customer, r.invoice_nos, r.giro].join(' ').toLowerCase().includes(q)));
   }
   function renderTrf() {
@@ -4498,7 +4504,7 @@
       <tr class="br-${esc(r.branch)}"${r.posted ? ' style="opacity:.6"' : ''}><td class="chk"><input type="checkbox" class="trfChk" data-k="${esc(k)}" ${trfSel.has(k) ? 'checked' : ''}${r.posted ? ' title="Pilih untuk Batal posting"' : ''}></td>
         <td>${dMon(r.tgl)}</td><td><span class="badge">${TRF_LBL[r.metode] || esc(r.metode)}</span></td>
         <td><span class="brTag ${esc(r.branch)}">${esc(r.branch)}</span></td><td class="wrapTxt">${esc(r.toko)}</td>
-        <td class="wrapTxt small">${esc(r.customer)}</td><td class="wrapTxt small invNo">${esc(r.invoice_nos)}</td>
+        <td class="wrapTxt small">${esc(r.customer)}</td><td class="wrapTxt small invNo">${esc(String(r.invoice_nos || '').replace(/,\s*/g, ', '))}</td>
         <td class="small">${esc(r.giro || '')}</td><td>${dMon(r.tgl_tagih)}</td><td class="num">${fmt(r.nilai)}</td>
         <td>${r.posted ? `<span style="color:var(--ok); font-weight:600;">✓ Sudah posting</span><div class="small muted">${trfWit(r.posted_at)}</div>` : '<span style="color:var(--warn); font-weight:600;">Belum posting</span>'}</td></tr>`; }).join('');
     document.getElementById('trfEmpty').classList.toggle('hidden', list.length > 0);
@@ -4524,6 +4530,7 @@
     trfSt = b.dataset.s; document.querySelectorAll('#trfStSeg button').forEach(x => x.classList.toggle('active', x === b)); renderTrf();
   }));
   trfFromEl.addEventListener('change', () => loadTrf().catch(e => alert(e.message || e)));
+  document.getElementById('trfFromClr').addEventListener('click', () => { trfFromEl.value = ''; loadTrf().catch(e => alert(e.message || e)); });
   document.getElementById('trfAll').addEventListener('change', e => { trfFiltered().filter(r => !r.posted).forEach(r => e.target.checked ? trfSel.add(trfKey(r)) : trfSel.delete(trfKey(r))); renderTrf(); });
   document.querySelectorAll('#trfBranchPills .pill').forEach(p => p.addEventListener('click', () => {
     trfBranch = p.dataset.b; document.querySelectorAll('#trfBranchPills .pill').forEach(x => x.classList.toggle('active', x === p)); renderTrf();
