@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Indo-Alfa</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --border:#262b36; --text:#e6e8ec;
+    --muted:#9aa3b2; --accent:#4f8cff; --danger:#e5484d; --ok:#2fbf71;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;}
+  #appScreen{padding:20px;display:none;}
+  body.authed.tokoOk #appScreen{display:block;}
+  body.authed #loginScreen{display:none;}
+  #tokoScreen{display:none;min-height:100vh;align-items:center;justify-content:center;flex-direction:column;gap:24px;}
+  body.authed:not(.tokoOk) #tokoScreen{display:flex;}
+  #tokoScreen h2{margin:0;font-size:20px;color:var(--muted);font-weight:500;}
+  .tokoBtns{display:flex;gap:24px;flex-wrap:wrap;justify-content:center;padding:0 16px;}
+  .tokoBtn{width:280px;height:180px;border-radius:16px;border:2px solid var(--border);cursor:pointer;
+    font-size:30px;font-weight:700;color:#fff;letter-spacing:1px;transition:transform .1s,box-shadow .1s;}
+  .tokoBtn:hover{transform:translateY(-3px);box-shadow:0 10px 28px rgba(0,0,0,.5);}
+  .tokoBtn.indo{background:#0b4fa8;border-color:#e5242b;}
+  .tokoBtn.alfa{background:#d71920;border-color:#1a4ea1;}
+  .tokoBtn small{display:block;font-size:13px;font-weight:400;opacity:.85;margin-top:8px;letter-spacing:0;}
+  .tokoTag{padding:4px 10px;border-radius:6px;font-size:13px;font-weight:700;color:#fff;}
+  .tokoTag.indo{background:#0b4fa8;} .tokoTag.alfa{background:#d71920;}
+  body.role-admin .col-margin{display:none;}
+  #loginScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;}
+  .loginBox{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:28px;width:300px;}
+  .loginBox h2{margin:0 0 16px;font-size:18px;}
+  .loginBox input{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);
+    background:#0c0e12;color:var(--text);font-size:15px;margin-bottom:12px;letter-spacing:2px;}
+  .loginBox button{width:100%;}
+  .loginErr{color:var(--danger);font-size:13px;min-height:18px;margin-top:10px;}
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
+  .topbar h1{font-size:20px;margin:0;}
+  .topbar .right{display:flex;gap:10px;align-items:center;}
+  .badge{background:var(--panel);border:1px solid var(--border);padding:6px 10px;border-radius:6px;font-size:13px;color:var(--muted);}
+  button.btn{padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:var(--panel);
+    color:var(--text);cursor:pointer;font-size:13px;}
+  button.btn:hover{border-color:var(--accent);}
+  button.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+  button.btn.danger{color:var(--danger);}
+
+  .tableWrap{overflow:auto;max-height:calc(100vh - 150px);border:1px solid var(--border);border-radius:10px;}
+  table{border-collapse:collapse;width:100%;min-width:1880px;font-size:13px;}
+  thead th{position:sticky;top:0;z-index:5;background:#1c2029;text-align:left;padding:10px 8px;
+    border-bottom:1px solid var(--border);white-space:nowrap;font-weight:600;color:var(--muted);}
+  tbody td{padding:6px 8px;border-bottom:1px solid var(--border);white-space:nowrap;}
+  tbody tr:hover{background:#1a1d25;}
+  td input, td select{width:100%;min-width:90px;padding:6px 8px;border-radius:6px;border:1px solid transparent;
+    background:transparent;color:var(--text);font-size:13px;}
+  td input:hover, td select:hover, td input:focus, td select:focus{border-color:var(--border);background:#0c0e12;}
+  td.name input{min-width:180px;}
+  td.kode{color:var(--muted);font-family:Consolas,monospace;min-width:90px;}
+  td.actions{white-space:nowrap;}
+  td.actions button{padding:5px 9px;font-size:12px;margin-right:4px;}
+  .dirty{outline:1px solid var(--ok)!important;}
+  .pagerow{display:flex;justify-content:space-between;align-items:center;margin-top:14px;color:var(--muted);font-size:13px;}
+  .pagerow .pages{display:flex;gap:6px;align-items:center;}
+  .toast{position:fixed;bottom:20px;right:20px;background:var(--panel);border:1px solid var(--border);
+    padding:10px 16px;border-radius:8px;font-size:13px;display:none;}
+  .toast.show{display:block;}
+  .toast.err{border-color:var(--danger);color:var(--danger);}
+  .toast.ok{border-color:var(--ok);color:var(--ok);}
+  td.disc{min-width:150px;}
+  td.disc .dwrap{display:flex;gap:4px;align-items:center;}
+  td.disc input{min-width:80px;}
+  .claimBtn{padding:4px 7px;border-radius:6px;border:1px solid var(--border);background:transparent;
+    color:var(--muted);cursor:pointer;font-size:11px;white-space:nowrap;}
+  .claimBtn.on{background:rgba(47,191,113,.15);border-color:var(--ok);color:var(--ok);}
+  .calc{color:var(--muted);text-align:right;}
+  th.sel, td.sel{width:34px;min-width:34px;text-align:center;cursor:pointer;user-select:none;}
+  td.sel input, th.sel input{width:16px;min-width:16px;height:16px;pointer-events:none;accent-color:var(--accent);}
+  tr.selected td{background:rgba(79,140,255,.10);}
+  .suggest{position:fixed;z-index:1000;background:var(--panel);border:1px solid var(--border);border-radius:8px;
+    max-height:320px;overflow-y:auto;min-width:420px;box-shadow:0 8px 24px rgba(0,0,0,.5);display:none;}
+  .suggest .it{padding:7px 10px;cursor:pointer;border-bottom:1px solid var(--border);}
+  .suggest .it:last-child{border-bottom:none;}
+  .suggest .it.active,.suggest .it:hover{background:#222838;}
+  .suggest .nm{font-size:13px;}
+  .suggest .nm b{color:var(--accent);}
+  .suggest .meta{font-size:11px;color:var(--muted);margin-top:2px;}
+  .findBox{display:flex;align-items:center;gap:4px;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:3px 6px;}
+  .findBox:focus-within{border-color:var(--accent);}
+  .findBox input{background:transparent;border:none;outline:none;color:var(--text);font-size:13px;width:220px;padding:4px;}
+  .findBox .fcnt{font-size:12px;color:var(--muted);min-width:42px;text-align:right;}
+  .findBox button{background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:2px 5px;border-radius:4px;}
+  .findBox button:hover{color:var(--text);background:#222838;}
+  td.fhit{background:rgba(255,214,0,.22)!important;}
+  td.fhit input, td.fhit select{background:#ffd600!important;color:#111!important;}
+  td.fhit.fcur{background:rgba(255,140,0,.35)!important;}
+  td.fhit.fcur input, td.fhit.fcur select{background:#ff9800!important;color:#111!important;}
+  tr.fcurRow{outline:2px solid #ffd600;outline-offset:-2px;}
+  .pluBox{display:flex;align-items:flex-start;gap:6px;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:3px 6px;}
+  .pluBox:focus-within{border-color:var(--accent);}
+  .pluBox textarea{background:transparent;border:none;outline:none;color:var(--text);font-size:13px;width:200px;height:28px;padding:4px;resize:vertical;font-family:inherit;}
+  .pluBox textarea:focus{height:110px;}
+  .pluBox .pinfo{font-size:12px;color:var(--muted);align-self:center;max-width:260px;}
+  .pluBox .pinfo.on{color:#ffd600;}
+  .pluBox button{background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:6px 5px;border-radius:4px;}
+  .pluBox button:hover{color:var(--text);background:#222838;}
+  .suggest .it.addNew .nm{color:var(--ok);}
+  .modalBg{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:2000;display:none;align-items:center;justify-content:center;}
+  .modalBg.show{display:flex;}
+  .modal{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:20px;width:420px;max-width:calc(100vw - 32px);}
+  .modal h3{margin:0 0 14px;font-size:16px;}
+  .modal label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px;}
+  .modal input,.modal select{width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:#0c0e12;color:var(--text);font-size:13px;}
+  .modal .mbtns{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;}
+  .modal .mlist{margin-top:14px;max-height:180px;overflow-y:auto;border-top:1px solid var(--border);padding-top:8px;font-size:12px;}
+  .modal .mlist div{display:flex;justify-content:space-between;align-items:center;padding:4px 0;color:var(--muted);gap:8px;}
+  .modal .mlist button{background:transparent;border:none;color:var(--danger);cursor:pointer;font-size:12px;}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="loginBox">
+    <h2>Indo-Alfa</h2>
+    <input type="password" id="pinInput" placeholder="PIN" autocomplete="off">
+    <button class="btn primary" id="loginBtn">Masuk</button>
+    <div class="loginErr" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- PILIH TOKO -->
+<div id="tokoScreen">
+  <h2>Pilih toko</h2>
+  <div class="tokoBtns">
+    <button class="tokoBtn indo" data-toko="INDOMARET">INDOMARET<small>Cek data Indomaret</small></button>
+    <button class="tokoBtn alfa" data-toko="ALFAMART">ALFAMART<small>Cek data Alfamart</small></button>
+  </div>
+  <button class="btn danger" id="logoutBtn2">Keluar</button>
+</div>
+
+<!-- APP -->
+<div id="appScreen">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <h1>Indo-Alfa</h1>
+      <span class="tokoTag" id="tokoTag"></span>
+      <button class="btn" id="gantiTokoBtn">Ganti Toko</button>
+      <div class="findBox" title="F1 / Ctrl+F">
+        <input type="text" id="findInput" placeholder="Cari (F1)..." autocomplete="off">
+        <span class="fcnt" id="findCount"></span>
+        <button type="button" id="findPrev" title="Sebelumnya (Shift+Enter)">&#9650;</button>
+        <button type="button" id="findNext" title="Berikutnya (Enter)">&#9660;</button>
+        <button type="button" id="findClear" title="Hapus (Esc)">&#10005;</button>
+      </div>
+      <div class="pluBox" title="Paste beberapa PLU (satu per baris). Hanya PLU itu yang ditampilkan.">
+        <textarea id="pluInput" placeholder="Paste PLU..." spellcheck="false"></textarea>
+        <span class="pinfo" id="pluInfo"></span>
+        <button type="button" id="pluClear" title="Tampilkan semua">&#10005;</button>
+      </div>
+    </div>
+    <div class="right">
+      <button class="btn" id="selDirtyBtn">Pilih yang Berubah</button>
+      <button class="btn primary" id="bulkSaveBtn" disabled>Simpan Terpilih (0)</button>
+      <button class="btn danger" id="bulkDelBtn" disabled>Hapus Terpilih (0)</button>
+      <button class="btn primary" id="addRowBtn">+ Tambah Barang</button>
+      <button class="btn" id="addMasterBtn">+ Master Barang</button>
+      <button class="btn" id="reloadBtn">Reload</button>
+      <span class="badge" id="roleBadge"></span>
+      <button class="btn danger" id="logoutBtn">Keluar</button>
+    </div>
+  </div>
+
+  <div class="tableWrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="sel" id="selAllTh"><input type="checkbox" id="selAll" tabindex="-1"></th>
+          <th>DIVISI</th>
+          <th>KODE BARANG</th>
+          <th>NAMA BARANG</th>
+          <th>HARGA BELI</th>
+          <th>HARGA JUAL ND</th>
+          <th id="thHargaToko">HARGA INDOMART</th>
+          <th>DISC 1 (%)</th>
+          <th>DISC 2 (%)</th>
+          <th>DISC 3 (%)</th>
+          <th>DISC 4 (%)</th>
+          <th>H. AFTER DISC</th>
+          <th>SELISIH</th>
+          <th>BISA CLAIM</th>
+          <th>TOTAL HARGA</th>
+          <th class="col-margin">MARGIN</th>
+          <th>AKSI</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="pagerow">
+    <div id="countLabel"></div>
+    <div class="pages">
+      <button class="btn" id="prevPage">&larr; Prev</button>
+      <span id="pageLabel"></span>
+      <button class="btn" id="nextPage">Next &rarr;</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="suggest" id="suggestBox"></div>
+
+<div class="modalBg" id="masterModal">
+  <div class="modal">
+    <h3>Tambah Master Barang</h3>
+    <label>Divisi</label>
+    <select id="mBranch"><option>DAF</option><option>ABP</option><option>KSI</option><option>TFDAF</option></select>
+    <label>Nama Barang *</label>
+    <input type="text" id="mName" autocomplete="off">
+    <label>Kode Barang (PLU / SKU)</label>
+    <input type="text" id="mSku" autocomplete="off">
+    <label>Satuan</label>
+    <input type="text" id="mUnit" autocomplete="off" placeholder="PCS / CTN ...">
+    <label>Harga Jual ND</label>
+    <input type="number" id="mPrice" step="any">
+    <div class="mbtns">
+      <button class="btn" id="mCancel">Batal</button>
+      <button class="btn primary" id="mSave">Simpan</button>
+    </div>
+    <div class="mlist" id="mList"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = "https://swxgkuaoctrcfbgncwaz.supabase.co";
+const SUPABASE_KEY = "sb_publishable_0e8sOfljWkkin-hwhNweEw_CWqt1Az-"; // publishable key only
+
+const DIVISI_OPTIONS = ["DAF","ABP","KSI","TFDAF"];
+const PAGE_SIZE = 100;
+
+let sb = null;
+let allRows = [];
+let page = 0;
+let skuByName = new Map(); // NAMA (upper) -> SKU
+function kodeOf(name){ return skuByName.get(String(name || "").trim().toUpperCase()) || ""; }
+let products = []; // {id,name,sku,category,unit,selling_price,_up,_words}
+
+function getClient(){
+  if(!sb) sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  return sb;
+}
+
+let _deviceIdMem = null;
+function getDeviceId(){
+  try{
+    let id = localStorage.getItem("indoalfa_device_id");
+    if(!id){
+      id = crypto.randomUUID();
+      localStorage.setItem("indoalfa_device_id", id);
+    }
+    return id;
+  }catch(e){
+    // localStorage unavailable/blocked (private mode, file://, quota, etc.)
+    if(!_deviceIdMem) _deviceIdMem = crypto.randomUUID();
+    return _deviceIdMem;
+  }
+}
+
+function showToast(msg, kind){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.className = "toast show " + (kind || "");
+  setTimeout(()=>{ t.className = "toast"; }, 2500);
+}
+
+function num(v){
+  if(v === "" || v === null || v === undefined) return null;
+  const n = parseFloat(v);
+  return isNaN(n) ? null : n;
+}
+
+const DISC_FIELDS = [1,2,3,4];
+
+function recomputeDerived(row, tr){
+  // disc is % and stacked: each disc applies to the price after the previous disc
+  let price = row.harga_indomart || 0, claimSum = 0;
+  DISC_FIELDS.forEach(i=>{
+    const pct = row["disc"+i] || 0;
+    const amt = price * pct / 100;
+    price -= amt;
+    if(row["claim"+i]) claimSum += amt;
+  });
+  row.kode_barang = kodeOf(row.nama_barang);
+  const kodeCell = tr.querySelector(".kodeDisplay");
+  if(kodeCell) kodeCell.textContent = row.kode_barang || "-";
+  row.h_after_disc = Math.round(price * 100) / 100;
+  row.bisa_claim = Math.round(claimSum * 100) / 100;
+
+  row.total_harga = Math.round((row.h_after_disc + row.bisa_claim) * 100) / 100;
+
+  if(row.harga_beli && row.harga_beli !== 0){
+    row.margin = (row.total_harga / row.harga_beli - 1) * 100;
+  } else {
+    row.margin = null;
+  }
+
+  const totalCell = tr.querySelector(".totalHargaDisplay");
+  const marginCell = tr.querySelector(".marginDisplay");
+  const afterCell = tr.querySelector(".afterDiscDisplay");
+  const claimCell = tr.querySelector(".bisaClaimDisplay");
+  if(afterCell) afterCell.textContent = row.h_after_disc.toLocaleString("id-ID");
+  if(claimCell) claimCell.textContent = row.bisa_claim.toLocaleString("id-ID");
+  if(totalCell) totalCell.textContent = row.total_harga.toLocaleString("id-ID");
+  if(marginCell) marginCell.textContent = (row.margin === null) ? "-" : row.margin.toFixed(2) + "%";
+}
+
+// ---------------- DATA ----------------
+async function loadData(){
+  try{
+    const client = getClient();
+    const { data, error } = await rpcAll("get_indo_alfa_items", { p_pin: currentPin });
+    if(error){
+      if(/pin/i.test(error.message)){ document.getElementById("logoutBtn").click(); document.getElementById("loginErr").textContent = error.message; return; }
+      showToast("Gagal load: " + error.message, "err"); return;
+    }
+    const tk = await getClient().rpc("indo_alfa_toko_list", { p_pin: currentPin });
+    if(tk.error){ showToast("Gagal load data toko: " + tk.error.message + " (sudah run sql/indo_alfa_toko.sql?)", "err"); return; }
+    const tokoById = new Map((tk.data || []).map(t => [Number(t.item_id), t.toko]));
+    // barang tanpa catatan toko = INDOMARET (data lama)
+    allRows = (data || []).filter(r => (tokoById.get(Number(r.id)) || "INDOMARET") === currentToko);
+    page = 0;
+    render();
+  }catch(e){
+    showToast("Error: " + e.message, "err");
+  }
+}
+
+document.getElementById("reloadBtn").addEventListener("click", async ()=>{ await loadProducts(); await loadData(); });
+
+// ---------------- PRODUCT MASTER + SMART SUGGEST ----------------
+function tokenize(s){
+  const base = (s || "").toUpperCase().split(/[^A-Z0-9]+/).filter(Boolean);
+  const out = new Set(base);
+  // also split letter/digit boundaries: 375ML -> 375, ML
+  base.forEach(w => w.split(/(?<=\d)(?=[A-Z])|(?<=[A-Z])(?=\d)/).forEach(p => p && out.add(p)));
+  return [...out];
+}
+
+// Supabase caps each response at 1000 rows, so fetch in chunks until exhausted
+async function rpcAll(fn, args){
+  const CHUNK = 1000;
+  let out = [], from = 0;
+  while(true){
+    const { data, error } = await getClient().rpc(fn, args).order("id", { ascending: true }).range(from, from + CHUNK - 1);
+    if(error) return { data: null, error };
+    out = out.concat(data || []);
+    if(!data || data.length < CHUNK) break;
+    from += CHUNK;
+  }
+  return { data: out, error: null };
+}
+
+async function loadProducts(){
+  try{
+    const { data, error } = await rpcAll("get_products_pin", { p_pin: currentPin });
+    if(error){ showToast("Gagal load produk: " + error.message, "err"); return; }
+    const ex = await rpcAll("get_indo_alfa_master_extra", { p_pin: currentPin });
+    if(ex.error) showToast("Gagal load master tambahan: " + ex.error.message, "err");
+    masterExtra = ex.data || [];
+    const extraRows = masterExtra.map(m => ({ id: "x" + m.id, name: m.name, sku: m.sku, unit: m.unit, category: "Master tambahan", selling_price: m.selling_price }));
+    const seen = new Set();
+    products = (data || []).concat(extraRows).filter(p => !seen.has(p.id) && seen.add(p.id)).map(p => ({ ...p, _up: (p.name + " " + (p.sku || "")).toUpperCase(), _words: tokenize(p.name + " " + (p.sku || "")) }));
+    skuByName = new Map();
+    products.forEach(p => { if(p.sku){ const k = String(p.name || "").trim().toUpperCase(); if(!skuByName.has(k)) skuByName.set(k, String(p.sku)); } });
+  }catch(e){
+    showToast("Error produk: " + e.message, "err");
+  }
+}
+
+function searchProducts(q){
+  const qt = tokenize(q);
+  if(!qt.length) return [];
+  const res = [];
+  for(const p of products){
+    let score = 0, ok = true;
+    for(const t of qt){
+      if(p._words.includes(t)) score += 3;               // exact word
+      else if(p._words.some(w => w.startsWith(t))) score += 2; // word prefix
+      else if(p._up.includes(t)) score += 1;              // substring anywhere
+      else { ok = false; break; }
+    }
+    if(!ok) continue;
+    if(p._up.startsWith(qt[0])) score += 2;
+    if(p.sku && qt.includes(String(p.sku).toUpperCase())) score += 10; // exact SKU on top
+    res.push({ p, score });
+  }
+  res.sort((a,b)=> b.score - a.score || a.p.name.length - b.p.name.length);
+  return res.map(r => r.p);
+}
+
+function escHtml(s){ return s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+function highlight(name, q){
+  const qt = tokenize(q);
+  return name.split(/(\s+|[^A-Za-z0-9\s]+)/).map(part=>{
+    const up = part.toUpperCase();
+    const t = qt.filter(t => up.startsWith(t)).sort((a,b)=>b.length-a.length)[0];
+    return t ? "<b>" + escHtml(part.slice(0, t.length)) + "</b>" + escHtml(part.slice(t.length)) : escHtml(part);
+  }).join("");
+}
+
+let sug = { input:null, list:[], active:-1, onPick:null };
+const suggestBox = document.getElementById("suggestBox");
+
+function hideSuggest(){
+  suggestBox.style.display = "none";
+  sug = { input:null, list:[], active:-1, onPick:null };
+}
+
+function showSuggest(input, onPick){
+  const typed = input.value.trim();
+  if(!typed){ hideSuggest(); return; }
+  const list = searchProducts(input.value).slice(0, 50);
+  list.push({ _addNew: true, name: typed });
+  // kalau tidak ada yang cocok, Enter/Tab jangan langsung buka form master
+  sug = { input, list, active: list.length > 1 ? 0 : -1, onPick };
+  suggestBox.innerHTML = list.map((p,i)=> p._addNew ?
+    '<div class="it addNew" data-i="' + i + '">' +
+      '<div class="nm">+ Tambah ke master: ' + escHtml(typed) + '</div>' +
+      '<div class="meta">Barang belum ada di master</div>' +
+    '</div>' :
+    '<div class="it' + (i===0?' active':'') + '" data-i="' + i + '">' +
+      '<div class="nm">' + highlight(p.name, input.value) + '</div>' +
+      '<div class="meta">' + (p.selling_price ?? 0).toLocaleString("id-ID") + ' · ' + (p.unit||"") + ' · ' + (p.category||"") + (p.sku ? ' · ' + highlight(String(p.sku), input.value) : '') + '</div>' +
+    '</div>').join("");
+  const r = input.getBoundingClientRect();
+  suggestBox.style.left = r.left + "px";
+  suggestBox.style.width = Math.max(r.width, 420) + "px";
+  suggestBox.style.display = "block";
+  const h = suggestBox.offsetHeight;
+  suggestBox.style.top = (r.bottom + h + 4 > window.innerHeight ? r.top - h - 4 : r.bottom + 4) + "px";
+}
+
+function setActive(i){
+  const items = suggestBox.querySelectorAll(".it");
+  if(!items.length) return;
+  sug.active = (i + items.length) % items.length;
+  items.forEach((el,k)=> el.classList.toggle("active", k === sug.active));
+  items[sug.active].scrollIntoView({ block:"nearest" });
+}
+
+function pickActive(){
+  if(sug.active < 0 || !sug.list[sug.active]) return;
+  const p = sug.list[sug.active], cb = sug.onPick;
+  hideSuggest();
+  if(p._addNew){ openMasterModal(p.name, cb); return; }
+  cb(p);
+}
+
+// ---------------- MASTER BARANG TAMBAHAN ----------------
+let masterExtra = [];
+let masterOnSaved = null;
+const masterModal = document.getElementById("masterModal");
+
+function renderMasterList(){
+  const box = document.getElementById("mList");
+  if(!masterExtra.length){ box.innerHTML = '<div>Belum ada master tambahan.</div>'; return; }
+  box.innerHTML = '<div><b>Master tambahan:</b></div>' + masterExtra.map(m =>
+    '<div><span>' + escHtml(m.branch + " · " + m.name + (m.sku ? " · " + m.sku : "")) + '</span>' +
+    '<button data-del="' + m.id + '" title="Hapus">Hapus</button></div>').join("");
+}
+
+let masterAfterSave = null;
+function openMasterModal(name, onSaved, branch, afterSave){
+  masterOnSaved = onSaved || null;
+  masterAfterSave = afterSave || null;
+  const up = (name || "").trim().toUpperCase();
+  const ex = masterExtra.find(m => m.name.trim().toUpperCase() === up && (!branch || m.branch === branch));
+  if(branch) document.getElementById("mBranch").value = branch;
+  document.getElementById("mName").value = up;
+  document.getElementById("mSku").value = ex ? (ex.sku || "") : kodeOf(up);
+  document.getElementById("mUnit").value = ex ? (ex.unit || "") : "";
+  document.getElementById("mPrice").value = ex && ex.selling_price != null ? ex.selling_price : "";
+  renderMasterList();
+  masterModal.classList.add("show");
+  setTimeout(()=> document.getElementById(name ? "mSku" : "mName").focus(), 0);
+}
+function closeMasterModal(){ masterModal.classList.remove("show"); masterOnSaved = null; masterAfterSave = null; }
+
+document.getElementById("addMasterBtn").addEventListener("click", ()=> openMasterModal("", null));
+document.getElementById("mCancel").addEventListener("click", closeMasterModal);
+masterModal.addEventListener("mousedown", (e)=>{ if(e.target === masterModal) closeMasterModal(); });
+
+document.getElementById("mSave").addEventListener("click", async ()=>{
+  const name = document.getElementById("mName").value.trim();
+  if(!name){ showToast("Nama barang wajib diisi", "err"); return; }
+  const priceRaw = document.getElementById("mPrice").value;
+  const { data, error } = await getClient().rpc("add_indo_alfa_master_extra", {
+    p_pin: currentPin,
+    p_branch: document.getElementById("mBranch").value,
+    p_sku: document.getElementById("mSku").value,
+    p_name: name,
+    p_unit: document.getElementById("mUnit").value,
+    p_selling_price: priceRaw === "" ? null : Number(priceRaw)
+  });
+  if(error){ showToast("Gagal simpan master: " + error.message, "err"); return; }
+  const cb = masterOnSaved, after = masterAfterSave;
+  closeMasterModal();
+  await loadProducts();
+  showToast("Master barang disimpan", "ok");
+  if(after) after();
+  if(cb && data){
+    cb({ name: data.name, sku: data.sku, unit: data.unit, selling_price: data.selling_price });
+  }
+});
+
+document.getElementById("mList").addEventListener("click", async (e)=>{
+  const id = e.target.getAttribute("data-del");
+  if(!id) return;
+  const m = masterExtra.find(x => String(x.id) === id);
+  if(!confirm("Hapus master " + (m ? m.name : "") + "?")) return;
+  const { error } = await getClient().rpc("delete_indo_alfa_master_extra", { p_pin: currentPin, p_id: Number(id) });
+  if(error){ showToast("Gagal hapus: " + error.message, "err"); return; }
+  await loadProducts();
+  renderMasterList();
+  showToast("Master dihapus", "ok");
+});
+
+// mousedown (not click) so input blur doesn't close the box first
+suggestBox.addEventListener("mousedown", (e)=>{
+  const it = e.target.closest(".it");
+  if(!it) return;
+  e.preventDefault();
+  sug.active = +it.dataset.i;
+  pickActive();
+});
+window.addEventListener("resize", hideSuggest);
+document.addEventListener("scroll", (e)=>{ if(e.target !== suggestBox) hideSuggest(); }, true);
+
+function attachSuggest(input, row, tr){
+  const onPick = (p)=>{
+    input.value = p.name;
+    row.nama_barang = p.name;
+    row.harga_jual_nd = p.selling_price;
+    const hj = tr.querySelector('input[data-field="harga_jual_nd"]');
+    if(hj) hj.value = (p.selling_price ?? "");
+    markDirty(tr);
+    recomputeDerived(row, tr);
+  };
+  input.addEventListener("input", ()=> showSuggest(input, onPick));
+  input.addEventListener("focus", ()=>{ if(input.value.trim()) showSuggest(input, onPick); });
+  input.addEventListener("blur", ()=> setTimeout(()=>{ if(sug.input === input) hideSuggest(); }, 100));
+  input.addEventListener("keydown", (e)=>{
+    if(sug.input !== input || suggestBox.style.display === "none") return;
+    if(e.key === "ArrowDown"){ e.preventDefault(); setActive(sug.active + 1); }
+    else if(e.key === "ArrowUp"){ e.preventDefault(); setActive(sug.active - 1); }
+    else if(e.key === "Enter" || e.key === "Tab"){ if(sug.active >= 0){ e.preventDefault(); pickActive(); } }
+    else if(e.key === "Escape"){ hideSuggest(); }
+  });
+}
+
+document.getElementById("addRowBtn").addEventListener("click", ()=>{
+  allRows.unshift({
+    id: null, divisi: DIVISI_OPTIONS[0], nama_barang: "",
+    harga_beli: null, harga_jual_nd: null, harga_indomart: null,
+    disc1: null, disc2: null, disc3: null, disc4: null,
+    claim1: false, claim2: false, claim3: false, claim4: false,
+    selisih: null, bisa_claim: null, total_harga: 0, margin: null,
+    _new: true
+  });
+  document.getElementById("pluInput").value = "";
+  pluList = null;
+  document.getElementById("pluInfo").textContent = "";
+  page = 0;
+  render();
+});
+
+// ---------------- FILTER MULTI PLU ----------------
+let pluList = null; // null = tampil semua; array PLU (upper) kalau aktif
+let view = [];      // baris yang tampil (hasil filter)
+function applyView(){
+  if(!pluList){ view = allRows; return; }
+  const set = new Set(pluList);
+  view = allRows.filter(r => set.has(String(kodeOf(r.nama_barang)).toUpperCase()));
+}
+function pluUpdate(){
+  const tokens = document.getElementById("pluInput").value.toUpperCase().split(/[^A-Z0-9]+/).filter(Boolean);
+  pluList = tokens.length ? [...new Set(tokens)] : null;
+  page = 0;
+  findClear();
+  render();
+  const info = document.getElementById("pluInfo");
+  if(!pluList){ info.textContent = ""; info.className = "pinfo"; return; }
+  const found = new Set(view.map(r => String(kodeOf(r.nama_barang)).toUpperCase()));
+  const miss = pluList.filter(p => !found.has(p));
+  info.className = "pinfo on";
+  info.textContent = (pluList.length - miss.length) + "/" + pluList.length + " PLU ketemu" + (miss.length ? " · tidak ada: " + miss.join(", ") : "");
+  info.title = miss.join("\n");
+}
+document.getElementById("pluInput").addEventListener("input", pluUpdate);
+document.getElementById("pluInput").addEventListener("keydown", (e)=>{
+  if(e.key === "Escape"){ e.preventDefault(); e.target.value = ""; pluUpdate(); e.target.blur(); }
+});
+document.getElementById("pluClear").addEventListener("click", ()=>{
+  document.getElementById("pluInput").value = ""; pluUpdate();
+});
+
+function render(){
+  hideSuggest();
+  applyView();
+  const tbody = document.getElementById("tbody");
+  tbody.innerHTML = "";
+
+  const start = page * PAGE_SIZE;
+  const pageRows = view.slice(start, start + PAGE_SIZE);
+
+  pageRows.forEach((row)=>{
+    const idx = allRows.indexOf(row); // index into allRows
+    const tr = document.createElement("tr");
+    row._tr = tr;
+    if(row._sel) tr.classList.add("selected");
+
+    const tdSel = document.createElement("td");
+    tdSel.className = "sel";
+    const cb = document.createElement("input");
+    cb.type = "checkbox"; cb.tabIndex = -1; cb.checked = !!row._sel;
+    tdSel.appendChild(cb);
+    tdSel.addEventListener("mousedown", (e)=>{
+      e.preventDefault();
+      dragSel = { on: true, value: !row._sel };
+      setSel(row, dragSel.value);
+    });
+    tdSel.addEventListener("mouseenter", ()=>{ if(dragSel.on) setSel(row, dragSel.value); });
+    tr.appendChild(tdSel);
+
+    const divisiSelect = document.createElement("select");
+    DIVISI_OPTIONS.forEach(opt=>{
+      const o = document.createElement("option");
+      o.value = opt; o.textContent = opt;
+      if(row.divisi === opt) o.selected = true;
+      divisiSelect.appendChild(o);
+    });
+    divisiSelect.addEventListener("change", ()=>{ row.divisi = divisiSelect.value; markDirty(tr); });
+
+    const tdDivisi = document.createElement("td");
+    tdDivisi.appendChild(divisiSelect);
+    tr.appendChild(tdDivisi);
+
+    const tdKode = document.createElement("td");
+    tdKode.className = "kode kodeDisplay";
+    tdKode.title = "Klik = copy kode (kalau kosong: isi kode). Klik 2x = ubah kode di master";
+    tdKode.style.cursor = "pointer";
+    const openKodeForm = ()=>{
+      if(!row.nama_barang || !row.nama_barang.trim()){ showToast("Isi nama barang dulu", "err"); return; }
+      openMasterModal(row.nama_barang, null, row.divisi, ()=> recomputeDerived(row, tr));
+    };
+    tdKode.addEventListener("click", ()=>{
+      const kode = kodeOf(row.nama_barang);
+      if(kode) copyText(kode);
+      else openKodeForm();
+    });
+    tdKode.addEventListener("dblclick", ()=>{ if(kodeOf(row.nama_barang)) openKodeForm(); });
+    tr.appendChild(tdKode);
+
+    tr.appendChild(makeTextCell(row, "nama_barang", idx, tr, true));
+    tr.appendChild(makeNumCell(row, "harga_beli", idx, tr, recomputeDerived));
+    tr.appendChild(makeNumCell(row, "harga_jual_nd", idx, tr));
+    tr.appendChild(makeNumCell(row, "harga_indomart", idx, tr, recomputeDerived));
+    DISC_FIELDS.forEach(i=> tr.appendChild(makeDiscCell(row, i, tr)));
+
+    const tdAfter = document.createElement("td");
+    tdAfter.className = "calc";
+    const afterWrap = document.createElement("div");
+    afterWrap.className = "dwrap";
+    afterWrap.style.justifyContent = "flex-end";
+    const afterVal = document.createElement("span");
+    afterVal.className = "afterDiscDisplay";
+    const afterCopy = document.createElement("button");
+    afterCopy.type = "button";
+    afterCopy.className = "claimBtn";
+    afterCopy.textContent = "Copy";
+    afterCopy.title = "Copy tanpa titik ribuan (mis. 187215.89)";
+    afterCopy.addEventListener("click", ()=> copyText(String(Math.round((row.h_after_disc || 0) * 100) / 100)));
+    afterWrap.appendChild(afterVal);
+    afterWrap.appendChild(afterCopy);
+    tdAfter.appendChild(afterWrap);
+    tr.appendChild(tdAfter);
+
+    tr.appendChild(makeNumCell(row, "selisih", idx, tr));
+
+    const tdClaim = document.createElement("td");
+    tdClaim.className = "bisaClaimDisplay calc";
+    tr.appendChild(tdClaim);
+
+    const tdTotal = document.createElement("td");
+    tdTotal.className = "totalHargaDisplay";
+    tr.appendChild(tdTotal);
+
+    const tdMargin = document.createElement("td");
+    tdMargin.className = "marginDisplay col-margin";
+    tr.appendChild(tdMargin);
+
+    recomputeDerived(row, tr);
+
+    const tdActions = document.createElement("td");
+    tdActions.className = "actions";
+    const saveBtn = document.createElement("button");
+    saveBtn.className = "btn primary";
+    saveBtn.textContent = "Simpan";
+    saveBtn.addEventListener("click", ()=> saveRow(idx, tr));
+    const delBtn = document.createElement("button");
+    delBtn.className = "btn danger";
+    delBtn.textContent = "Hapus";
+    delBtn.addEventListener("click", ()=> deleteRow(idx));
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "btn";
+    copyBtn.textContent = "Copy";
+    copyBtn.title = "Copy nama barang";
+    copyBtn.addEventListener("click", ()=> copyText(row.nama_barang || ""));
+    tdActions.appendChild(copyBtn);
+    tdActions.appendChild(saveBtn);
+    tdActions.appendChild(delBtn);
+    tr.appendChild(tdActions);
+
+    tbody.appendChild(tr);
+  });
+
+  updateSelUI();
+  document.getElementById("countLabel").textContent = pluList ? (view.length + " dari " + allRows.length + " barang (filter PLU)") : (allRows.length + " barang");
+  const totalPages = Math.max(1, Math.ceil(view.length / PAGE_SIZE));
+  document.getElementById("pageLabel").textContent = (page+1) + " / " + totalPages;
+  document.getElementById("prevPage").disabled = page === 0;
+  document.getElementById("nextPage").disabled = page >= totalPages - 1;
+  findPaint();
+}
+
+function makeTextCell(row, field, idx, tr, isName){
+  const td = document.createElement("td");
+  if(isName) td.className = "name";
+  const input = document.createElement("input");
+  input.type = "text";
+  input.value = row[field] || "";
+  input.addEventListener("input", ()=>{ row[field] = input.value; markDirty(tr); if(isName) recomputeDerived(row, tr); });
+  if(isName){ input.autocomplete = "off"; attachSuggest(input, row, tr); }
+  td.appendChild(input);
+  return td;
+}
+
+function makeNumCell(row, field, idx, tr, onExtra){
+  const td = document.createElement("td");
+  const input = document.createElement("input");
+  input.type = "number";
+  input.step = "any";
+  input.dataset.field = field;
+  input.value = (row[field] === null || row[field] === undefined) ? "" : row[field];
+  input.addEventListener("input", ()=>{
+    row[field] = num(input.value);
+    markDirty(tr);
+    if(onExtra) onExtra(row, tr);
+  });
+  td.appendChild(input);
+  return td;
+}
+
+function makeDiscCell(row, i, tr){
+  const td = makeNumCell(row, "disc"+i, null, tr, recomputeDerived);
+  td.className = "disc";
+  const input = td.querySelector("input");
+  const wrap = document.createElement("div");
+  wrap.className = "dwrap";
+  const btn = document.createElement("button");
+  btn.type = "button";
+  const paint = ()=>{
+    const on = !!row["claim"+i];
+    btn.className = "claimBtn" + (on ? " on" : "");
+    btn.textContent = on ? "✓ Claim" : "Claim?";
+    btn.title = on ? "Bisa di-claim (klik untuk batal)" : "Tidak bisa claim (klik untuk tandai)";
+  };
+  paint();
+  btn.addEventListener("click", ()=>{
+    row["claim"+i] = !row["claim"+i];
+    paint();
+    markDirty(tr);
+    recomputeDerived(row, tr);
+  });
+  wrap.appendChild(input);
+  wrap.appendChild(btn);
+  td.appendChild(wrap);
+  return td;
+}
+
+async function copyText(text){
+  if(!text.trim()){ showToast("Nama barang kosong.", "err"); return; }
+  try{
+    await navigator.clipboard.writeText(text);
+  }catch(e){
+    // fallback when clipboard API is blocked (file://, http)
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    try{ document.execCommand("copy"); }catch(_){ showToast("Gagal copy.", "err"); ta.remove(); return; }
+    ta.remove();
+  }
+  showToast("Copied: " + text, "ok");
+}
+
+function markDirty(tr){
+  tr.classList.add("dirty");
+}
+
+async function saveRow(idx, tr, quiet){
+  const row = allRows[idx];
+  return saveRowObj(row, tr, quiet);
+}
+
+async function saveRowObj(row, tr, quiet){
+  if(!row.nama_barang || !row.nama_barang.trim()){
+    if(!quiet) showToast("Nama barang wajib diisi.", "err");
+    return { ok:false, err:"Nama barang kosong" };
+  }
+  const wasNew = !row.id;
+  try{
+    const client = getClient();
+    const { data, error } = await client.rpc("upsert_indo_alfa_item", {
+      p_pin: currentPin,
+      p_id: row.id || null,
+      p_divisi: row.divisi,
+      p_nama_barang: row.nama_barang,
+      p_harga_beli: row.harga_beli,
+      p_harga_jual_nd: row.harga_jual_nd,
+      p_harga_indomart: row.harga_indomart,
+      p_disc1: row.disc1,
+      p_disc2: row.disc2,
+      p_disc3: row.disc3,
+      p_disc4: row.disc4,
+      p_claim1: !!row.claim1,
+      p_claim2: !!row.claim2,
+      p_claim3: !!row.claim3,
+      p_claim4: !!row.claim4,
+      p_selisih: row.selisih,
+      p_bisa_claim: row.bisa_claim
+    });
+    if(error){ if(!quiet) showToast("Gagal simpan: " + error.message, "err"); return { ok:false, err:error.message }; }
+    // merge into the same object so the row's inputs keep editing the saved record
+    Object.assign(row, data, { _new:false });
+    if(wasNew && currentToko === "ALFAMART"){
+      const t = await client.rpc("indo_alfa_toko_set", { p_pin: currentPin, p_item_id: row.id, p_toko: currentToko });
+      if(t.error){ if(!quiet) showToast("Barang tersimpan tapi gagal dicatat ke ALFAMART: " + t.error.message, "err"); return { ok:false, err:t.error.message }; }
+    }
+    if(tr){ recomputeDerived(row, tr); tr.classList.remove("dirty"); }
+    if(!quiet) showToast("Tersimpan.", "ok");
+    return { ok:true };
+  }catch(e){
+    if(!quiet) showToast("Error: " + e.message, "err");
+    return { ok:false, err:e.message };
+  }
+}
+
+// ---------------- BULK SELECT + SAVE ----------------
+let dragSel = { on:false, value:true };
+document.addEventListener("mouseup", ()=>{ dragSel.on = false; });
+
+function setSel(row, v){
+  row._sel = v;
+  if(row._tr){
+    row._tr.classList.toggle("selected", v);
+    const cb = row._tr.querySelector("td.sel input");
+    if(cb) cb.checked = v;
+  }
+  updateSelUI();
+}
+
+function pageRowsNow(){
+  const start = page * PAGE_SIZE;
+  return view.slice(start, start + PAGE_SIZE);
+}
+
+function updateSelUI(){
+  const n = allRows.filter(r => r._sel).length;
+  const btn = document.getElementById("bulkSaveBtn");
+  btn.textContent = "Simpan Terpilih (" + n + ")";
+  btn.disabled = n === 0;
+  const dbtn = document.getElementById("bulkDelBtn");
+  dbtn.textContent = "Hapus Terpilih (" + n + ")";
+  dbtn.disabled = n === 0;
+  const pr = pageRowsNow();
+  const all = document.getElementById("selAll");
+  all.checked = pr.length > 0 && pr.every(r => r._sel);
+  all.indeterminate = !all.checked && pr.some(r => r._sel);
+}
+
+document.getElementById("selAllTh").addEventListener("mousedown", (e)=>{
+  e.preventDefault();
+  const pr = pageRowsNow();
+  const v = !(pr.length && pr.every(r => r._sel));
+  pr.forEach(r => setSel(r, v));
+});
+
+document.getElementById("selDirtyBtn").addEventListener("click", ()=>{
+  allRows.forEach(r => setSel(r, !!(r._tr && r._tr.classList.contains("dirty") && pageRowsNow().includes(r))));
+});
+
+document.getElementById("bulkSaveBtn").addEventListener("click", async ()=>{
+  const sel = allRows.filter(r => r._sel);
+  if(!sel.length) return;
+  const btn = document.getElementById("bulkSaveBtn");
+  btn.disabled = true;
+  let ok = 0, fail = [];
+  const CONC = 5;
+  for(let i = 0; i < sel.length; i += CONC){
+    btn.textContent = "Menyimpan " + Math.min(i + CONC, sel.length) + "/" + sel.length + "...";
+    const res = await Promise.all(sel.slice(i, i + CONC).map(r => saveRowObj(r, r._tr, true).then(x => ({ r, x }))));
+    res.forEach(({ r, x })=>{
+      if(x.ok){ ok++; setSel(r, false); }
+      else fail.push((r.nama_barang || "(tanpa nama)") + ": " + x.err);
+    });
+  }
+  updateSelUI();
+  if(fail.length){
+    showToast(ok + " tersimpan, " + fail.length + " gagal (tetap terpilih). " + fail[0], "err");
+  } else {
+    showToast(ok + " baris tersimpan.", "ok");
+  }
+});
+
+document.getElementById("bulkDelBtn").addEventListener("click", async ()=>{
+  const sel = allRows.filter(r => r._sel);
+  if(!sel.length) return;
+  const names = sel.slice(0, 10).map(r => "- " + (r.nama_barang || "(tanpa nama)")).join("\n") + (sel.length > 10 ? "\n... dan " + (sel.length - 10) + " lainnya" : "");
+  if(!confirm("Hapus " + sel.length + " barang?\n\n" + names)) return;
+  const btn = document.getElementById("bulkDelBtn");
+  btn.disabled = true;
+  let ok = 0, fail = [];
+  for(let i = 0; i < sel.length; i++){
+    const r = sel[i];
+    btn.textContent = "Menghapus " + (i + 1) + "/" + sel.length + "...";
+    if(!r.id){ allRows.splice(allRows.indexOf(r), 1); ok++; continue; }
+    const { error } = await getClient().rpc("delete_indo_alfa_item", { p_pin: currentPin, p_id: r.id });
+    if(error) fail.push((r.nama_barang || "(tanpa nama)") + ": " + error.message);
+    else { allRows.splice(allRows.indexOf(r), 1); ok++; }
+  }
+  render();
+  updateSelUI();
+  if(fail.length) showToast(ok + " dihapus, " + fail.length + " gagal. " + fail[0], "err");
+  else showToast(ok + " barang dihapus.", "ok");
+});
+
+async function deleteRow(idx){
+  const row = allRows[idx];
+  if(!row.id){
+    // unsaved new row, just remove locally
+    allRows.splice(idx, 1);
+    render();
+    return;
+  }
+  if(!confirm("Hapus " + row.nama_barang + "?")) return;
+  try{
+    const client = getClient();
+    const { error } = await client.rpc("delete_indo_alfa_item", { p_pin: currentPin, p_id: row.id });
+    if(error){ showToast("Gagal hapus: " + error.message, "err"); return; }
+    allRows.splice(idx, 1);
+    render();
+    showToast("Dihapus.", "ok");
+  }catch(e){
+    showToast("Error: " + e.message, "err");
+  }
+}
+
+document.getElementById("prevPage").addEventListener("click", ()=>{
+  if(page > 0){ page--; render(); }
+});
+document.getElementById("nextPage").addEventListener("click", ()=>{
+  const totalPages = Math.max(1, Math.ceil(view.length / PAGE_SIZE));
+  if(page < totalPages - 1){ page++; render(); }
+});
+
+// ---------------- FIND BOX F1 ----------------
+// Tidak memfilter: lompat ke baris yang cocok (seperti Ctrl+F), lintas halaman.
+// Kolom (index td): 1 DIVISI, 2 KODE, 3 NAMA, 4 BELI, 5 JUAL ND, 6 INDOMART, 7-10 DISC, 11 AFTER, 12 SELISIH, 13 CLAIM, 14 TOTAL, 15 MARGIN
+const FIND_FIELDS = [
+  ["divisi",1],["kode_barang",2],["nama_barang",3],["harga_beli",4],["harga_jual_nd",5],["harga_indomart",6],
+  ["disc1",7],["disc2",8],["disc3",9],["disc4",10],["h_after_disc",11],["selisih",12],
+  ["bisa_claim",13],["total_harga",14],["margin",15]
+];
+let findQ = "", findHits = [], findPos = -1;
+const findInput = document.getElementById("findInput");
+
+function findDigits(s){ return String(s).replace(/[.,\s]/g, ""); }
+function findValStrings(row, f){
+  const v = row[f];
+  if(v === null || v === undefined || v === "") return [];
+  if(typeof v === "number"){
+    const r = Math.round(v * 100) / 100;
+    const out = [String(r), r.toLocaleString("id-ID"), r.toLocaleString("en-US")];
+    if(f === "margin") out.push(r.toFixed(2) + "%");
+    return out;
+  }
+  return [String(v)];
+}
+function findCompute(){
+  findHits = [];
+  const q = findQ.trim().toLowerCase();
+  if(!q) return;
+  const numeric = /^[\d.,\s]+$/.test(q) && /\d/.test(q);
+  const qd = findDigits(q);
+  const dummy = document.createElement("tr");
+  const isAdmin = document.body.classList.contains("role-admin");
+  view.forEach((row, ri)=>{
+    recomputeDerived(row, row._tr && row._tr.isConnected ? row._tr : dummy);
+    FIND_FIELDS.forEach(([f, col])=>{
+      if(f === "margin" && isAdmin) return;
+      const vals = findValStrings(row, f);
+      const hit = vals.some(v => {
+        const lv = v.toLowerCase();
+        if(lv.includes(q)) return true;
+        return numeric && findDigits(lv).includes(qd);
+      });
+      if(hit) findHits.push({ ri, col });
+    });
+  });
+}
+function findPaint(){
+  document.querySelectorAll("#tbody td.fhit").forEach(td => td.classList.remove("fhit","fcur"));
+  document.querySelectorAll("#tbody tr.fcurRow").forEach(tr => tr.classList.remove("fcurRow"));
+  const cnt = document.getElementById("findCount");
+  if(!findQ.trim()){ cnt.textContent = ""; return; }
+  cnt.textContent = findHits.length ? (findPos + 1) + "/" + findHits.length : "0/0";
+  findHits.forEach((h, i)=>{
+    const row = view[h.ri];
+    if(!row || !row._tr || !row._tr.isConnected) return;
+    const td = row._tr.children[h.col];
+    if(!td) return;
+    td.classList.add("fhit");
+    if(i === findPos){ td.classList.add("fcur"); row._tr.classList.add("fcurRow"); }
+  });
+}
+function findGo(step){
+  const keep = findHits[findPos];
+  findCompute();
+  if(!findHits.length){ findPos = -1; findPaint(); return; }
+  if(step === 0){ findPos = 0; }
+  else {
+    let base = keep ? findHits.findIndex(h => h.ri === keep.ri && h.col === keep.col) : -1;
+    if(base < 0) base = step > 0 ? -1 : 0;
+    findPos = (base + step + findHits.length) % findHits.length;
+  }
+  const h = findHits[findPos];
+  const targetPage = Math.floor(h.ri / PAGE_SIZE);
+  if(targetPage !== page){ page = targetPage; render(); } else { findPaint(); }
+  const tr = view[h.ri]._tr;
+  const td = tr && tr.children[h.col];
+  if(td) td.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+}
+function findClear(){
+  findQ = ""; findInput.value = ""; findHits = []; findPos = -1; findPaint();
+}
+findInput.addEventListener("input", ()=>{ findQ = findInput.value; findPos = -1; findGo(0); });
+findInput.addEventListener("keydown", (e)=>{
+  if(e.key === "Enter"){ e.preventDefault(); findQ = findInput.value; findGo(e.shiftKey ? -1 : 1); }
+  else if(e.key === "Escape"){ e.preventDefault(); findClear(); findInput.blur(); }
+});
+document.getElementById("findNext").addEventListener("click", ()=> findGo(1));
+document.getElementById("findPrev").addEventListener("click", ()=> findGo(-1));
+document.getElementById("findClear").addEventListener("click", findClear);
+document.addEventListener("keydown", (e)=>{
+  if(!document.body.classList.contains("authed")) return;
+  if(e.key === "F1" || ((e.ctrlKey || e.metaKey) && (e.key === "f" || e.key === "F"))){
+    e.preventDefault();
+    findInput.focus(); findInput.select();
+  }
+});
+// ---------------- PIN LOGIN ----------------
+// Only "full access" and "admin" PINs may enter. Admin: MARGIN hidden.
+// Server re-checks the PIN on every indo_alfa RPC.
+const ALLOWED_LABELS = ["full access", "admin"];
+let currentPin = null;
+let currentLabel = null;
+let currentToko = null;
+
+function ssGet(k){ try{ return sessionStorage.getItem(k); }catch(e){ return null; } }
+function ssSet(k,v){ try{ sessionStorage.setItem(k,v); }catch(e){} }
+function ssDel(k){ try{ sessionStorage.removeItem(k); }catch(e){} }
+
+function enterApp(pin, label){
+  currentPin = pin;
+  currentLabel = label.toLowerCase();
+  document.body.classList.add("authed");
+  document.body.classList.toggle("role-admin", currentLabel === "admin");
+  document.getElementById("roleBadge").textContent = label;
+  ssSet("indoalfa_pin", pin);
+  ssSet("indoalfa_label", label);
+  productsLoaded = false;
+  const t = ssGet("indoalfa_toko");
+  if(t === "INDOMARET" || t === "ALFAMART") pilihToko(t);
+}
+
+let productsLoaded = false;
+function pilihToko(toko){
+  currentToko = toko;
+  ssSet("indoalfa_toko", toko);
+  document.body.classList.add("tokoOk");
+  const tag = document.getElementById("tokoTag");
+  tag.textContent = toko;
+  tag.className = "tokoTag " + (toko === "ALFAMART" ? "alfa" : "indo");
+  document.getElementById("thHargaToko").textContent = "HARGA " + (toko === "ALFAMART" ? "ALFAMART" : "INDOMART");
+  document.title = "Indo-Alfa - " + toko;
+  allRows = []; page = 0;
+  document.getElementById("tbody").innerHTML = "";
+  (async ()=>{ if(!productsLoaded){ await loadProducts(); productsLoaded = true; } await loadData(); })();
+}
+document.querySelectorAll(".tokoBtn").forEach(b => b.addEventListener("click", ()=> pilihToko(b.dataset.toko)));
+document.getElementById("gantiTokoBtn").addEventListener("click", ()=>{
+  if(allRows.some(r => r._tr && r._tr.classList.contains("dirty")) && !confirm("Ada perubahan yang belum disimpan. Tetap ganti toko?")) return;
+  ssDel("indoalfa_toko");
+  currentToko = null;
+  document.body.classList.remove("tokoOk");
+});
+document.getElementById("logoutBtn2").addEventListener("click", ()=> document.getElementById("logoutBtn").click());
+
+async function doLogin(){
+  const pin = document.getElementById("pinInput").value.trim();
+  const err = document.getElementById("loginErr");
+  err.textContent = "";
+  if(!pin){ err.textContent = "Masukkan PIN."; return; }
+  const btn = document.getElementById("loginBtn");
+  btn.disabled = true;
+  try{
+    const { data, error } = await getClient().rpc("verify_access_pin", { p_pin: pin, p_device_id: getDeviceId() });
+    if(error){ err.textContent = "Gagal memverifikasi PIN: " + error.message; return; }
+    if(!data || !data.success){ err.textContent = (data && data.error) || "PIN salah."; return; }
+    const label = String(data.label || "");
+    if(!ALLOWED_LABELS.includes(label.toLowerCase())){ err.textContent = "PIN ini tidak punya akses ke Indo-Alfa."; return; }
+    document.getElementById("pinInput").value = "";
+    enterApp(pin, label);
+  }catch(e){
+    err.textContent = "Error: " + e.message;
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+document.getElementById("loginBtn").addEventListener("click", doLogin);
+document.getElementById("pinInput").addEventListener("keydown", (e)=>{ if(e.key === "Enter") doLogin(); });
+document.getElementById("logoutBtn").addEventListener("click", ()=>{
+  ssDel("indoalfa_pin"); ssDel("indoalfa_label"); ssDel("indoalfa_toko");
+  currentPin = null; currentLabel = null; currentToko = null; allRows = [];
+  document.getElementById("tbody").innerHTML = "";
+  document.body.classList.remove("authed", "role-admin", "tokoOk");
+});
+
+// ---------------- INIT ----------------
+(()=>{
+  const pin = ssGet("indoalfa_pin"), label = ssGet("indoalfa_label");
+  if(pin && label && ALLOWED_LABELS.includes(label.toLowerCase())) enterApp(pin, label);
+  else document.getElementById("pinInput").focus();
+})();
+</script>
+</body>
+</html>
