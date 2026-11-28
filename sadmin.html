@@ -39,6 +39,61 @@
   #area{flex:1;position:relative;display:none}
   #area iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#fff;display:none}
   #area iframe.tampil{display:block}
+
+  /* kotak alur faktur (sama dengan gedung.html lantai Alur) */
+  .alur{max-width:1100px;margin:0 0 26px}
+  .alur h2{margin:0 0 4px;font-size:18px}
+  .alur .sub{margin:0 0 12px;color:var(--muted);font-size:13px}
+  .alur .sub a{color:var(--blue);cursor:pointer}
+  .road{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+  .pos{text-align:center;padding:18px 10px 14px;border-radius:14px;border:2px solid var(--line);background:var(--card);cursor:pointer;font:inherit;color:inherit}
+  .pos:hover{border-color:var(--blue)}
+  .pos .num{font-size:26px;font-weight:700;margin-bottom:8px}
+  .pos .nm{font-size:15px;font-weight:700}
+  .pos .inf{font-size:12px;color:var(--muted);margin:4px 0 8px;line-height:1.5}
+  .pos .strip{height:8px;border-radius:4px;margin-top:12px}
+  .pill{display:inline-block;font-size:12px;padding:3px 10px;border-radius:20px;font-weight:600}
+  .p-ok{background:#16a34a1f;color:#16a34a} .p-pd{background:#d9a40026;color:#a77a00} .p-mc{background:#dc262619;color:#dc2626} .p-na{background:#eef0f4;color:var(--muted)}
+  .pinbox{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .pinbox input{padding:9px 12px;border:1px solid var(--line);border-radius:8px;font-size:16px;width:180px}
+  .pinbox button,.dbtn{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:8px 14px;font:inherit;font-weight:600;cursor:pointer}
+  .msg{font-size:13px;color:var(--muted)} .msg.err{color:#dc2626}
+  #gate{position:fixed;inset:0;z-index:50;background:var(--bg);display:none;align-items:center;justify-content:center;padding:16px}
+  #gate .gbox{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px 22px;width:min(340px,100%);text-align:center}
+  #gate h2{margin:6px 0 4px;font-size:20px}
+  #gate input{width:100%;padding:11px;border:1px solid var(--line);border-radius:10px;font-size:20px;letter-spacing:4px;text-align:center;margin:14px 0 8px}
+  #gate button{width:100%;border:0;border-radius:10px;padding:11px;font:inherit;font-weight:700;font-size:16px;background:var(--blue);color:#fff;cursor:pointer}
+  #gate .msg{min-height:18px;margin-top:8px}
+  .ket{width:100%;min-width:160px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:13px;background:#fffdf5}
+  .ket:focus{outline:2px solid #2563eb55;border-color:var(--blue);background:#fff}
+  .ket.ok{border-color:#16a34a} .ket.gagal{border-color:#dc2626}
+  .ketby{display:block;font-size:11px;color:var(--muted);margin-top:2px}
+  .cab{font-size:11px;font-weight:700;padding:1px 7px;border-radius:5px}
+  .c-DAF{background:#16a34a1f;color:#15803d} .c-ABP{background:#2563eb1a;color:#2563eb} .c-KSI{background:#f59e0b26;color:#c2620a} .c-TFDAF{background:#9333ea1a;color:#7e22ce}
+  .dn{color:#dc2626} .mut{color:var(--muted)}
+
+  /* rincian */
+  #detail{flex:1;display:none;flex-direction:column;min-height:0;padding:14px 16px}
+  #detail .head{flex:0 0 auto}
+  #detail h1{margin:6px 0 2px;font-size:20px}
+  #detail .sub{margin:0 0 10px;color:var(--muted);font-size:13px}
+  #detail .search{padding:8px 12px;border:1px solid var(--line);border-radius:8px;width:min(320px,100%);font:inherit;margin-bottom:10px}
+  .dbody{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1.7fr) minmax(260px,1fr);gap:12px}
+  .dcard{background:var(--card);border:1px solid var(--line);border-radius:12px;min-height:0;overflow:auto}
+  .dcard.pad{padding:14px 16px}
+  .dbody table{width:100%;border-collapse:collapse;font-size:13px}
+  .dbody th{text-align:left;color:var(--muted);font-weight:600;padding:8px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--card);z-index:1}
+  .dbody td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+  .dbody th.r,.dbody td.r{text-align:right}
+  .dbody tr.rw{cursor:pointer} .dbody tr.rw:hover td{background:#f5f7fb} .dbody tr.sel td{background:#2563eb14}
+  .tl{border-left:2px solid var(--line);margin-left:8px;padding-left:18px}
+  .tl div{position:relative;padding:0 0 14px}
+  .tl div::before{content:'';position:absolute;left:-26px;top:3px;width:14px;height:14px;border-radius:50%;background:#eef0f4;border:2px solid var(--line)}
+  .tl .y::before{background:#16a34a;border-color:#16a34a}
+  .tl .n::before{background:#dc2626;border-color:#dc2626}
+  .tl small{display:block;color:var(--muted);font-size:12px}
+  .cp{cursor:copy}
+  @media (max-width:760px){ .dbody{grid-template-columns:1fr;grid-template-rows:minmax(0,1.4fr) auto} }
 </style>
 </head>
 <body>
@@ -50,12 +105,16 @@
 </div>
 
 <div id="home">
+  <div class="alur" id="alur"></div>
   <h1>Pilih halaman</h1>
   <p>Login (PIN) dilakukan di masing-masing halaman.</p>
   <div class="grid" id="grid"></div>
 </div>
 
+<div id="detail"></div>
+
 <div id="area"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
 /* Daftar halaman untuk SPVADMIN. Tambah/hapus di sini saja. */
@@ -105,6 +164,7 @@ function buka(id){
   }
   Object.keys(frames).forEach(function(k){ frames[k].classList.toggle('tampil', k === id); });
   document.getElementById('home').style.display = 'none';
+  document.getElementById('detail').style.display = 'none';
   area.style.display = 'block';
   TOOLS.forEach(function(x){ document.getElementById('tab_'+x.id).classList.toggle('aktif', x.id === id); });
   document.getElementById('btnMenu').classList.remove('aktif');
@@ -113,14 +173,323 @@ function buka(id){
 
 function keMenu(){
   document.getElementById('home').style.display = 'block';
+  document.getElementById('detail').style.display = 'none';
   document.getElementById('area').style.display = 'none';
   TOOLS.forEach(function(x){ document.getElementById('tab_'+x.id).classList.remove('aktif'); });
   aktif = null; simpan('');
 }
 
 buatMenu();
-var last = ambil();
-if (last) buka(last);
+/* tidak buka halaman terakhir otomatis: setelah PIN langsung tampil data alur faktur */
+</script>
+<script>
+/* =====================================================================
+   3 kotak alur faktur (Print / Packing list / Uang cash belum diterima)
+   Aturan disalin dari gedung.html (lantai Alur) — kalau aturan di sana berubah, ubah juga di sini.
+   Data lewat SQL sadmin_alur.sql (PIN SPVADMIN / Full Access).
+   ===================================================================== */
+(function(){
+'use strict';
+const $ = id => document.getElementById(id);
+const box = $('alur'), det = $('detail');
+const sb = (typeof supabase !== 'undefined') ? supabase.createClient('https://swxgkuaoctrcfbgncwaz.supabase.co', 'sb_publishable_0e8sOfljWkkin-hwhNweEw_CWqt1Az-') : null;
+let PIN = '';
+
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+const fmtN = n => Math.round(Number(n) || 0).toLocaleString('en-US');
+const BLN = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+const pad = n => String(n).padStart(2, '0');
+function todayWIT(){ const d = new Date(Date.now() + 9 * 3600000); return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()); }
+function parseAny(v){
+  if (!v) return null;
+  const s = String(v).trim();
+  let m = s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})$/);
+  if (m) { let y = +m[3]; if (y < 100) y += 2000; return new Date(y, +m[2] - 1, +m[1]); }
+  m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+  const x = new Date(s); return isNaN(x) ? null : new Date(x.getFullYear(), x.getMonth(), x.getDate());
+}
+const daysSince = v => { const d = parseAny(v); return d ? Math.round((todayWIT() - d) / 86400000) : null; };
+const dm = v => { const d = parseAny(v); return d ? pad(d.getDate()) + '-' + BLN[d.getMonth()] : '—'; };
+const num = v => { const n = parseFloat(String(v == null ? '' : v).replace(/,/g, '')); return isNaN(n) ? 0 : n; };
+const normBr = b => String(b || '').toUpperCase().replace(/\s+/g, '');
+const up = s => String(s || '').trim().toUpperCase();
+function rp(n){
+  n = Number(n) || 0; const a = Math.abs(n), s = n < 0 ? '−' : '';
+  if (a >= 1e9) return s + 'Rp ' + (a / 1e9).toFixed(1).replace('.', ',') + ' M';
+  if (a >= 1e6) return s + 'Rp ' + Math.round(a / 1e6) + ' jt';
+  return s + 'Rp ' + fmtN(a);
+}
+const cab = c => `<span class="cab c-${esc(normBr(c))}">${esc(normBr(c))}</span>`;
+const WORD = { ok:'Lancar', pd:'Padat', mc:'Macet', na:'Kosong' };
+const pill = s => `<span class="pill p-${s}">${WORD[s]}</span>`;
+const col = s => ({ ok:'#16a34a', pd:'#d9a400', mc:'#dc2626', na:'#9aa0aa' }[s]);
+const parseJson = d => (typeof d === 'string' && /^[\[{]/.test(d)) ? JSON.parse(d) : d;
+async function rpc(name, args){
+  const { data, error } = await sb.rpc(name, Object.assign({ p_pin: PIN }, args || {}));
+  if (error) throw error;
+  return parseJson(data);
+}
+
+/* batas wajar (hari) — sama dengan POS di gedung.html */
+const POS = [
+  { k:'print', ic:'🖨️', n:'Print',  batas:1, sejak:'print',   why:'Faktur sudah dicetak, belum masuk packing list.' },
+  { k:'pl',    ic:'📦', n:'Packing list', batas:3, sejak:'tgl PL', why:'Packing list belum tuntas (tgl antar / sopir / status faktur belum lengkap).' },
+  { k:'uang',  ic:'💵', n:'Uang cash belum diterima', batas:3, sejak:'terkirim', why:'Customer CASH: barang sudah sampai, uangnya belum masuk kas kecil.' }
+];
+const POS_BY = Object.fromEntries(POS.map(p => [p.k, p]));
+function posStatus(n, over){ if (!n) return 'na'; const r = over / n; return r > 0.3 ? 'mc' : r > 0.1 ? 'pd' : 'ok'; }
+const PL_DONE = ['FULL', 'CORETAN', 'BATAL'];
+
+let RAW = null, BR = '', view = null, q = '';
+
+async function loadAll(){
+  const [d, pls] = await Promise.all([ rpc('sadmin_alur_data'), rpc('gd_pl_list').catch(() => null) ]);
+  const inv = d.inv || [];
+  const kasSet = new Set((d.kas || []).map(up));
+  const kasus = [].concat(...(d.kasus || []).map(x => Array.isArray(x) ? x : [x])).filter(Boolean);
+  const kasusSet = new Set(kasus.map(x => normBr(x.branch) + '|' + up(x.invoice_no)));
+  const invMap = new Map(inv.map(r => [up(r.invoice_no), r]));
+  const openSet = new Set(inv.filter(r => !r.tracking_date && r.status !== 'Paid' && r.status !== 'Reject').map(r => String(r.invoice_no || '').trim()));
+  (pls || []).forEach(p => { if ((p.n_status || 0) < (p.n_faktur || 0)) String(p.faktur || '').split(/\s+/).forEach(f => { if (f) openSet.add(f.trim()); }); });
+  const open = [...openSet], plMap = new Map(), plStat = new Map();
+  for (let i = 0; i < open.length; i += 500) {
+    const a = await rpc('sadmin_faktur_pl', { p_nos: open.slice(i, i + 500) }).catch(() => []);
+    (a || []).forEach(p => {
+      if (!p.no_pl || up(p.pl_status) === 'REKAP ULANG') return;
+      plMap.set(normBr(p.branch) + '|' + up(p.invoice_no), p.no_pl);
+      plStat.set(up(p.no_pl) + '|' + up(p.invoice_no), up(p.pl_status));
+    });
+  }
+  const ket = new Map((d.ket || []).map(x => [up(x.kunci), x]));
+  RAW = { inv, kasSet, kasusSet, invMap, pls, plMap, plStat, ket, at:new Date() };
+}
+
+/* faktur per pos (print / uang) */
+function stageRows(){
+  const out = [];
+  RAW.inv.forEach(r => {
+    if (r.status === 'Paid' || r.status === 'Reject') return;
+    if (!num(r.amount)) return;
+    const no = up(r.invoice_no);
+    let k;
+    if (!r.tracking_date) k = RAW.plMap.get(normBr(r.branch) + '|' + no) ? 'pl' : 'print';
+    else if (RAW.kasSet.has(no)) k = 'lunas';
+    else if (/CASH/i.test(r.customer || '')) k = 'uang';
+    else k = 'tagih';
+    if (k !== 'print' && k !== 'uang') return;
+    if (k === 'uang' && RAW.kasusSet.has(normBr(r.branch) + '|' + no)) return;
+    const age = daysSince(k === 'print' ? r.print_date : r.tracking_date);
+    out.push({ k, r, age, over: age != null && age > POS_BY[k].batas });
+  });
+  return out.filter(x => !BR || normBr(x.r.branch) === BR);
+}
+/* packing list belum tuntas (sama dengan gudang.html) */
+function plRows(){
+  const out = [];
+  (RAW.pls || []).forEach(p => {
+    const kurang = [];
+    if (!p.tgl_antar) kurang.push('tgl antar');
+    if (!String(p.sopir || '').trim()) kurang.push('sopir');
+    const belum = (p.n_faktur || 0) - (p.n_status || 0);
+    if (belum > 0) kurang.push(belum + ' faktur belum ada status');
+    if (!kurang.length) return;
+    const fak = String(p.faktur || '').split(/\s+/).filter(Boolean).map(up);
+    const rs = fak.map(f => RAW.invMap.get(f)).filter(Boolean);
+    const brs = [...new Set(rs.map(r => normBr(r.branch)))];
+    if (BR && !brs.includes(BR)) return;
+    const age = daysSince(p.tgl);
+    out.push({ p, fak, brs, kurang, age, over: age != null && age > POS_BY.pl.batas, nilai: rs.reduce((s, r) => s + num(r.amount), 0) });
+  });
+  return out;
+}
+function summary(){
+  const rows = stageRows();
+  return POS.map(p => {
+    const a = p.k === 'pl' ? (RAW.pls ? plRows() : []) : rows.filter(x => x.k === p.k);
+    const b = a.filter(x => x.over);
+    return Object.assign({}, p, { c:a.length, over:b.length, unit: p.k === 'pl' ? 'PL' : 'faktur',
+      nilai: b.reduce((s, x) => s + (x.nilai != null ? x.nilai : num(x.r.amount)), 0), s: posStatus(a.length, b.length) });
+  });
+}
+
+/* ---------- kotak ---------- */
+/* layar PIN menutupi seluruh halaman, muncul begitu sadmin.html dibuka */
+function drawLogin(err){
+  let g = $('gate');
+  if (!g) { g = document.createElement('div'); g.id = 'gate'; document.body.appendChild(g); }
+  g.innerHTML = `<div class="gbox"><div style="font-size:38px">🔐</div><h2>SPV Admin</h2>
+    <div class="msg">Masukkan PIN SPVADMIN</div>
+    <input id="alPin" type="password" inputmode="numeric" autocomplete="off">
+    <button id="alBtn" type="button">Masuk</button><div class="msg ${err ? 'err' : ''}" id="alMsg">${esc(err || '')}</div></div>`;
+  g.style.display = 'flex';
+  box.innerHTML = '';
+  $('alBtn').onclick = login;
+  $('alPin').onkeydown = e => { if (e.key === 'Enter') login(); };
+  setTimeout(() => { const i = $('alPin'); if (i) i.focus(); }, 50);
+}
+async function login(){
+  const pin = $('alPin').value.trim(); if (!pin) return;
+  $('alBtn').disabled = true; $('alMsg').className = 'msg'; $('alMsg').textContent = 'Cek PIN...';
+  PIN = pin;
+  try { await rpc('sadmin_login'); }
+  catch (e) { PIN = ''; return drawLogin(/akses/i.test(e.message || '') ? 'PIN salah / tidak punya akses' : /sadmin_login/i.test(e.message || '') ? 'SQL sadmin_alur.sql belum di-run' : 'Gagal: ' + (e.message || e)); }
+  try { sessionStorage.setItem('sadmin_pin', pin); } catch (e) {}
+  $('gate').style.display = 'none';
+  keMenu();
+  refresh();
+}
+async function refresh(){
+  box.innerHTML = '<h2>Alur faktur</h2><p class="sub">Memuat data...</p>';
+  try { await loadAll(); }
+  catch (e) {
+    const m = e.message || String(e);
+    if (/akses|sadmin_/i.test(m)) {
+      try { sessionStorage.removeItem('sadmin_pin'); } catch (x) {}
+      PIN = ''; return drawLogin(/akses/i.test(m) ? 'PIN tidak punya akses' : 'SQL sadmin_alur.sql belum di-run');
+    }
+    box.innerHTML = `<h2>Alur faktur</h2><p class="sub"><span class="dn">Gagal memuat: ${esc(m)}</span> · <a id="alRe">coba lagi</a></p>`;
+    $('alRe').onclick = refresh; return;
+  }
+  drawBoxes();
+}
+function drawBoxes(){
+  const S = summary();
+  const jam = pad(RAW.at.getHours()) + ':' + pad(RAW.at.getMinutes());
+  box.innerHTML = `<h2>Alur faktur${BR ? ' · ' + esc(BR) : ''}</h2>
+    <p class="sub">Angka besar = yang bermasalah (lewat batas) · klik kotak untuk lihat daftarnya · cabang:
+      ${['DAF','ABP','KSI','TFDAF'].map(b => `<a data-br="${b}">${cab(b)}</a>`).join(' ')}
+      ${BR ? ' · <a data-br="">semua cabang</a>' : ''} · data jam ${jam} · <a id="alRe">🔄 Muat ulang</a></p>
+    <div class="road">${S.map(p => `<button type="button" class="pos" data-k="${p.k}">
+      <div class="num" style="color:${col(p.over ? p.s : 'ok')}">${fmtN(p.over)}</div>
+      <div class="nm">${p.ic} ${esc(p.n)}</div>
+      <div class="inf">${p.unit} &gt; ${p.batas} hari sejak ${p.sejak}${p.over ? ' · ' + rp(p.nilai) : ''}<br>dari ${fmtN(p.c)} ${p.unit} di pos ini</div>
+      ${pill(p.s)}<div class="strip" style="background:${col(p.s)}"></div></button>`).join('')}</div>
+    ${RAW.pls ? '' : '<p class="sub dn" style="margin-top:8px">Data packing list gagal dimuat (gd_pl_list).</p>'}`;
+  box.querySelectorAll('[data-br]').forEach(a => a.onclick = () => { BR = a.dataset.br; drawBoxes(); });
+  box.querySelectorAll('.pos').forEach(b => b.onclick = () => openDetail(b.dataset.k));
+  $('alRe').onclick = refresh;
+}
+
+/* ---------- rincian ---------- */
+function openDetail(k){
+  view = { k, i:0 }; q = '';
+  $('home').style.display = 'none'; det.style.display = 'flex';
+  drawDetail();
+}
+function closeDetail(){ view = null; det.style.display = 'none'; $('home').style.display = 'block'; drawBoxes(); }
+function cocok(r, Q){
+  if (!r) return false;
+  const kt = ketOf(r.invoice_no); if (kt && up(kt.ket).includes(Q)) return true;
+  if (up(r.invoice_no).includes(Q) || up(r.customer).includes(Q) || up(r.salesman).includes(Q)) return true;
+  const d = Q.replace(/[.,\s]/g, '');
+  return /^\d+$/.test(d) && String(Math.round(num(r.amount))).includes(d);
+}
+/* kolom Keterangan: diketik admin, tersimpan otomatis saat pindah kotak / Enter (tabel sadmin_ket) */
+const ketOf = k => RAW.ket.get(up(k));
+function ketCell(k){
+  const o = ketOf(k);
+  const by = o ? (o.oleh || '') + ' · ' + dm(o.updated_at) : '';
+  return `<td><input class="ket" data-ket="${esc(up(k))}" value="${esc(o ? o.ket : '')}" placeholder="Tulis keterangan..." maxlength="300">${by ? `<span class="ketby">${esc(by)}</span>` : ''}</td>`;
+}
+async function simpanKet(el){
+  const k = el.dataset.ket, v = el.value.trim(), o = ketOf(k);
+  if (v === (o ? o.ket : '')) return;
+  el.classList.remove('ok', 'gagal'); el.disabled = true;
+  try {
+    const row = await rpc('sadmin_ket_simpan', { p_kunci: k, p_ket: v });
+    if (row && row.kunci) RAW.ket.set(up(row.kunci), row); else RAW.ket.delete(k);
+    el.classList.add('ok');
+    const n = RAW.ket.get(k), sp = el.parentNode.querySelector('.ketby');
+    if (n) { if (sp) sp.textContent = (n.oleh || '') + ' · ' + dm(n.updated_at); else el.insertAdjacentHTML('afterend', `<span class="ketby">${esc((n.oleh || '') + ' · ' + dm(n.updated_at))}</span>`); }
+    else if (sp) sp.remove();
+  } catch (e) {
+    el.classList.add('gagal'); el.title = 'Gagal simpan: ' + (e.message || e);
+    alert('Keterangan gagal disimpan: ' + (e.message || e));
+  } finally { el.disabled = false; }
+}
+function plBad(x){ return x.fak.filter(f => { const s = RAW.plStat.get(up(x.p.no_pl) + '|' + f); return s != null && !PL_DONE.includes(s); }); }
+function timeline(r){
+  const no = up(r.invoice_no), pl = RAW.plMap.get(normBr(r.branch) + '|' + no), kas = RAW.kasSet.has(no), paid = r.status === 'Paid';
+  const cash = /CASH/i.test(r.customer || ''), trk = !!r.tracking_date;
+  const st = [
+    ['y', 'Print', dm(r.print_date) + ' · Rp ' + fmtN(r.amount)],
+    [pl || trk ? 'y' : 'n', 'Packing list', pl || (trk ? 'sudah (terkirim)' : 'belum')],
+    [trk ? 'y' : 'n', 'Terkirim (tracking)', trk ? dm(r.tracking_date) + ' · ' + (r.status || '') : 'belum'],
+    [kas || paid ? 'y' : trk ? 'n' : '', 'Pembayaran', kas ? 'ada di kas kecil' : paid ? 'sudah lunas' : cash ? 'belum ada di kas kecil' : 'menunggu ditagih / dibayar'],
+    [paid ? 'y' : kas ? 'n' : '', 'Pelunasan', paid ? dm(r.status_date) + (r.payment_method ? ' · ' + r.payment_method : '') : 'belum']
+  ];
+  return `<div class="dcard pad"><div style="font-weight:700;margin-bottom:4px">${esc(r.invoice_no)} ${cab(r.branch)}</div>
+    <div class="mut" style="font-size:13px;margin-bottom:16px">${esc(r.customer)} · ${esc(r.salesman)}</div>
+    <div class="tl">${st.map(([c, n, s]) => `<div class="${c}">${esc(n)}<small class="${c === 'n' ? 'dn' : ''}">${esc(s)}</small></div>`).join('')}</div></div>`;
+}
+function drawDetail(){
+  const P = POS_BY[view.k], Q = q.trim().toUpperCase();
+  let head, table, side;
+  if (view.k === 'pl') {
+    const rows = (RAW.pls ? plRows() : []).filter(x => x.over)
+      .filter(x => !Q || up(x.p.no_pl).includes(Q) || up(x.p.sopir).includes(Q) || up((ketOf(x.p.no_pl) || {}).ket).includes(Q) || plBad(x).some(f => f.includes(Q) || cocok(RAW.invMap.get(f), Q)))
+      .sort((a, b) => (b.age || 0) - (a.age || 0));
+    const sel = rows[view.i];
+    head = `<h1>Packing list bermasalah${BR ? ' · ' + esc(BR) : ''}: ${rows.length} PL</h1>
+      <p class="sub">${esc(P.why)} Hanya yang &gt; ${P.batas} hari sejak tgl PL · paling lama di atas · klik PL untuk lihat fakturnya</p>`;
+    table = `<table><tr><th>No PL</th><th>Cabang</th><th>Tgl PL</th><th class="r">Umur</th><th class="r">Faktur</th><th>Belum lengkap</th><th style="min-width:200px">Keterangan</th></tr>
+      ${rows.length ? rows.map((x, j) => `<tr class="rw ${j === view.i ? 'sel' : ''}" data-i="${j}">
+        <td><b>${esc(x.p.no_pl)}</b></td><td>${x.brs.map(cab).join(' ')}</td><td>${dm(x.p.tgl)}</td>
+        <td class="r dn">${x.age == null ? '—' : x.age + ' hr'}</td><td class="r">${x.p.n_status || 0}/${x.p.n_faktur || 0}</td>
+        <td class="dn">${esc(x.kurang.join(', '))}</td>${ketCell(x.p.no_pl)}</tr>`).join('')
+      : '<tr><td colspan="7" class="mut">Tidak ada packing list bermasalah. 👍</td></tr>'}</table>`;
+    side = sel ? `<div class="dcard pad"><div style="font-weight:700;margin-bottom:4px">${esc(sel.p.no_pl)}</div>
+      <div class="mut" style="font-size:13px;margin-bottom:12px">Tgl PL ${dm(sel.p.tgl)} · antar ${sel.p.tgl_antar ? dm(sel.p.tgl_antar) : '<span class="dn">belum</span>'} · sopir ${sel.p.sopir ? esc(sel.p.sopir) : '<span class="dn">belum</span>'}</div>
+      <div class="mut" style="font-size:13px;margin-bottom:6px">Faktur belum ada status</div>
+      <table><tr><th>Invoice</th><th>Customer</th><th class="r">Amount</th></tr>
+      ${plBad(sel).map(f => { const r = RAW.invMap.get(f); return `<tr><td><span class="cp" data-copy="${esc(f)}" title="Klik untuk copy">${esc(f)}</span></td><td>${esc(r ? r.customer : '—')}</td><td class="r">${r ? fmtN(r.amount) : '—'}</td></tr>`; }).join('')
+        || `<tr><td colspan="3" class="mut">${(sel.p.n_status || 0) >= (sel.p.n_faktur || 0) ? 'Semua faktur sudah ada status — tinggal ' + esc(sel.kurang.join(', ')) + '.' : 'Daftar faktur tidak tersedia.'}</td></tr>`}</table>
+      <div class="mut" style="font-size:12px;margin-top:10px">Lengkapi di Gudang atau Packing List.</div></div>`
+      : '<div class="dcard pad mut">Pilih packing list.</div>';
+  } else {
+    const rows = stageRows().filter(x => x.k === view.k && x.over).filter(x => !Q || cocok(x.r, Q))
+      .sort((a, b) => (b.age || 0) - (a.age || 0));
+    const sel = rows[view.i];
+    const tglCol = view.k === 'uang' ? 'Terkirim' : 'Print';
+    head = `<h1>Daftar faktur · ${esc(P.n)} (bermasalah)${BR ? ' · ' + esc(BR) : ''}</h1>
+      <p class="sub">${esc(P.why)} Hanya yang &gt; ${P.batas} hari sejak ${P.sejak} · ${rows.length} faktur · paling lama di atas · klik faktur untuk lihat perjalanannya</p>`;
+    table = `<table><tr><th>Cabang</th><th>Invoice</th><th>Customer</th><th>Salesman</th><th>${tglCol}</th><th class="r">Amount</th><th class="r">Umur</th><th style="min-width:200px">Keterangan</th></tr>
+      ${rows.length ? rows.map((x, j) => `<tr class="rw ${j === view.i ? 'sel' : ''}" data-i="${j}">
+        <td>${cab(x.r.branch)}</td><td><b class="cp" data-copy="${esc(x.r.invoice_no)}" title="Klik untuk copy">${esc(x.r.invoice_no)}</b></td>
+        <td>${esc(x.r.customer)}</td><td class="mut">${esc(x.r.salesman)}</td><td>${dm(view.k === 'uang' ? x.r.tracking_date : x.r.print_date)}</td>
+        <td class="r">${fmtN(x.r.amount)}</td><td class="r dn">${x.age == null ? '—' : x.age + ' hr'}</td>${ketCell(x.r.invoice_no)}</tr>`).join('')
+      : '<tr><td colspan="8" class="mut">Tidak ada faktur. 👍</td></tr>'}</table>`;
+    side = sel ? timeline(sel.r) : '<div class="dcard pad mut">Pilih faktur.</div>';
+  }
+  det.innerHTML = `<div class="head"><button type="button" class="dbtn" id="dBack">← Kembali</button>${head}
+    <input class="search" id="dQ" placeholder="Search..." value="${esc(q)}"></div>
+    <div class="dbody"><div class="dcard" id="dTbl">${table}</div><div style="min-height:0;overflow:auto">${side}</div></div>`;
+  $('dBack').onclick = closeDetail;
+  det.querySelectorAll('tr.rw').forEach(tr => tr.onclick = e => {
+    if (e.target.closest('.cp') || e.target.closest('.ket')) return;
+    const top = $('dTbl').scrollTop; view.i = +tr.dataset.i; drawDetail(); $('dTbl').scrollTop = top;
+  });
+}
+det.addEventListener('change', e => { if (e.target.classList.contains('ket')) simpanKet(e.target); });
+det.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.classList.contains('ket')) e.target.blur(); });
+det.addEventListener('input', e => {
+  if (e.target.id !== 'dQ') return;
+  q = e.target.value; const pos = e.target.selectionStart; view.i = 0; drawDetail();
+  const el = $('dQ'); el.focus(); el.setSelectionRange(pos, pos);
+});
+det.addEventListener('click', e => {
+  const c = e.target.closest('.cp'); if (!c) return;
+  const t = c.dataset.copy;
+  try { navigator.clipboard.writeText(t); } catch (x) {}
+  c.textContent = 'Tercopy ✓'; setTimeout(() => { c.textContent = t; }, 900);
+});
+
+/* mulai */
+if (!sb) { box.innerHTML = '<p class="sub dn">Library Supabase gagal dimuat. Cek internet lalu reload.</p>'; return; }
+try { PIN = sessionStorage.getItem('sadmin_pin') || ''; } catch (e) {}
+if (PIN) refresh(); else drawLogin();
+})();
 </script>
 </body>
 </html>
